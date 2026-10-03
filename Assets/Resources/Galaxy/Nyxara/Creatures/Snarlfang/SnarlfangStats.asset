@@ -22,9 +22,9 @@ MonoBehaviour:
   specialAbility: 1
   abilityDuration: 2
   stealthOpacity: 0.07
-  heavyAttackDamage: 45
-  heavyAttackSpeed: 1
-  heavyAttackRange: 2.75
+  specialAttackDamage: 45
+  specialAttackSpeed: 1
+  specialAttackRange: 2.75
   loot:
   - item: {fileID: 11400000, guid: 5286eb086ba375649a38e9eee22e753d, type: 2}
     minAmount: 1

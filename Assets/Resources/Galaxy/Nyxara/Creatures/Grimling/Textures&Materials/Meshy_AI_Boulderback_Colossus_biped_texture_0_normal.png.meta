@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 1c0c475759bcd7e498a3df24b89b5711
+guid: 3b40ccfcd0a1df749a52e5bd4b29f0ae
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -115,10 +115,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 355108
-  packageName: Foe Creature
-  packageVersion: 1.0.0
-  assetPath: Assets/My_Assets/Nomadic_UV/Foe_Creature/Texture/Foe_Noraml.png
-  uploadId: 846730

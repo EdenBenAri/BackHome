@@ -87,12 +87,12 @@ public class CreatureRangeCombat : MonoBehaviour
 
         bool inside = IsTargetInRange(player.transform.position, radius);
 
-        // The Stealth exit is one strike: one Heavy damage application, then Light takes over.
-        if (kind == CreatureAttackKind.Heavy)
+        // The Stealth exit is one strike: one Special Attack, then Basic Attacks take over.
+        if (kind == CreatureAttackKind.Special)
         {
-            if (inside && _ability != null && _heavyHitSerial != _ability.HeavySwingSerial)
+            if (inside && _ability != null && _heavyHitSerial != _ability.SpecialSwingSerial)
             {
-                _heavyHitSerial = _ability.HeavySwingSerial;
+                _heavyHitSerial = _ability.SpecialSwingSerial;
                 player.TakeDamage(damage);
             }
 

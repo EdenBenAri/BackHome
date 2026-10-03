@@ -1,5 +1,6 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 /// <summary>
 /// Trick a creature plays when it first spots the player.
@@ -7,17 +8,19 @@ using UnityEngine;
 /// </summary>
 public enum CreatureAttackKind
 {
-    Light = 0,
-    Heavy = 1,
+    Basic = 0,
+    Special = 1,
 }
 
 /// <summary>
 /// Trick a creature plays when it first spots the player.
-/// Add a value here, then handle it in <see cref="CreatureAbility"/>.
+/// Add a value here, handle it in <see cref="CreatureAbility"/>,
+/// and give it a field group in <see cref="CreatureStatsEditor"/>.
 /// </summary>
 public enum CreatureSpecialAbility
 {
     None = 0,
+    [InspectorName("Snarlfang")]
     Stealth = 1,
 }
 
@@ -40,11 +43,11 @@ public class CreatureStats : ScriptableObject
 {
     [SerializeField] string displayName = "Creature";
 
-    [Header("Light Attack")]
+    [Header("Basic Attack")]
     [SerializeField, Min(0f)] float attackDamage = 10f;
-    [Tooltip("Light attacks per second.")]
+    [Tooltip("Basic attacks per second.")]
     [SerializeField, Min(0.01f)] float attackSpeed = 1f;
-    [Tooltip("World-space radius of a light attack.")]
+    [Tooltip("World-space radius of a basic attack.")]
     [SerializeField, Min(0.05f)] float attackRange = 2f;
 
     [Header("Vitality")]
@@ -57,18 +60,18 @@ public class CreatureStats : ScriptableObject
     [SerializeField, Min(0.1f)] float movementSpeed = 4f;
 
     [Header("Special Ability")]
-    [Tooltip("Played once each time this creature spots the player. Stealth lasts up to Ability Duration, or ends sooner at the exit-strike range.")]
+    [Tooltip("Played once each time this creature spots the player. Each ability has its own fields.")]
     [SerializeField] CreatureSpecialAbility specialAbility = CreatureSpecialAbility.None;
-    [Tooltip("Stealth lasts up to this many seconds, and ends sooner if the creature reaches the exit-strike range.")]
+    [Tooltip("Snarlfang fades for up to this many seconds, and ends sooner on reaching Special Attack Range.")]
     [SerializeField, Min(0f)] float abilityDuration = 2f;
-    [Tooltip("Stealth only. 0 = invisible, 1 = solid. Low values read as transparent.")]
+    [Tooltip("Snarlfang only. 0 = invisible, 1 = solid. Low values read as transparent.")]
     [SerializeField, Range(0f, 1f)] float stealthOpacity = 0.22f;
-    [Tooltip("Damage of the single Heavy Attack that plays when Stealth ends.")]
-    [SerializeField, Min(0f)] float heavyAttackDamage = 30f;
-    [Tooltip("Heavy attacks per second for that one Stealth-exit strike.")]
-    [SerializeField, Min(0.01f)] float heavyAttackSpeed = 1f;
-    [Tooltip("Stealth ends when the player is inside this radius. That exit strike uses this range.")]
-    [SerializeField, Min(0.05f)] float heavyAttackRange = 2.5f;
+    [Tooltip("Damage of the single Special Attack that plays when Snarlfang ends.")]
+    [SerializeField, Min(0f), FormerlySerializedAs("heavyAttackDamage")] float specialAttackDamage = 30f;
+    [Tooltip("Special attacks per second for that one Snarlfang exit strike.")]
+    [SerializeField, Min(0.01f), FormerlySerializedAs("heavyAttackSpeed")] float specialAttackSpeed = 1f;
+    [Tooltip("Snarlfang ends when the player is inside this radius. The Special Attack uses this range.")]
+    [SerializeField, Min(0.05f), FormerlySerializedAs("heavyAttackRange")] float specialAttackRange = 2.5f;
 
     [Header("Loot")]
     [Tooltip("Rolled independently on death. Chance 0 = never, 1 = always.")]
@@ -81,9 +84,9 @@ public class CreatureStats : ScriptableObject
     public float AttackDamage => attackDamage;
     public float AttackSpeed => attackSpeed;
     public float AttackRange => attackRange;
-    public float HeavyAttackDamage => heavyAttackDamage;
-    public float HeavyAttackSpeed => heavyAttackSpeed;
-    public float HeavyAttackRange => heavyAttackRange;
+    public float SpecialAttackDamage => specialAttackDamage;
+    public float SpecialAttackSpeed => specialAttackSpeed;
+    public float SpecialAttackRange => specialAttackRange;
     public CreatureSpecialAbility SpecialAbility => specialAbility;
     public float AbilityDuration => abilityDuration;
     public float StealthOpacity => stealthOpacity;
@@ -91,11 +94,11 @@ public class CreatureStats : ScriptableObject
 
     public void GetAttack(CreatureAttackKind kind, out float damage, out float speed, out float range)
     {
-        if (kind == CreatureAttackKind.Heavy && specialAbility == CreatureSpecialAbility.Stealth)
+        if (kind == CreatureAttackKind.Special && specialAbility == CreatureSpecialAbility.Stealth)
         {
-            damage = heavyAttackDamage;
-            speed = heavyAttackSpeed;
-            range = heavyAttackRange;
+            damage = specialAttackDamage;
+            speed = specialAttackSpeed;
+            range = specialAttackRange;
             return;
         }
 
@@ -133,9 +136,9 @@ public class CreatureStats : ScriptableObject
         attackDamage = Mathf.Max(0f, attackDamage);
         attackSpeed = Mathf.Max(0.01f, attackSpeed);
         attackRange = Mathf.Max(0.05f, attackRange);
-        heavyAttackDamage = Mathf.Max(0f, heavyAttackDamage);
-        heavyAttackSpeed = Mathf.Max(0.01f, heavyAttackSpeed);
-        heavyAttackRange = Mathf.Max(0.05f, heavyAttackRange);
+        specialAttackDamage = Mathf.Max(0f, specialAttackDamage);
+        specialAttackSpeed = Mathf.Max(0.01f, specialAttackSpeed);
+        specialAttackRange = Mathf.Max(0.05f, specialAttackRange);
         abilityDuration = Mathf.Max(0f, abilityDuration);
         stealthOpacity = Mathf.Clamp01(stealthOpacity);
 

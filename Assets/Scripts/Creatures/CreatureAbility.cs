@@ -3,8 +3,8 @@ using UnityEngine.Rendering;
 
 /// <summary>
 /// Runs the special ability on <see cref="CreatureStats"/>.
-/// Stealth lasts up to Ability Duration, or ends sooner on reaching heavy-attack range.
-/// Either exit plays one heavy swing, then light attacks.
+/// Stealth lasts up to Ability Duration, or ends sooner on reaching special-attack range.
+/// Either exit plays one special attack, then basic attacks.
 /// </summary>
 [DefaultExecutionOrder(20)]
 [DisallowMultipleComponent]
@@ -44,11 +44,11 @@ public class CreatureAbility : MonoBehaviour
     /// <summary>False during stealth, so player weapons will not acquire or hit this creature.</summary>
     public bool IsTargetable => !_stealthed;
 
-    /// <summary>True while the stealth-exit heavy swing is still playing.</summary>
-    public bool IsHeavyAttack => _heavyOpener;
+    /// <summary>True while the stealth-exit special attack is still playing.</summary>
+    public bool IsSpecialAttack => _heavyOpener;
 
-    /// <summary>Increments each time stealth ends into a new heavy swing.</summary>
-    public int HeavySwingSerial => _heavySerial;
+    /// <summary>Increments each time stealth ends into a new special attack.</summary>
+    public int SpecialSwingSerial => _heavySerial;
 
     void Awake()
     {
@@ -140,7 +140,7 @@ public class CreatureAbility : MonoBehaviour
 
         CreatureStats stats = _creature.Stats;
         float reach = stats.SpecialAbility == CreatureSpecialAbility.Stealth
-            ? stats.HeavyAttackRange
+            ? stats.SpecialAttackRange
             : stats.AttackRange;
         return reach > 0f && _chase.IsPlayerWithin(reach);
     }
@@ -171,8 +171,8 @@ public class CreatureAbility : MonoBehaviour
         _heavySerial++;
     }
 
-    /// <summary>Called when the heavy-attack clip has finished its single play.</summary>
-    public void CompleteHeavySwing()
+    /// <summary>Called when the special-attack clip has finished its single play.</summary>
+    public void CompleteSpecialSwing()
     {
         _heavyOpener = false;
     }

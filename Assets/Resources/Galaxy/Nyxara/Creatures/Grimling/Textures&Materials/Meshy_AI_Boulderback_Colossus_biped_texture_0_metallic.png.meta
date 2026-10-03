@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 51e0d6182e2f1ab4a9f6cadcfa513d23
+guid: fa1c2d1aa1c543045907969b856dc283
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -7,7 +7,7 @@ TextureImporter:
   mipmaps:
     mipMapMode: 0
     enableMipMap: 1
-    sRGBTexture: 1
+    sRGBTexture: 0
     linearTexture: 0
     fadeOut: 0
     borderMipMap: 0
@@ -115,10 +115,3 @@ TextureImporter:
   userData: 
   assetBundleName: 
   assetBundleVariant: 
-AssetOrigin:
-  serializedVersion: 1
-  productId: 355108
-  packageName: Foe Creature
-  packageVersion: 1.0.0
-  assetPath: Assets/My_Assets/Nomadic_UV/Foe_Creature/Texture/Foe_Emissive.png
-  uploadId: 846730

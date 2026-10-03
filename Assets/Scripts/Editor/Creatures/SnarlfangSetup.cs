@@ -734,12 +734,12 @@ public static class SnarlfangSetup
         AnimatorState idle2 = FindState(machine, "Idle2");
         AnimatorState run = FindState(machine, "Run");
 
-        LinkAttack(idle1, light, CreatureAttackKind.Light);
-        LinkAttack(idle2, light, CreatureAttackKind.Light);
-        LinkAttack(run, light, CreatureAttackKind.Light);
-        LinkAttack(heavy, light, CreatureAttackKind.Light);
+        LinkAttack(idle1, light, CreatureAttackKind.Basic);
+        LinkAttack(idle2, light, CreatureAttackKind.Basic);
+        LinkAttack(run, light, CreatureAttackKind.Basic);
+        LinkAttack(heavy, light, CreatureAttackKind.Basic);
 
-        // Heavy Attack is only the Stealth exit. Nothing in the controller may enter it on its own.
+        // Special Attack is only the Stealth exit. Nothing in the controller may enter it on its own.
         Unlink(idle1, heavy);
         Unlink(idle2, heavy);
         Unlink(run, heavy);

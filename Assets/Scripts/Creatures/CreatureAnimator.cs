@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Drives creature Animator bools shared by locomotion and combat.
 /// Expects controller params: IsMoving, IsAttacking, AttackKind, AttackAnimSpeed.
-/// States: Idle / Run, plus LightAttack and HeavyAttack when the creature has both.
+/// States: Idle / Run, plus LightAttack (Basic Attack) and HeavyAttack (Special Attack) when the creature has both.
 /// </summary>
 [RequireComponent(typeof(Animator))]
 public class CreatureAnimator : MonoBehaviour
@@ -156,7 +156,7 @@ public class CreatureAnimator : MonoBehaviour
 
     public void SetAttacking(bool attacking)
     {
-        SetAttacking(attacking, CreatureAttackKind.Light);
+        SetAttacking(attacking, CreatureAttackKind.Basic);
     }
 
     public void SetAttacking(bool attacking, CreatureAttackKind kind)
@@ -199,11 +199,11 @@ public class CreatureAnimator : MonoBehaviour
         if (_animator == null || !_animator.isInitialized)
             return;
 
-        int hash = _attackKind == CreatureAttackKind.Heavy ? HeavyAttackHash : LightAttackHash;
+        int hash = _attackKind == CreatureAttackKind.Special ? HeavyAttackHash : LightAttackHash;
         if (!_animator.HasState(0, hash))
         {
             // Grimling only has the shared Attack state, and its controller transitions on IsAttacking.
-            if (hash != AttackHash && _animator.HasState(0, AttackHash) && _attackKind == CreatureAttackKind.Light)
+            if (hash != AttackHash && _animator.HasState(0, AttackHash) && _attackKind == CreatureAttackKind.Basic)
                 return;
             if (!_animator.HasState(0, AttackHash))
                 return;
@@ -223,12 +223,12 @@ public class CreatureAnimator : MonoBehaviour
     }
 
     /// <summary>
-    /// Plays the stealth-exit heavy clip once, then hands the swing to light attacks.
+    /// Plays the stealth-exit special attack once, then hands the swing to basic attacks.
     /// Returns true when this frame was consumed by that opener.
     /// </summary>
     bool TickHeavyOpener()
     {
-        bool heavy = _ability != null && _ability.IsHeavyAttack;
+        bool heavy = _ability != null && _ability.IsSpecialAttack;
         if (!heavy)
         {
             if (!_heavyLatched)
@@ -241,15 +241,15 @@ public class CreatureAnimator : MonoBehaviour
             return true;
         }
 
-        int serial = _ability.HeavySwingSerial;
+        int serial = _ability.SpecialSwingSerial;
         if (!_heavyLatched || _latchedHeavySerial != serial)
         {
             _heavyLatched = true;
             _latchedHeavySerial = serial;
             _heavyStartTime = -1f;
-            _attackKind = CreatureAttackKind.Heavy;
+            _attackKind = CreatureAttackKind.Special;
             if (_animator != null && HasParameter(AttackKindHash))
-                _animator.SetInteger(AttackKindHash, (int)CreatureAttackKind.Heavy);
+                _animator.SetInteger(AttackKindHash, (int)CreatureAttackKind.Special);
             if (_animator != null && HasParameter(AttackAnimSpeedHash))
                 _animator.SetFloat(AttackAnimSpeedHash, 1f);
             if (_attacking)
@@ -270,7 +270,7 @@ public class CreatureAnimator : MonoBehaviour
         _heavyLatched = false;
         _latchedHeavySerial = -1;
         _heavyStartTime = -1f;
-        _ability.CompleteHeavySwing();
+        _ability.CompleteSpecialSwing();
         BeginLightAttacks();
         return true;
     }
@@ -285,9 +285,9 @@ public class CreatureAnimator : MonoBehaviour
 
     void BeginLightAttacks()
     {
-        _attackKind = CreatureAttackKind.Light;
+        _attackKind = CreatureAttackKind.Basic;
         if (_animator != null && HasParameter(AttackKindHash))
-            _animator.SetInteger(AttackKindHash, (int)CreatureAttackKind.Light);
+            _animator.SetInteger(AttackKindHash, (int)CreatureAttackKind.Basic);
         if (_animator != null && HasParameter(AttackAnimSpeedHash))
             _animator.SetFloat(AttackAnimSpeedHash, 1f);
         if (_attacking)
@@ -324,7 +324,7 @@ public class CreatureAnimator : MonoBehaviour
     /// <summary>
     /// Scales the active attack clip so one cycle roughly matches 1 / attacksPerSecond.
     /// </summary>
-    public void SetAttackRate(float attacksPerSecond, CreatureAttackKind kind = CreatureAttackKind.Light)
+    public void SetAttackRate(float attacksPerSecond, CreatureAttackKind kind = CreatureAttackKind.Basic)
     {
         if (_animator == null || !HasParameter(AttackAnimSpeedHash))
             return;
@@ -478,12 +478,12 @@ public class CreatureAnimator : MonoBehaviour
 
     void CacheAttackClipLength()
     {
-        ClipLength(CreatureAttackKind.Light);
+        ClipLength(CreatureAttackKind.Basic);
     }
 
     float ClipLength(CreatureAttackKind kind)
     {
-        if (kind == CreatureAttackKind.Heavy)
+        if (kind == CreatureAttackKind.Special)
             return CacheClip(ref _heavyClipLength, "HeavyAttack");
 
         float light = CacheClip(ref _lightClipLength, "LightAttack");

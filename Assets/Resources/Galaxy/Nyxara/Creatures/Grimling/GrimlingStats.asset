@@ -19,6 +19,12 @@ MonoBehaviour:
   maxHealth: 220
   visionRange: 12
   movementSpeed: 4
+  specialAbility: 0
+  abilityDuration: 2
+  stealthOpacity: 0.22
+  specialAttackDamage: 30
+  specialAttackSpeed: 1
+  specialAttackRange: 2.5
   loot:
   - item: {fileID: 11400000, guid: 5286eb086ba375649a38e9eee22e753d, type: 2}
     minAmount: 1
