@@ -22,6 +22,8 @@ public enum CreatureSpecialAbility
     None = 0,
     [InspectorName("Snarlfang")]
     Stealth = 1,
+    [InspectorName("Grimling")]
+    RockThrow = 2,
 }
 
 [Serializable]
@@ -60,7 +62,7 @@ public class CreatureStats : ScriptableObject
     [SerializeField, Min(0.1f)] float movementSpeed = 4f;
 
     [Header("Special Ability")]
-    [Tooltip("Played once each time this creature spots the player. Each ability has its own fields.")]
+    [Tooltip("Chosen trick. Each ability has its own fields.")]
     [SerializeField] CreatureSpecialAbility specialAbility = CreatureSpecialAbility.None;
     [Tooltip("Snarlfang fades for up to this many seconds, and ends sooner on reaching Special Attack Range.")]
     [SerializeField, Min(0f)] float abilityDuration = 2f;
@@ -94,7 +96,9 @@ public class CreatureStats : ScriptableObject
 
     public void GetAttack(CreatureAttackKind kind, out float damage, out float speed, out float range)
     {
-        if (kind == CreatureAttackKind.Special && specialAbility == CreatureSpecialAbility.Stealth)
+        if (kind == CreatureAttackKind.Special
+            && (specialAbility == CreatureSpecialAbility.Stealth
+                || specialAbility == CreatureSpecialAbility.RockThrow))
         {
             damage = specialAttackDamage;
             speed = specialAttackSpeed;
@@ -139,6 +143,8 @@ public class CreatureStats : ScriptableObject
         specialAttackDamage = Mathf.Max(0f, specialAttackDamage);
         specialAttackSpeed = Mathf.Max(0.01f, specialAttackSpeed);
         specialAttackRange = Mathf.Max(0.05f, specialAttackRange);
+        if (specialAbility == CreatureSpecialAbility.RockThrow && specialAttackRange <= attackRange)
+            specialAttackRange = attackRange + 0.5f;
         abilityDuration = Mathf.Max(0f, abilityDuration);
         stealthOpacity = Mathf.Clamp01(stealthOpacity);
 

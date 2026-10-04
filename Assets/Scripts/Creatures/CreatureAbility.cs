@@ -3,8 +3,9 @@ using UnityEngine.Rendering;
 
 /// <summary>
 /// Runs the special ability on <see cref="CreatureStats"/>.
-/// Stealth lasts up to Ability Duration, or ends sooner on reaching special-attack range.
-/// Either exit plays one special attack, then basic attacks.
+/// Snarlfang stealth lasts up to Ability Duration, or ends sooner on reaching special-attack range,
+/// then plays one special attack and switches to basic attacks.
+/// Grimling throws rocks while the player stays outside melee range.
 /// </summary>
 [DefaultExecutionOrder(20)]
 [DisallowMultipleComponent]
@@ -25,8 +26,13 @@ public class CreatureAbility : MonoBehaviour
         public ShadowCastingMode Shadows;
     }
 
+    const float RockRelease = 0.55f;
+
     Creature _creature;
     CreatureChase _chase;
+    CreatureAnimator _anim;
+    Transform _throwHand;
+    int _rockCycle = -1;
     BodySlot[] _slots;
     bool _stealthed;
     float _stealthElapsed;
@@ -47,6 +53,26 @@ public class CreatureAbility : MonoBehaviour
     /// <summary>True while the stealth-exit special attack is still playing.</summary>
     public bool IsSpecialAttack => _heavyOpener;
 
+    /// <summary>Grimling throws a rock on each Range Attack cycle instead of dealing touch damage.</summary>
+    public bool ThrowsRocks =>
+        _creature != null && _creature.HasStats
+        && _creature.Stats.SpecialAbility == CreatureSpecialAbility.RockThrow;
+
+    /// <summary>
+    /// True while Grimling is aggroed and the player is still outside melee range,
+    /// so the active strike stays the ranged throw.
+    /// </summary>
+    public bool WantsRangedAttack
+    {
+        get
+        {
+            if (!ThrowsRocks || _chase == null || !_chase.IsAggroed || _creature == null || !_creature.IsAlive)
+                return false;
+
+            return !_chase.IsPlayerWithin(_creature.Stats.AttackRange);
+        }
+    }
+
     /// <summary>Increments each time stealth ends into a new special attack.</summary>
     public int SpecialSwingSerial => _heavySerial;
 
@@ -54,6 +80,9 @@ public class CreatureAbility : MonoBehaviour
     {
         _creature = GetComponent<Creature>();
         _chase = GetComponent<CreatureChase>();
+        _anim = GetComponent<CreatureAnimator>();
+        if (_anim == null)
+            _anim = GetComponentInChildren<CreatureAnimator>();
         PrepareBody();
     }
 
@@ -116,6 +145,29 @@ public class CreatureAbility : MonoBehaviour
         TickFade();
     }
 
+    void LateUpdate()
+    {
+        if (!ThrowsRocks)
+            return;
+
+        if (_creature == null || !_creature.IsAlive || _creature.IsFrozen || !WantsRangedAttack)
+        {
+            _rockCycle = -1;
+            return;
+        }
+
+        float phase = _anim != null ? _anim.HeavyAttackPhase : -1f;
+        if (phase < 0f)
+            return;
+
+        int cycle = Mathf.FloorToInt(phase);
+        if (phase - cycle < RockRelease || cycle == _rockCycle)
+            return;
+
+        _rockCycle = cycle;
+        ThrowRock();
+    }
+
     void OnPlayerSpotted()
     {
         if (_stealthed || _creature == null || !_creature.IsAlive || !_creature.HasStats)
@@ -169,6 +221,47 @@ public class CreatureAbility : MonoBehaviour
 
         _heavyOpener = true;
         _heavySerial++;
+    }
+
+    void ThrowRock()
+    {
+        PlayerVitals player = FindAnyObjectByType<PlayerVitals>();
+        if (player == null || !player.IsAlive || _creature == null || !_creature.HasStats)
+            return;
+
+        Vector3 up = SphericalPlanet.Instance != null
+            ? SphericalPlanet.Instance.GetUpAt(transform.position)
+            : transform.up;
+        Transform hand = ThrowHand();
+        Vector3 origin = hand != null
+            ? hand.position
+            : transform.position + up * 1.5f;
+
+        Vector3 along = Vector3.ProjectOnPlane(player.transform.position - origin, up);
+        if (along.sqrMagnitude > 0.01f)
+            origin += along.normalized * 0.35f;
+
+        Vector3 target = player.transform.position + up * 0.9f;
+        GrimlingRock.Throw(origin, target, _creature.Stats.SpecialAttackDamage, player);
+    }
+
+    Transform ThrowHand()
+    {
+        if (_throwHand != null)
+            return _throwHand;
+
+        Transform[] bones = GetComponentsInChildren<Transform>(true);
+        for (int i = 0; i < bones.Length; i++)
+        {
+            string bone = bones[i].name;
+            if (bone == "RightHand" || bone.EndsWith(":RightHand", System.StringComparison.Ordinal))
+            {
+                _throwHand = bones[i];
+                return _throwHand;
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Called when the special-attack clip has finished its single play.</summary>

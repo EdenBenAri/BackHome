@@ -237,7 +237,7 @@ public class CreatureChase : MonoBehaviour
 
         float distToPlayer = GetSurfaceDistanceTo(player.transform.position);
 
-        // Stealth keeps closing until heavy-attack range. The stop uses whichever strike is active.
+        // Stop at the active strike. Grimling holds at throw range until the player steps into melee.
         _creature.GetActiveAttack(out _, out _, out _, out float attack);
         bool holdForAttack = _ability == null || !_ability.BlocksAttack;
         if (holdForAttack && attack > 0f && distToPlayer <= attack)

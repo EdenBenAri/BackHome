@@ -16,11 +16,13 @@ public static class GrimlingSetup
     const string Idle2ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Idel2.fbx";
     const string RunningModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Running.fbx";
     const string MeleeModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Melee_Attack.fbx";
+    const string RangeModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Range_Attack.fbx";
     const string DeathModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Death.fbx";
     const string Idle1ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Idle1.anim";
     const string Idle2ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Idle2.anim";
     const string RunningClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Running.anim";
     const string MeleeClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/MeleeAttack.anim";
+    const string RangeClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/RangeAttack.anim";
     const string DeathClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Death.anim";
     const string ControllerPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Grimling.controller";
     const string AlbedoPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Textures&Materials/Meshy_AI_Boulderback_Colossus_biped_texture_0.png";
@@ -38,6 +40,7 @@ public static class GrimlingSetup
 
     static readonly string ResultPath = Path.Combine(Application.dataPath, "..", "Temp", "GrimlingSetup.result.txt");
     static readonly string TriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupGrimling.trigger");
+    static readonly string RangeTriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupGrimlingRange.trigger");
 
     [InitializeOnLoadMethod]
     static void Boot()
@@ -53,9 +56,17 @@ public static class GrimlingSetup
 
     static void WatchTrigger()
     {
-        if (!File.Exists(TriggerPath))
-            return;
         if (EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode)
+            return;
+
+        if (File.Exists(RangeTriggerPath))
+        {
+            try { File.Delete(RangeTriggerPath); } catch { /* ignore */ }
+            EnsureRangeAttack();
+            return;
+        }
+
+        if (!File.Exists(TriggerPath))
             return;
 
         try { File.Delete(TriggerPath); } catch { /* ignore */ }
@@ -86,6 +97,9 @@ public static class GrimlingSetup
             AnimationClip melee = ExtractLoopingClip(MeleeModelPath, "LightAttack", MeleeClipPath, loop: true);
             AddAttackStates(controller, melee);
 
+            AnimationClip range = ExtractLoopingClip(RangeModelPath, "HeavyAttack", RangeClipPath, loop: true);
+            AddRangeAttack(controller, range);
+
             AnimationClip death = ExtractLoopingClip(DeathModelPath, "Death", DeathClipPath, loop: false);
             AddDeathState(controller, death);
 
@@ -93,7 +107,7 @@ public static class GrimlingSetup
             AssetDatabase.ImportAsset(PrefabPath, ImportAssetOptions.ForceUpdate);
             KeepPrefabGuid();
             AnimatorGraphRepair.Repair();
-            WriteResult($"ok idle1={idle1.length:0.00}s idle2={idle2.length:0.00}s run={running.length:0.00}s melee={melee.length:0.00}s death={death.length:0.00}s");
+            WriteResult($"ok idle1={idle1.length:0.00}s idle2={idle2.length:0.00}s run={running.length:0.00}s melee={melee.length:0.00}s range={range.length:0.00}s death={death.length:0.00}s");
         }
         catch (System.Exception e)
         {
@@ -601,6 +615,55 @@ public static class GrimlingSetup
         EditorUtility.SetDirty(controller);
     }
 
+    public static void EnsureRangeAttack()
+    {
+        try
+        {
+            AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+            if (controller == null)
+                throw new System.InvalidOperationException("Grimling controller was not found.");
+
+            AnimationClip range = ExtractLoopingClip(RangeModelPath, "HeavyAttack", RangeClipPath, loop: true);
+            AddRangeAttack(controller, range);
+            AssetDatabase.SaveAssets();
+            AnimatorGraphRepair.Repair();
+            WriteResult($"ok range={range.length:0.00}s");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogException(e);
+            WriteResult(e.ToString());
+        }
+    }
+
+    static void AddRangeAttack(AnimatorController controller, AnimationClip range)
+    {
+        EnsureParameter(controller, "IsAttacking", AnimatorControllerParameterType.Bool);
+        EnsureParameter(controller, "AttackKind", AnimatorControllerParameterType.Int);
+        EnsureParameter(controller, "AttackAnimSpeed", AnimatorControllerParameterType.Float);
+
+        AnimatorStateMachine machine = controller.layers[0].stateMachine;
+        AnimatorState heavy = FindState(machine, "HeavyAttack") ?? machine.AddState("HeavyAttack", new Vector3(800, 210, 0));
+        heavy.motion = range;
+        heavy.speedParameterActive = true;
+        heavy.speedParameter = "AttackAnimSpeed";
+
+        AnimatorState idle1 = FindState(machine, "Idle1");
+        AnimatorState idle2 = FindState(machine, "Idle2");
+        AnimatorState run = FindState(machine, "Run");
+        AnimatorState light = FindState(machine, "LightAttack");
+
+        LinkAttackOnce(idle1, heavy, CreatureAttackKind.Special);
+        LinkAttackOnce(idle2, heavy, CreatureAttackKind.Special);
+        LinkAttackOnce(run, heavy, CreatureAttackKind.Special);
+        LinkAttackOnce(light, heavy, CreatureAttackKind.Special);
+        LinkAttackOnce(heavy, light, CreatureAttackKind.Basic);
+        LinkAttackExitOnce(heavy, run, moving: true);
+        LinkAttackExitOnce(heavy, idle1, moving: false);
+
+        EditorUtility.SetDirty(controller);
+    }
+
     static void AddDeathState(AnimatorController controller, AnimationClip death)
     {
         EnsureParameter(controller, "Die", AnimatorControllerParameterType.Trigger);
@@ -621,6 +684,36 @@ public static class GrimlingSetup
         transition.AddCondition(AnimatorConditionMode.If, 0, "Die");
 
         EditorUtility.SetDirty(controller);
+    }
+
+    static void LinkAttackOnce(AnimatorState from, AnimatorState to, CreatureAttackKind kind)
+    {
+        if (HasTransition(from, to))
+            return;
+
+        LinkAttack(from, to, kind);
+    }
+
+    static void LinkAttackExitOnce(AnimatorState from, AnimatorState to, bool moving)
+    {
+        if (HasTransition(from, to))
+            return;
+
+        LinkAttackExit(from, to, moving);
+    }
+
+    static bool HasTransition(AnimatorState from, AnimatorState to)
+    {
+        if (from == null || to == null)
+            return true;
+
+        foreach (AnimatorStateTransition transition in from.transitions)
+        {
+            if (transition != null && transition.destinationState == to)
+                return true;
+        }
+
+        return false;
     }
 
     static void LinkAttack(AnimatorState from, AnimatorState to, CreatureAttackKind kind)
