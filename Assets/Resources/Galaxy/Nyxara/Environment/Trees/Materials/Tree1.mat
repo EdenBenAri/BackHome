@@ -27,33 +27,42 @@ Material:
         m_Texture: {fileID: 2800000, guid: 90f3ad5d97a9e484989731e0fc369363, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _EmissionMap:
-        m_Texture: {fileID: 2800000, guid: 3d060247396194c49a0ee305a271d17d, type: 3}
+        m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
-    - _AmbientStrength: 0.35
+    - _AmbientStrength: 0.69
+    - _BumpScale: 1
     - _Contrast: 0.976
     - _Cull: 0
+    - _DstBlend: 0
+    - _Opacity: 1
     - _OutlineWidth: 0.012
     - _RimLightMask: 0.75
-    - _RimPower: 3.5
+    - _RimPower: 10
     - _Saturation: 1.12
     - _ShadeFloor: 0.48
     - _ShadeSoftness: 0.35
     - _ShadeSteps: 3
     - _SpecularSize: 0.237
     - _SpecularSoftness: 0.191
+    - _SrcBlend: 1
+    - _ZWrite: 1
     m_Colors:
-    - _AmbientTint: {r: 0.55, g: 0.62, b: 0.85, a: 1}
+    - _AmbientTint: {r: 0.6506877, g: 1, b: 0.23113209, a: 1}
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
-    - _EmissionColor: {r: 1.8, g: 1.8, b: 1.8, a: 1}
+    - _EmissionColor: {r: 0, g: 0, b: 0, a: 1}
     - _KeyTint: {r: 1, g: 0.98, b: 0.94, a: 1}
     - _OutlineColor: {r: 0.08, g: 0.08, b: 0.12, a: 1}
     - _RimColor: {r: 0.85, g: 0.95, b: 1, a: 0.35}
     - _ShadowColor: {r: 0.55, g: 0.58, b: 0.75, a: 1}
-    - _ShadowTint: {r: 0.62, g: 0.68, b: 0.92, a: 1}
-    - _SpecularColor: {r: 0.19607845, g: 0.3372549, b: 0.2784314, a: 0.55}
+    - _ShadowTint: {r: 1, g: 1, b: 1, a: 1}
+    - _SpecularColor: {r: 0.14504083, g: 0.206, b: 0.10930612, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1
