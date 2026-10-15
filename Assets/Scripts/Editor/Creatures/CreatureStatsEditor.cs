@@ -10,11 +10,6 @@ public class CreatureStatsEditor : Editor
         "then one Special Attack plays and Basic Attacks take over. " +
         "Losing the player ends the fade with no Special Attack.";
 
-    const string GrimlingHelp =
-        "While the player is farther than Basic Attack Range, Grimling holds inside Throw Range " +
-        "and throws rocks with the Range Attack. A rock damages the player only when it hits. " +
-        "Inside Basic Attack Range he switches to the Melee Attack.";
-
     public override void OnInspectorGUI()
     {
         serializedObject.Update();
@@ -68,15 +63,6 @@ public class CreatureStatsEditor : Editor
                 EditorGUILayout.PropertyField(specialAttackDamage, true);
                 EditorGUILayout.PropertyField(specialAttackSpeed, true);
                 EditorGUILayout.PropertyField(specialAttackRange, true);
-                break;
-            case CreatureSpecialAbility.RockThrow:
-                EditorGUILayout.HelpBox(GrimlingHelp, MessageType.Info);
-                EditorGUILayout.PropertyField(specialAttackDamage, new GUIContent(
-                    "Rock Damage",
-                    "Damage dealt when a thrown rock hits the player."));
-                EditorGUILayout.PropertyField(specialAttackRange, new GUIContent(
-                    "Throw Range",
-                    "Grimling stands and throws while the player is outside Basic Attack Range and inside this radius."));
                 break;
         }
     }

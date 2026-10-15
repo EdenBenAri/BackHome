@@ -12,8 +12,8 @@ using UnityEngine;
 /// </summary>
 public static class SnarlfangSetup
 {
-    const string ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Idel1.fbx";
-    const string Idle2ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Idel2.fbx";
+    const string ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Idle1.fbx";
+    const string Idle2ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Idle2.fbx";
     const string RunningModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Running.fbx";
     const string Idle1ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/Idle1.anim";
     const string Idle2ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/Idle2.anim";
@@ -25,10 +25,10 @@ public static class SnarlfangSetup
     const string DeathModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Death.fbx";
     const string DeathClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/Death.anim";
     const string ControllerPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/Snarlfang.controller";
-    const string AlbedoPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Textures&Materials/Meshy_AI_Verdant_Crystal_Eleme_biped_texture_0.png";
-    const string NormalPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Textures&Materials/Meshy_AI_Verdant_Crystal_Eleme_biped_texture_0_normal.png";
-    const string MetallicPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Textures&Materials/Meshy_AI_Verdant_Crystal_Eleme_biped_texture_0_metallic.png";
-    const string RoughnessPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Textures&Materials/Meshy_AI_Verdant_Crystal_Eleme_biped_texture_0_roughness.png";
+    const string AlbedoPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Textures/Snarlfang_texture.png";
+    const string NormalPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Textures/Snarlfang_normal.png";
+    const string MetallicPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Textures/Snarlfang_metallic.png";
+    const string RoughnessPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Textures/Snarlfang_roughness.png";
     const string MaterialPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Materials/Snarlfang.mat";
     const string StatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/SnarlfangStats.asset";
     const string GrimlingStatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/GrimlingStats.asset";

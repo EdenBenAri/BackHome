@@ -29,7 +29,7 @@ public class Creature : MonoBehaviour, IVitalsReadable
 
     public void GetActiveAttack(out CreatureAttackKind kind, out float damage, out float speed, out float range)
     {
-        bool special = _ability != null && (_ability.IsSpecialAttack || _ability.WantsRangedAttack);
+        bool special = _ability != null && _ability.IsSpecialAttack;
         kind = special ? CreatureAttackKind.Special : CreatureAttackKind.Basic;
 
         if (stats == null)

@@ -131,25 +131,6 @@ public class CreatureAnimator : MonoBehaviour
             || IsInOrEntering(HeavyAttackHash);
     }
 
-    /// <summary>
-    /// Normalized time of the playing HeavyAttack clip, or -1 while that state is not current.
-    /// Values at or above 1 are later loops of a repeating throw.
-    /// </summary>
-    public float HeavyAttackPhase
-    {
-        get
-        {
-            if (_animator == null || !_animator.isInitialized || _animator.IsInTransition(0))
-                return -1f;
-
-            AnimatorStateInfo state = _animator.GetCurrentAnimatorStateInfo(0);
-            if (state.shortNameHash != HeavyAttackHash)
-                return -1f;
-
-            return state.normalizedTime;
-        }
-    }
-
     bool IsInOrEntering(int stateHash)
     {
         if (_animator.GetCurrentAnimatorStateInfo(0).shortNameHash == stateHash)

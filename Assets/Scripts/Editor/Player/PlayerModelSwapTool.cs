@@ -6,7 +6,7 @@ using UnityEngine;
 
 /// <summary>
 /// One-shot tool that swaps the Player character's visible model (and its running
-/// animation) for the new model placed at Assets/Resources/Player/Model/Player.fbx.
+/// animation) for the model at Assets/Resources/Player/Models/Starbot_Animation_Running_On_Planet.fbx.
 ///
 /// Run it once from the menu below while the project is open in the Editor. It:
 ///  1) Configures the new Player.fbx as a Humanoid model with an auto-generated Avatar.
@@ -23,13 +23,13 @@ using UnityEngine;
 public static class PlayerModelSwapTool
 {
     const string PlayerPrefabPath = "Assets/Resources/Player/Player.prefab";
-    const string NewModelPath = "Assets/Resources/Player/Model/Player.fbx";
+    const string NewModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Running_On_Planet.fbx";
     const string ControllerPath = "Assets/Resources/Player/Animator/StarterAssetsThirdPerson.controller";
-    const string AlbedoPath = "Assets/Resources/Player/Model/Player_texture.png";
-    const string NormalMapPath = "Assets/Resources/Player/Model/Player_normal.png";
-    const string MetallicPath = "Assets/Resources/Player/Model/Player_metallic.png";
-    const string RoughnessPath = "Assets/Resources/Player/Model/Player_roughness.png";
-    const string CombinedMetallicSmoothnessPath = "Assets/Resources/Player/Model/Player_MetallicSmoothness.png";
+    const string AlbedoPath = "Assets/Resources/Player/Textures/Player_texture.png";
+    const string NormalMapPath = "Assets/Resources/Player/Textures/Player_normal.png";
+    const string MetallicPath = "Assets/Resources/Player/Textures/Player_metallic.png";
+    const string RoughnessPath = "Assets/Resources/Player/Textures/Player_roughness.png";
+    const string CombinedMetallicSmoothnessPath = "Assets/Resources/Player/Textures/Player_MetallicSmoothness.png";
     const string LitShaderGuid = "e4f8a21c7b6d9053c8e1f4a63720d5b9"; // same URP/Lit shader used by Frosty.mat elsewhere in the project
 
     // Extra mocap/animation library (same rig as Player.fbx) that holds a custom "running on a
@@ -45,7 +45,7 @@ public static class PlayerModelSwapTool
     // Player_Animations.fbx library have since been deleted from the project). This one is used
     // directly as the Player's model since it already contains the "running on a spherical
     // planet" take we want wired up as the running motion.
-    const string RunOnPlanetModelPath = "Assets/Resources/Player/Model/Meshy_AI_Little_Starbot_biped_Animation_Run_On_Planet.fbx";
+    const string RunOnPlanetModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Running_On_Planet.fbx";
     const string RunOnPlanetClipName = "Run";
     const string RunInPlaceClipPath = "Assets/Resources/Player/Animator/RunInPlace.anim";
 
@@ -62,8 +62,8 @@ public static class PlayerModelSwapTool
     // visible - see RemapClipRootBoneName, applied to both baked clips below.
     const string IdleSourceRootBoneName = "Armature";
     const string IdleTargetRootBoneName = "target_character";
-    const string Idle1ModelPath = "Assets/Resources/Player/Model/Starbot_Animation_Idel1.fbx";
-    const string Idle2ModelPath = "Assets/Resources/Player/Model/Starbot_Animation_Idel2.fbx";
+    const string Idle1ModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Idle1.fbx";
+    const string Idle2ModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Idle2.fbx";
     const string Idle1ClipName = "Idle1";
     const string Idle2ClipName = "Idle2";
     const string Idle1InPlaceClipPath = "Assets/Resources/Player/Animator/Idle1InPlace.anim";
@@ -74,7 +74,7 @@ public static class PlayerModelSwapTool
     // should NOT loop, and its final frame (the death pose) must be kept exactly as authored -
     // see ExtractOneShotClip / MakeInPlaceOneShotCopy, which skip the loop-seam truncation/blend
     // that ConfigureModelAsHumanoidAndExtractLoopingClip / MakeInPlaceCopy apply for Run/Idle1/Idle2.
-    const string DyingModelPath = "Assets/Resources/Player/Model/Starbot_Animation_dying.fbx";
+    const string DyingModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Dying.fbx";
     const string DyingClipName = "Dying";
     const string DyingInPlaceClipPath = "Assets/Resources/Player/Animator/DyingInPlace.anim";
 
@@ -84,7 +84,7 @@ public static class PlayerModelSwapTool
     // Frosty.mat etc. use), which only understands _BaseMap/_BaseColor and _BumpMap/_BumpScale;
     // it has no metallic/smoothness input at all, so Player_metallic.png/Player_roughness.png/
     // the combined map built for the old URP/Lit path are unused by this shader.
-    const string CharacterMaterialPath = "Assets/Resources/Player/Model/Material_1.mat";
+    const string CharacterMaterialPath = "Assets/Resources/Player/Materials/Player.mat";
     static readonly string SetupRunOnPlanetTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupRunOnPlanet.trigger");
     static readonly string SetupIdleAnimationsTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupIdleAnimations.trigger");
     static readonly string SetupDyingAnimationTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupDyingAnimation.trigger");
@@ -935,7 +935,7 @@ public static class PlayerModelSwapTool
             foreach (var embedded in embeddedMaterials)
             {
                 string materialName = embedded.name;
-                string matPath = $"Assets/Resources/Player/Model/{materialName}.mat";
+                string matPath = $"Assets/Resources/Player/Materials/{materialName}.mat";
                 string fullMatPath = System.IO.Path.Combine(Application.dataPath, "..", matPath);
                 if (AssetDatabase.IsSubAsset(embedded) && !System.IO.File.Exists(fullMatPath))
                 {
@@ -968,7 +968,7 @@ public static class PlayerModelSwapTool
             {
                 foreach (var materialName in namesToRemap)
                 {
-                    string matPath = $"Assets/Resources/Player/Model/{materialName}.mat";
+                    string matPath = $"Assets/Resources/Player/Materials/{materialName}.mat";
                     var extractedMat = AssetDatabase.LoadAssetAtPath<Material>(matPath);
                     if (extractedMat == null) continue;
 
@@ -1180,7 +1180,7 @@ public static class PlayerModelSwapTool
     }
 
     /// <summary>
-    /// Extracts looping in-place clips from Starbot_Animation_Idel1.fbx / Idel2.fbx (same rig as
+    /// Extracts looping in-place clips from Starbot_Animation_Idle1.fbx / Idle2.fbx (same rig as
     /// the Run On Planet model, same treatment: Generic rig, uncompressed, hips-locked, seam-
     /// smoothed - see <see cref="ConfigureModelAsHumanoidAndExtractLoopingClip"/>) and wires them
     /// into the shared AnimatorController as two new states, "Idle1" and "Idle2", that play while
@@ -1220,7 +1220,7 @@ public static class PlayerModelSwapTool
     }
 
     /// <summary>
-    /// Extracts a one-shot (non-looping) in-place clip from Starbot_Animation_dying.fbx (same rig
+    /// Extracts a one-shot (non-looping) in-place clip from Starbot_Animation_Dying.fbx (same rig
     /// as the idle models - see <see cref="ExtractOneShotClip"/>) and wires it into the shared
     /// AnimatorController as a new "Dying" state: a new "Dead" bool parameter is added, and an Any
     /// State transition into Dying fires the instant it becomes true, from whatever
@@ -2633,7 +2633,7 @@ public static class PlayerModelSwapTool
         if (avatar == null || !avatar.isValid || !avatar.isHuman)
         {
             Debug.LogError("[BackHome] Unity could not auto-map a valid Humanoid Avatar for the new model from its bone names. " +
-                "Select Assets/Resources/Player/Model/Player.fbx, open the Rig tab, click Configure..., and fix the bone mapping manually, then re-run this tool.");
+                "Select Assets/Resources/Player/Models/Starbot_Animation_Running_On_Planet.fbx, open the Rig tab, click Configure..., and fix the bone mapping manually, then re-run this tool.");
             return null;
         }
 

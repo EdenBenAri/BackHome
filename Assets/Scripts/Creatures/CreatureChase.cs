@@ -237,7 +237,7 @@ public class CreatureChase : MonoBehaviour
 
         float distToPlayer = GetSurfaceDistanceTo(player.transform.position);
 
-        // Stop at the active strike. Grimling holds at throw range until the player steps into melee.
+        // Stop at the active strike range and face the player.
         _creature.GetActiveAttack(out _, out _, out _, out float attack);
         bool holdForAttack = _ability == null || !_ability.BlocksAttack;
         if (holdForAttack && attack > 0f && distToPlayer <= attack)

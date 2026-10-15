@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Death screen. Listens for <see cref="PlayerVitals.Died"/> and, the instant it fires: hard-stops
-/// player locomotion, starts the Player's "Dying" animation (Starbot_Animation_dying), and freezes
+/// player locomotion, starts the Player's "Dying" animation (Starbot_Animation_Dying), and freezes
 /// every creature in the scene (see <see cref="FreezeAllCreatures"/>) so nothing can interrupt it -
 /// but does NOT show the DeathPanel yet. Only once that animation has fully played through (see
 /// <see cref="WaitForDyingAnimation"/>) does <see cref="DeathSequence"/> hand the camera to
@@ -110,7 +110,7 @@ public class PlayerDeathUI : MonoBehaviour
 
         // Instant: lock the player's own input/physics, kick off the Dying animation, and freeze
         // every creature in place so nothing can interrupt it. The DeathPanel and the camera
-        // settle are deliberately delayed (see DeathSequence) until Starbot_Animation_dying has
+        // settle are deliberately delayed (see DeathSequence) until Starbot_Animation_Dying has
         // fully played out, so the player actually gets to watch the death animation instead of
         // it happening off-screen behind the panel while creatures keep attacking.
         StopPlayerLocomotion();
@@ -160,7 +160,7 @@ public class PlayerDeathUI : MonoBehaviour
         }
     }
 
-    // Switches the Player's Animator into the "Dying" state (Starbot_Animation_dying), which
+    // Switches the Player's Animator into the "Dying" state (Starbot_Animation_Dying), which
     // holds its final frame forever once played - see PlayerModelSwapTool.WireDyingStateIntoController.
     void PlayDeathAnimation()
     {
@@ -261,7 +261,7 @@ public class PlayerDeathUI : MonoBehaviour
         return canvas != null ? canvas.transform.Find(DeathOverlayName) : null;
     }
 
-    // The short window between death and the DeathPanel: first lets Starbot_Animation_dying play
+    // The short window between death and the DeathPanel: first lets Starbot_Animation_Dying play
     // all the way through undisturbed (creatures are already frozen - see FreezeAllCreatures),
     // then - only once it's finished - runs the existing camera settle (BeginDeathFall -> a beat
     // later -> Lock, which is also where time actually freezes), and finally reveals the panel.

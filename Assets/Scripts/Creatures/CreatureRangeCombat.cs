@@ -87,16 +87,6 @@ public class CreatureRangeCombat : MonoBehaviour
 
         bool inside = IsTargetInRange(player.transform.position, radius);
 
-        // Grimling's throw deals damage when the rock lands, not by standing inside the radius.
-        if (kind == CreatureAttackKind.Special && _ability != null && _ability.ThrowsRocks)
-        {
-            _playerInside = inside;
-            _anim?.SetAttacking(inside, kind);
-            if (inside)
-                _anim?.SetAttackRate(attackSpeed, kind);
-            return;
-        }
-
         // The Stealth exit is one strike: one Special Attack, then Basic Attacks take over.
         if (kind == CreatureAttackKind.Special)
         {

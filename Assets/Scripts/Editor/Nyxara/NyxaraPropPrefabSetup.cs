@@ -221,7 +221,7 @@ public static class NyxaraPropPrefabSetup
                 // Shared pack textures (Camp) live beside Models, not next to each FBX.
                 if (string.IsNullOrEmpty(albedo))
                 {
-                    string texFolder = category + "/Textures&Materials";
+                    string texFolder = category + "/Textures";
                     if (AssetDatabase.IsValidFolder(texFolder) && Directory.Exists(ToAbsolute(texFolder)))
                     {
                         var sharedPng = Directory.GetFiles(ToAbsolute(texFolder), "*.png")
@@ -439,11 +439,12 @@ public static class NyxaraPropPrefabSetup
         // Only the shared sci-fi trim set uses one material. Per-model textures (Flag, Mast, …)
         // get their own CasualToon material from BuildMaterial.
         if (string.IsNullOrEmpty(job.AlbedoPath)
-            || job.AlbedoPath.IndexOf("/Textures&Materials/", StringComparison.OrdinalIgnoreCase) < 0
+            || job.AlbedoPath.IndexOf("/Textures/", StringComparison.OrdinalIgnoreCase) < 0
             || !Path.GetFileName(job.AlbedoPath).StartsWith("T_Trim", StringComparison.OrdinalIgnoreCase))
             return null;
 
-        string matPath = job.PrefabFolder + "/Textures&Materials/M_Trim_Walls.mat";
+        EnsureFolder(job.PrefabFolder + "/Materials");
+        string matPath = job.PrefabFolder + "/Materials/M_Trim_Walls.mat";
         Shader shader = Shader.Find("BackHome/CasualToon");
         if (shader == null)
             shader = Shader.Find("Universal Render Pipeline/Lit");
@@ -487,7 +488,8 @@ public static class NyxaraPropPrefabSetup
 
     static Material BuildMaterial(ModelJob job, Texture2D mask)
     {
-        string matPath = $"{job.PrefabFolder}/{job.PrefabName}.mat";
+        EnsureFolder(job.PrefabFolder + "/Materials");
+        string matPath = $"{job.PrefabFolder}/Materials/{job.PrefabName}.mat";
         Shader shader = Shader.Find("BackHome/CasualToon");
         if (shader == null)
             shader = Shader.Find("Universal Render Pipeline/Lit");

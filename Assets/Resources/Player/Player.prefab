@@ -288,7 +288,6 @@ GameObject:
   - component: {fileID: 8234567890123456789}
   - component: {fileID: 8234567890123456790}
   - component: {fileID: 8234567890123456791}
-  - component: {fileID: 8234567890123456792}
   - component: {fileID: 8234567890123456793}
   - component: {fileID: 8234567890123456794}
   - component: {fileID: 8234567890123456795}
@@ -571,19 +570,6 @@ MonoBehaviour:
   groundLayer:
     serializedVersion: 2
     m_Bits: 8
---- !u!114 &8234567890123456792
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7594552319720850513}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: f6a708192a3b4c5d6e7f8091a2b3c4d5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlanetTileSensor
-  pollInterval: 0.15
 --- !u!114 &8234567890123456793
 MonoBehaviour:
   m_ObjectHideFlags: 0
