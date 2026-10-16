@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7f3e2c1b0d94826ae5f1749c8b6d0e1, type: 3}
   m_Name: NyxaraTileset
   m_EditorClassIdentifier: Assembly-CSharp::PlanetTileset
-  texture: {fileID: 2800000, guid: deb64ef6450ec574db0af67225551acf, type: 3}
+  texture: {fileID: 2800000, guid: 7342991327c6430e9c0f63042a6b46ad, type: 3}
   tileSize: 2048
   entries:
   - id: Fill_Grass
@@ -169,7 +169,7 @@ MonoBehaviour:
     - Fill_DarkGrass
     - Fill_DarkGrass
   splatAlbedos:
-  - {fileID: 2800000, guid: deb64ef6450ec574db0af67225551acf, type: 3}
+  - {fileID: 2800000, guid: 7342991327c6430e9c0f63042a6b46ad, type: 3}
   - {fileID: 2800000, guid: 0dd443a2df90ef247be261e60d0ce83b, type: 3}
   - {fileID: 2800000, guid: 7334f41aedeae534fb57921b121a9f1f, type: 3}
   - {fileID: 2800000, guid: df73a5b6a8127ff40a8c6840516304de, type: 3}

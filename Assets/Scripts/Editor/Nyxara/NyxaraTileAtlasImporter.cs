@@ -14,10 +14,10 @@ public static class NyxaraTileAtlasImporter
 
     static readonly string[] SplatPaths =
     {
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_normal/Grass_normal_up.png",
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/dirt_normal/dirt_normal_up.png",
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/dirt_clay/dirt_clay_up.png",
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_darked/Grass_darked_up.png"
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_cartoon.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/dirt_normal.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/dirt_clay.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_darked.png"
     };
 
     struct TerrainSpec
