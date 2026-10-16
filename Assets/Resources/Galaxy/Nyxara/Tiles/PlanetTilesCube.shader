@@ -4,8 +4,8 @@ Shader "BackHome/PlanetTilesCube"
     {
         _BaseMap("Texture", 2D) = "white" {}
         _BaseColor("Color", Color) = (1, 1, 1, 1)
-        _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.55
-        _ShadeCeil("Shade Ceil", Range(0.5, 1.2)) = 1.05
+        _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.92
+        _ShadeCeil("Shade Ceil", Range(0.5, 1.2)) = 1.04
     }
 
     SubShader
@@ -30,6 +30,7 @@ Shader "BackHome/PlanetTilesCube"
             #pragma vertex vert
             #pragma fragment frag
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "PlanetTileBevel.hlsl"
 
             TEXTURE2D(_BaseMap);
             SAMPLER(sampler_BaseMap);
@@ -75,7 +76,7 @@ Shader "BackHome/PlanetTilesCube"
                 // Soft directional shade so cube sides read as blocks.
                 half3 lightDir = normalize(half3(0.35, 0.9, 0.25));
                 half ndl = saturate(dot(n, lightDir));
-                half shade = lerp(_ShadeFloor, _ShadeCeil, ndl);
+                half shade = lerp(_ShadeFloor, _ShadeCeil, ndl) * PlanetTileBevel(input.uv);
                 half3 rgb = tex.rgb * _BaseColor.rgb * input.color.rgb * shade;
                 return half4(rgb, 1);
             }

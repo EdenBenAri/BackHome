@@ -3279,7 +3279,6 @@ MonoBehaviour:
     - {fileID: 6529401389816808732, guid: 44685c5272c7458fbb703abab2c1507a, type: 3}
     - {fileID: 4027186653557920374, guid: 7d2e5a0c6f3b8499e1c2d4a5b6f7e809, type: 3}
     - {fileID: 7579689327346344112, guid: 10f1bde7a897b4b478b2a443fbb1c6ed, type: 3}
-    - {fileID: 5289619493705675949, guid: e9a13b61d60b41a589ba1a9c51badf9f, type: 3}
   - displayName: Camp
     previewColor: {r: 0.72, g: 0.58, b: 0.42, a: 1}
     brushRadius: 5

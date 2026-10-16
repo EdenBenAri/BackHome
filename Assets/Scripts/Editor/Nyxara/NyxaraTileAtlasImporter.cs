@@ -10,7 +10,7 @@ public static class NyxaraTileAtlasImporter
 {
     const string TilesetPath = "Assets/Resources/Galaxy/Nyxara/Tiles/NyxaraTileset.asset";
     const float SplatTiling = 1f;
-    const float BlendSharpness = 1.65f;
+    const float BlendSharpness = 5f;
 
     static readonly string[] SplatPaths =
     {

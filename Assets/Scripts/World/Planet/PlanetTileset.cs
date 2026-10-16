@@ -79,6 +79,8 @@ public class PlanetTileset : ScriptableObject
     [SerializeField] Texture2D[] splatAlbedos = Array.Empty<Texture2D>();
     [SerializeField, Min(0.1f)] float splatTiling = 1f;
     [SerializeField, Range(1f, 4f)] float splatBlendSharpness = 1.65f;
+    [SerializeField] Texture2D grassDetail;
+    [SerializeField, Range(0f, 8f)] float grassDetailStrength = 5f;
 
     [NonSerialized] Dictionary<int, List<int>> _lookup;
 
@@ -93,6 +95,8 @@ public class PlanetTileset : ScriptableObject
         splatAlbedos != null && splatAlbedos.Length >= 2 && splatAlbedos[0] != null;
     public float SplatTiling => Mathf.Max(0.1f, splatTiling);
     public float SplatBlendSharpness => Mathf.Clamp(splatBlendSharpness, 1f, 4f);
+    public Texture2D GrassDetail => grassDetail;
+    public float GrassDetailStrength => Mathf.Clamp(grassDetailStrength, 0f, 8f);
     public bool HasVisualSource => UsesSplatBlending || (texture != null && Count > 0);
 
     public Texture2D GetSplatAlbedo(int index)
