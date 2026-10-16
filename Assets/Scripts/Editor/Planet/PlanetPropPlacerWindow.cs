@@ -427,13 +427,21 @@ public class PlanetPropPlacerWindow : EditorWindow
 
             if (col.transform == planet.transform || col.transform.IsChildOf(planet.transform))
             {
-                // Ignore props under Objects for placement hit (place on terrain, not on other props)
-                Transform objects = planet.transform.Find("Objects");
-                if (objects != null && (col.transform == objects || col.transform.IsChildOf(objects)))
+                // Props may overlap. The click lands on the ground, not on grass or rocks.
+                if (PlanetSurfacePose.IsDecorationCollider(col))
                     continue;
 
-                worldPoint = hits[i].point;
-                return true;
+                if (map != null && map.IsWalkSurfaceCollider(col))
+                {
+                    worldPoint = hits[i].point;
+                    return true;
+                }
+
+                if (col.GetComponent<SphericalPlanet>() != null)
+                {
+                    worldPoint = hits[i].point;
+                    return true;
+                }
             }
         }
 

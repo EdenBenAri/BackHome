@@ -77,7 +77,8 @@ public class PlanetSurfaceAlignEditor : Editor
         }
 
         EditorGUILayout.HelpBox(
-            "Position is saved as-is. Play mode will not move the prop unless Align Every Frame is on.",
+            "Drag keeps the prop on the ground. Use Hover to lift it. Nearby props do not stack it up.\n" +
+            "Play mode will not move the prop unless Align Every Frame is on.",
             MessageType.Info);
     }
 

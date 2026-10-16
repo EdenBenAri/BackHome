@@ -8,13 +8,14 @@ Shader "BackHome/CasualToon"
         _BumpScale("Normal Strength", Range(0, 2)) = 1
 
         [Header(Cel Shading)]
+        _Brightness("Brightness", Range(0.5, 2.2)) = 1.25
         _ShadeSteps("Shade Steps", Range(2, 5)) = 3
-        _ShadeSoftness("Band Softness", Range(0, 1)) = 0.35
-        _ShadeFloor("Shadow Brightness", Range(0.1, 1)) = 0.48
-        _ShadowTint("Shadow Tint", Color) = (0.62, 0.68, 0.92, 1)
-        _KeyTint("Key Light Tint", Color) = (1, 0.98, 0.94, 1)
-        _Saturation("Saturation", Range(0.5, 1.8)) = 1.12
-        _Contrast("Contrast", Range(0.7, 1.4)) = 1.05
+        _ShadeSoftness("Band Softness", Range(0, 1)) = 0.45
+        _ShadeFloor("Shadow Brightness", Range(0.1, 1)) = 0.72
+        _ShadowTint("Shadow Tint", Color) = (0.96, 0.91, 0.8, 1)
+        _KeyTint("Key Light Tint", Color) = (1, 0.99, 0.96, 1)
+        _Saturation("Saturation", Range(0.5, 1.8)) = 1.2
+        _Contrast("Contrast", Range(0.7, 1.4)) = 0.98
 
         [Header(Specular)]
         _SpecularColor("Specular Color", Color) = (1, 1, 1, 0.55)
@@ -27,8 +28,8 @@ Shader "BackHome/CasualToon"
         _RimLightMask("Rim Light Mask", Range(0, 1)) = 0.75
 
         [Header(Ambient)]
-        _AmbientStrength("Ambient Strength", Range(0, 1)) = 0.35
-        _AmbientTint("Ambient Tint", Color) = (0.55, 0.62, 0.85, 1)
+        _AmbientStrength("Ambient Strength", Range(0, 1)) = 0.5
+        _AmbientTint("Ambient Tint", Color) = (1, 0.96, 0.88, 1)
 
         [Header(Emission)]
         [HDR] _EmissionColor("Emission Color", Color) = (0, 0, 0, 1)
@@ -86,6 +87,7 @@ Shader "BackHome/CasualToon"
                 float4 _BaseMap_ST;
                 half4 _BaseColor;
                 half _BumpScale;
+                half _Brightness;
                 half _ShadeSteps;
                 half _ShadeSoftness;
                 half _ShadeFloor;
@@ -175,8 +177,10 @@ Shader "BackHome/CasualToon"
                 half shade = CelShade(ndl, _ShadeSteps, _ShadeSoftness, _ShadeFloor);
 
                 half shadowAtten = light.shadowAttenuation * light.distanceAttenuation;
-                half shadowCel = CelShade(shadowAtten, 2.0h, 0.25h, 0.0h);
-                shade *= lerp(_ShadeFloor, 1.0h, shadowCel);
+                half shadowCel = CelShade(shadowAtten, 2.0h, 0.45h, 0.0h);
+                // A soft dip, so a cast shadow stays a light cartoon shade.
+                half castFloor = lerp(_ShadeFloor, 1.0h, 0.62h);
+                shade *= lerp(castFloor, 1.0h, shadowCel);
 
                 half3 shadowCol = baseRgb * _ShadowTint.rgb;
                 half3 litCol = baseRgb * _KeyTint.rgb;
@@ -243,6 +247,8 @@ Shader "BackHome/CasualToon"
                 half3 color = ShadeMainLight(baseRgb, normalWS, viewDir, mainLight);
 
                 half3 sh = SampleSH(normalWS);
+                // Space ambient is nearly black. Keep a warm floor so the dark side stays cheerful.
+                sh = max(sh, half3(0.32h, 0.3h, 0.26h));
                 color += baseRgb * sh * _AmbientStrength * _AmbientTint.rgb;
 
                 #ifdef _ADDITIONAL_LIGHTS
@@ -257,6 +263,7 @@ Shader "BackHome/CasualToon"
 
                 half3 emission = SAMPLE_TEXTURE2D(_EmissionMap, sampler_EmissionMap, input.uv).rgb * _EmissionColor.rgb;
                 color += emission;
+                color *= _Brightness;
 
                 color = MixFog(color, input.fogFactor);
                 // _SrcBlend/_DstBlend/_ZWrite drive the pass state. Touch them so the

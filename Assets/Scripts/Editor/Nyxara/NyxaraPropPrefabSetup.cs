@@ -518,20 +518,22 @@ public static class NyxaraPropPrefabSetup
             mat.SetColor("_BaseColor", Color.white);
 
         // Casual toon defaults (XP Heroes style).
+        if (mat.HasProperty("_Brightness"))
+            mat.SetFloat("_Brightness", 1.25f);
         if (mat.HasProperty("_ShadeSteps"))
             mat.SetFloat("_ShadeSteps", 3f);
         if (mat.HasProperty("_ShadeSoftness"))
-            mat.SetFloat("_ShadeSoftness", 0.35f);
+            mat.SetFloat("_ShadeSoftness", 0.45f);
         if (mat.HasProperty("_ShadeFloor"))
-            mat.SetFloat("_ShadeFloor", 0.48f);
+            mat.SetFloat("_ShadeFloor", 0.72f);
         if (mat.HasProperty("_Saturation"))
-            mat.SetFloat("_Saturation", 1.12f);
+            mat.SetFloat("_Saturation", 1.2f);
         if (mat.HasProperty("_Contrast"))
-            mat.SetFloat("_Contrast", 1.05f);
+            mat.SetFloat("_Contrast", 0.98f);
         if (mat.HasProperty("_ShadowTint"))
-            mat.SetColor("_ShadowTint", new Color(0.62f, 0.68f, 0.92f, 1f));
+            mat.SetColor("_ShadowTint", new Color(0.96f, 0.91f, 0.8f, 1f));
         if (mat.HasProperty("_KeyTint"))
-            mat.SetColor("_KeyTint", new Color(1f, 0.98f, 0.94f, 1f));
+            mat.SetColor("_KeyTint", new Color(1f, 0.99f, 0.96f, 1f));
         if (mat.HasProperty("_SpecularColor"))
             mat.SetColor("_SpecularColor", new Color(1f, 1f, 1f, 0.55f));
         if (mat.HasProperty("_SpecularSize"))
@@ -545,9 +547,9 @@ public static class NyxaraPropPrefabSetup
         if (mat.HasProperty("_RimLightMask"))
             mat.SetFloat("_RimLightMask", 0.75f);
         if (mat.HasProperty("_AmbientStrength"))
-            mat.SetFloat("_AmbientStrength", 0.35f);
+            mat.SetFloat("_AmbientStrength", 0.5f);
         if (mat.HasProperty("_AmbientTint"))
-            mat.SetColor("_AmbientTint", new Color(0.55f, 0.62f, 0.85f, 1f));
+            mat.SetColor("_AmbientTint", new Color(1f, 0.96f, 0.88f, 1f));
 
         if (emission != null && mat.HasProperty("_EmissionMap"))
         {

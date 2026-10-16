@@ -1,11 +1,13 @@
 using System.Collections.Generic;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 [CustomEditor(typeof(PlanetEnvironmentBrush))]
 public class PlanetEnvironmentBrushEditor : Editor
 {
     const string LibraryRoot = "Assets/Resources/Galaxy/Nyxara/Environment";
+    const string DropOnceKey = "BackHome.DropPropsToGround.v1";
 
     static readonly string[] LibraryFolders =
     {
@@ -48,7 +50,7 @@ public class PlanetEnvironmentBrushEditor : Editor
         EditorGUILayout.LabelField("Environment Brush", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
             "Pick Grass, Rocks, or Trees. Random drops a mix from that list; a specific prefab paints only that one.\n" +
-            "Start Paint Mode, then drag on the planet. Instances are parented under this object.\n" +
+            "Props can overlap and stay on the ground — a nearby rock does not lift the grass.\n" +
             "LMB paint · RMB or Shift erase · [ ] brush size · 0 random · 1-9 prefab · Esc stop · Alt orbit",
             MessageType.Info);
 
@@ -86,6 +88,14 @@ public class PlanetEnvironmentBrushEditor : Editor
         }
 
         GUI.backgroundColor = prev;
+
+        using (new EditorGUI.DisabledScope(Application.isPlaying))
+        {
+            if (GUILayout.Button(new GUIContent(
+                    "Drop Props To Ground",
+                    "Put every placed prop on the ground. Nearby props no longer stack on each other.")))
+                DropPropsToGround(silent: false);
+        }
 
         if (Application.isPlaying)
             EditorGUILayout.HelpBox("Paint Mode is for the editor. Exit Play mode to paint.", MessageType.Warning);
@@ -844,6 +854,123 @@ public class PlanetEnvironmentBrushEditor : Editor
         Handles.EndGUI();
     }
 
+    [InitializeOnLoadMethod]
+    static void ScheduleGroundDrop()
+    {
+        EditorApplication.delayCall += TryDropPropsOnce;
+        EditorSceneManager.sceneOpened += OnSceneOpened;
+    }
+
+    static void OnSceneOpened(UnityEngine.SceneManagement.Scene scene, OpenSceneMode mode)
+    {
+        if (!scene.isLoaded)
+            return;
+
+        EditorApplication.delayCall += TryDropPropsOnce;
+    }
+
+    static void TryDropPropsOnce()
+    {
+        if (EditorPrefs.GetBool(DropOnceKey, false))
+            return;
+        if (EditorApplication.isPlayingOrWillChangePlaymode
+            || EditorApplication.isCompiling
+            || EditorApplication.isUpdating)
+            return;
+
+        int dropped = DropPropsToGround(silent: true);
+        if (dropped > 0)
+            EditorPrefs.SetBool(DropOnceKey, true);
+    }
+
+    [MenuItem("BackHome/Drop Environment Props To Ground")]
+    public static void DropPropsMenu()
+    {
+        int dropped = DropPropsToGround(silent: false);
+        if (dropped > 0)
+            EditorPrefs.SetBool(DropOnceKey, true);
+    }
+
+    /// <summary>
+    /// -1 when the planet scene is not loaded yet. Otherwise the number of props moved onto the ground.
+    /// </summary>
+    public static int DropPropsToGround(bool silent)
+    {
+        if (EditorApplication.isPlayingOrWillChangePlaymode)
+            return -1;
+
+        PlanetSurfaceAlign[] aligns = Object.FindObjectsByType<PlanetSurfaceAlign>(
+            FindObjectsInactive.Include,
+            FindObjectsSortMode.None);
+
+        var pending = new List<PlanetSurfaceAlign>();
+        var planets = new HashSet<SphericalPlanet>();
+        for (int i = 0; i < aligns.Length; i++)
+        {
+            PlanetSurfaceAlign align = aligns[i];
+            if (align == null)
+                continue;
+
+            GameObject go = align.gameObject;
+            if ((go.hideFlags & HideFlags.HideAndDontSave) != 0)
+                continue;
+            if (!go.scene.IsValid() || !go.scene.isLoaded)
+                continue;
+
+            SphericalPlanet planet = align.GetComponentInParent<SphericalPlanet>();
+            if (planet == null)
+                continue;
+
+            pending.Add(align);
+            planets.Add(planet);
+        }
+
+        if (pending.Count == 0 || planets.Count == 0)
+            return -1;
+
+        foreach (SphericalPlanet planet in planets)
+        {
+            PlanetTileMap tiles = planet.GetComponent<PlanetTileMap>();
+            if (tiles == null)
+                continue;
+
+            tiles.EnsureWalkColliders();
+            if (tiles.WalkMeshCollider == null || tiles.WalkMeshCollider.sharedMesh == null)
+                tiles.RebuildVisuals();
+        }
+
+        Physics.SyncTransforms();
+
+        int undo = Undo.GetCurrentGroup();
+        Undo.SetCurrentGroupName("Drop Props To Ground");
+        int count = 0;
+        for (int i = 0; i < pending.Count; i++)
+        {
+            PlanetSurfaceAlign align = pending[i];
+            if (align == null)
+                continue;
+
+            float hover = PlanetSurfacePose.DefaultHover;
+            PlanetEnvironmentBrush brush = align.GetComponentInParent<PlanetEnvironmentBrush>();
+            if (brush != null)
+                hover = brush.Hover;
+
+            Undo.RecordObject(align, "Drop Prop To Ground");
+            Undo.RecordObject(align.transform, "Drop Prop To Ground");
+            align.DropToGround(hover, recordUndo: false);
+            EditorUtility.SetDirty(align);
+            EditorUtility.SetDirty(align.transform);
+            count++;
+        }
+
+        Undo.CollapseUndoOperations(undo);
+
+        if (!silent)
+            Debug.Log($"[BackHome] Dropped {count} props onto the ground.");
+
+        return count;
+    }
+
     static bool TryPickSurface(PlanetEnvironmentBrush brush, Vector2 guiPoint, out Vector3 worldPoint)
     {
         worldPoint = default;
@@ -852,6 +979,7 @@ public class PlanetEnvironmentBrushEditor : Editor
             return false;
 
         Ray ray = HandleUtility.GUIPointToWorldRay(guiPoint);
+        PlanetTileMap map = planet.GetComponent<PlanetTileMap>();
         RaycastHit[] hits = Physics.RaycastAll(ray, 10000f, ~0, QueryTriggerInteraction.Ignore);
         System.Array.Sort(hits, (a, b) => a.distance.CompareTo(b.distance));
         for (int i = 0; i < hits.Length; i++)
@@ -861,14 +989,22 @@ public class PlanetEnvironmentBrushEditor : Editor
                 continue;
             if (col.transform != planet.transform && !col.transform.IsChildOf(planet.transform))
                 continue;
-            if (col.transform == brush.transform || col.transform.IsChildOf(brush.transform))
+            if (PlanetSurfacePose.IsDecorationCollider(col))
                 continue;
 
-            worldPoint = hits[i].point;
-            return true;
+            if (map != null && map.IsWalkSurfaceCollider(col))
+            {
+                worldPoint = hits[i].point;
+                return true;
+            }
+
+            if (col.GetComponent<SphericalPlanet>() != null)
+            {
+                worldPoint = hits[i].point;
+                return true;
+            }
         }
 
-        PlanetTileMap map = planet.GetComponent<PlanetTileMap>();
         float radius = Mathf.Max(0.01f, planet.Radius + 2f);
         if (map != null)
             radius = Mathf.Max(radius, map.GetWalkSurfaceRadius(Vector3.up) + 2f);

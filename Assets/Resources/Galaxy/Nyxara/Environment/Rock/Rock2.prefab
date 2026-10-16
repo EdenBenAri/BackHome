@@ -49,7 +49,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlanetSurfaceAlign
   planet: {fileID: 0}
   hover: 0.05
-  yaw: 0
+  yaw: 90.57953
   alignEveryFrame: 0
 --- !u!65 &5175976477350554470
 BoxCollider:
@@ -119,11 +119,11 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 1b30a1d2c1ffa0941bf2438789e418f0, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 1.21
+      value: 11.8
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 1b30a1d2c1ffa0941bf2438789e418f0, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -0.00000004768371
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: -8679921383154817045, guid: 1b30a1d2c1ffa0941bf2438789e418f0, type: 3}
       propertyPath: m_LocalRotation.w

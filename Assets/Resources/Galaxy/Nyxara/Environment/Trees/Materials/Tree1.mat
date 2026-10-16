@@ -47,7 +47,7 @@ Material:
     - _RimLightMask: 0.75
     - _RimPower: 10
     - _Saturation: 1.12
-    - _ShadeFloor: 0.48
+    - _ShadeFloor: 0.72
     - _ShadeSoftness: 0.35
     - _ShadeSteps: 3
     - _SpecularSize: 0.237

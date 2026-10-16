@@ -97,6 +97,7 @@ public static class PlanetSurfacePose
         tiles?.EnsureWalkColliders();
 
         up = radial;
+        // Props may overlap. Only the walk surface lifts a placement — never another prop.
         if (!TryStickToCollider(planet, tiles, radial, hover, out position, out up))
         {
             position = GetAnalyticSurfacePoint(planet, tiles, radial, hover);
@@ -218,22 +219,37 @@ public static class PlanetSurfacePose
         if (hits == null || hits.Length == 0)
             return false;
 
-        float bestDist = float.MaxValue;
+        if (tiles != null && tiles.TryPickWalkSurfaceHit(hits, planet.Center, -radial, out RaycastHit walkHit))
+        {
+            ApplyGroundHit(walkHit, radial, hover, out feetPosition, out normal);
+            return true;
+        }
+
+        // No tile floor yet: the planet body only. A grass or rock collider must not count as ground.
+        float minRadius = GetFallbackSurfaceRadius(planet, tiles, radial) - 0.05f;
+        float bestRadius = -1f;
         bool found = false;
         RaycastHit best = default;
 
         for (int i = 0; i < hits.Length; i++)
         {
             Collider col = hits[i].collider;
-            if (col == null)
+            if (!IsPlanetBodyCollider(planet, col))
                 continue;
 
-            if (col.transform != planet.transform && !col.transform.IsChildOf(planet.transform))
+            Vector3 hitNormal = hits[i].normal.sqrMagnitude > 0.001f
+                ? hits[i].normal.normalized
+                : radial;
+            if (Vector3.Dot(hitNormal, radial) < 0.35f)
                 continue;
 
-            if (hits[i].distance < bestDist)
+            float surfaceRadius = (hits[i].point - planet.Center).magnitude;
+            if (surfaceRadius < minRadius)
+                continue;
+
+            if (surfaceRadius > bestRadius)
             {
-                bestDist = hits[i].distance;
+                bestRadius = surfaceRadius;
                 best = hits[i];
                 found = true;
             }
@@ -242,12 +258,57 @@ public static class PlanetSurfacePose
         if (!found)
             return false;
 
-        normal = best.normal.sqrMagnitude > 0.001f ? best.normal.normalized : radial;
+        ApplyGroundHit(best, radial, hover, out feetPosition, out normal);
+        return true;
+    }
+
+    static void ApplyGroundHit(
+        RaycastHit hit,
+        Vector3 radial,
+        float hover,
+        out Vector3 feetPosition,
+        out Vector3 normal)
+    {
+        normal = hit.normal.sqrMagnitude > 0.001f ? hit.normal.normalized : radial;
         if (Vector3.Dot(normal, radial) < 0f)
             normal = -normal;
 
-        feetPosition = best.point + normal * hover;
-        return true;
+        feetPosition = hit.point + normal * hover;
+    }
+
+    /// <summary>
+    /// Grass, rocks, trees, and other placed props. They may intersect each other;
+    /// a ground query must pass through them to the terrain.
+    /// </summary>
+    public static bool IsDecorationCollider(Collider col)
+    {
+        if (col == null)
+            return false;
+
+        Transform t = col.transform;
+        while (t != null)
+        {
+            if (t.GetComponent<PlanetEnvironmentBrush>() != null)
+                return true;
+            if (t.GetComponent<PlanetSurfaceAlign>() != null)
+                return true;
+            if (t.GetComponent<SphericalPlanet>() != null)
+                return false;
+            t = t.parent;
+        }
+
+        return false;
+    }
+
+    static bool IsPlanetBodyCollider(SphericalPlanet planet, Collider col)
+    {
+        if (col == null || planet == null || IsDecorationCollider(col))
+            return false;
+
+        if (col.GetComponent<SphericalPlanet>() != null)
+            return true;
+
+        return col.transform == planet.transform;
     }
 
     /// <summary>Raycasts straight down along <paramref name="up"/> from just above
@@ -265,19 +326,58 @@ public static class PlanetSurfacePose
 
         float probeDistance = Mathf.Max(1f, maxDistance);
         Vector3 origin = nearPoint + normal * 0.5f;
-        if (!Physics.Raycast(
-                origin,
-                -normal,
-                out RaycastHit hit,
-                probeDistance + 0.5f,
-                GroundLayer,
-                QueryTriggerInteraction.Ignore))
-        {
+        RaycastHit[] hits = Physics.RaycastAll(
+            origin,
+            -normal,
+            probeDistance + 0.5f,
+            GroundLayer,
+            QueryTriggerInteraction.Ignore);
+
+        if (hits == null || hits.Length == 0)
             return false;
+
+        SphericalPlanet planet = null;
+        for (int i = 0; i < hits.Length && planet == null; i++)
+        {
+            if (hits[i].collider != null)
+                planet = hits[i].collider.GetComponentInParent<SphericalPlanet>();
         }
 
-        normal = hit.normal.sqrMagnitude > 0.001f ? hit.normal.normalized : normal;
-        position = hit.point + normal * hover;
+        PlanetTileMap tiles = planet != null ? planet.GetComponent<PlanetTileMap>() : null;
+        if (planet != null
+            && tiles != null
+            && tiles.TryPickWalkSurfaceHit(hits, planet.Center, -normal, out RaycastHit walkHit))
+        {
+            normal = walkHit.normal.sqrMagnitude > 0.001f ? walkHit.normal.normalized : normal;
+            position = walkHit.point + normal * hover;
+            return true;
+        }
+
+        float bestDist = float.MaxValue;
+        bool found = false;
+        RaycastHit best = default;
+        for (int i = 0; i < hits.Length; i++)
+        {
+            Collider col = hits[i].collider;
+            if (col == null || IsDecorationCollider(col))
+                continue;
+
+            if (planet != null && !IsPlanetBodyCollider(planet, col))
+                continue;
+
+            if (hits[i].distance < bestDist)
+            {
+                bestDist = hits[i].distance;
+                best = hits[i];
+                found = true;
+            }
+        }
+
+        if (!found)
+            return false;
+
+        normal = best.normal.sqrMagnitude > 0.001f ? best.normal.normalized : normal;
+        position = best.point + normal * hover;
         return true;
     }
 }

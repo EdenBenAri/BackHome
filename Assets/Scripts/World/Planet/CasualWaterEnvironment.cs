@@ -3,15 +3,15 @@ using UnityEngine.Rendering;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// Gives Bitgem water the Example-Scene-01 look on Nyxara: sky-blue reflections
-/// and camera depth/opaque textures for shoreline foam. Does not change the space skybox.
+/// Flat cartoon sea for Nyxara: a bright, even sky-blue reflection so the
+/// water stays a clean casual color. Does not change the space skybox.
 /// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]
 [RequireComponent(typeof(MeshRenderer))]
 public sealed class CasualWaterEnvironment : MonoBehaviour
 {
-    static readonly Color ExampleSky = new Color(0.4666667f, 0.7372549f, 0.77647066f, 0f);
+    static readonly Color ExampleSky = new Color(0.62f, 0.86f, 0.98f, 1f);
 
     const string ProbeName = "SeaReflectionProbe";
     const float ProbeSize = 400f;
@@ -67,7 +67,7 @@ public sealed class CasualWaterEnvironment : MonoBehaviour
         probe.clearFlags = ReflectionProbeClearFlags.SolidColor;
         probe.backgroundColor = ExampleSky;
         probe.cullingMask = 0;
-        probe.intensity = 1.8f;
+        probe.intensity = 0.7f;
         probe.hdr = true;
         probe.importance = 10;
         probe.boxProjection = false;

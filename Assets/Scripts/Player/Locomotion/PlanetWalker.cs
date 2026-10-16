@@ -350,6 +350,7 @@ public class PlanetWalker : MonoBehaviour
         next = RecoverOrRememberRoute(next, up);
         next = UnstickIfImmobile(from, next, inputMagnitude, hover);
         next = PlanetBorders.ResolveAgainstWalls(_planet, from, next, wallRadius);
+        next = PushFeetOutOfSolidProps(next, up);
         fromCenterFinal = next - _planet.Center;
         if (fromCenterFinal.sqrMagnitude > 0.0001f)
             up = fromCenterFinal.normalized;
@@ -365,35 +366,41 @@ public class PlanetWalker : MonoBehaviour
     }
 
     static readonly RaycastHit[] ObstacleHits = new RaycastHit[24];
+    static readonly Collider[] PropOverlaps = new Collider[24];
 
     /// <summary>
     /// Capsule-cast along tangent move. Borders cubes are kinematic, not physics walls.
-    /// Props still block. Tile mesh is the floor, not a wall.
+    /// Solid props block from the outside. If the capsule is already inside one, push it
+    /// out along the ground instead of freezing it against an invisible face.
+    /// Tile mesh is the floor, not a wall.
     /// </summary>
     Vector3 ResolveObstacleMove(Vector3 desiredDelta, Vector3 up, bool includeBorderWalls)
     {
-        if (desiredDelta.sqrMagnitude < 0.0000001f)
-            return desiredDelta;
-
         float scale = Mathf.Max(transform.lossyScale.x, transform.lossyScale.y, transform.lossyScale.z);
         float radius = (_controller != null ? Mathf.Max(0.2f, _controller.radius * 0.9f) : 0.28f) * scale;
         float height = (_controller != null ? Mathf.Max(1.4f, _controller.height) : 1.8f) * scale;
         Vector3 bottom = transform.position + up * (radius + 0.05f);
         Vector3 top = transform.position + up * (height - radius);
 
+        Vector3 separation = SeparateFromSolidProps(bottom, top, radius, up);
+        bottom += separation;
+        top += separation;
+
+        if (desiredDelta.sqrMagnitude < 0.0000001f)
+            return separation;
+
         float dist = desiredDelta.magnitude;
         Vector3 dir = desiredDelta / dist;
         float skin = 0.04f;
-        Vector3 radial = (transform.position - _planet.Center).normalized;
 
         if (includeBorderWalls &&
             TryNearestBlockingWall(bottom, top, radius, dir, dist + skin, out RaycastHit wallHit))
-            return LimitAndSlideAlongWall(desiredDelta, dir, skin, up, radial, bottom, top, radius, wallHit);
+            return separation + LimitAndSlideAlongWall(desiredDelta, dir, skin, up, bottom, top, radius, wallHit);
 
-        if (TryNearestBlockingProp(bottom, top, radius, dir, dist + skin, up, radial, out RaycastHit propHit))
-            return LimitAndSlideAlongWall(desiredDelta, dir, skin, up, radial, bottom, top, radius, propHit);
+        if (TryNearestBlockingProp(bottom, top, radius, dir, dist + skin, out RaycastHit propHit))
+            return separation + LimitAndSlideAlongWall(desiredDelta, dir, skin, up, bottom, top, radius, propHit);
 
-        return desiredDelta;
+        return separation + desiredDelta;
     }
 
     bool TryNearestBlockingWall(
@@ -445,8 +452,6 @@ public class PlanetWalker : MonoBehaviour
         float radius,
         Vector3 dir,
         float maxDistance,
-        Vector3 up,
-        Vector3 radial,
         out RaycastHit best)
     {
         best = default;
@@ -470,7 +475,9 @@ public class PlanetWalker : MonoBehaviour
             RaycastHit hit = ObstacleHits[i];
             if (!IsPlanetObstacle(hit.collider))
                 continue;
-            if (IsWalkableObstacleHit(hit.collider, hit.normal, up, radial))
+            // Already inside this collider. Separation pushes us out; a zero-distance
+            // hit would cancel every direction and leave the player stuck.
+            if (hit.distance <= 0.001f)
                 continue;
             if (hit.distance >= nearest)
                 continue;
@@ -487,7 +494,6 @@ public class PlanetWalker : MonoBehaviour
         Vector3 dir,
         float skin,
         Vector3 up,
-        Vector3 radial,
         Vector3 bottom,
         Vector3 top,
         float radius,
@@ -522,8 +528,6 @@ public class PlanetWalker : MonoBehaviour
                 radius,
                 slideDir,
                 slideDist + skin,
-                up,
-                radial,
                 out RaycastHit slideHit))
         {
             float slideAllowed = Mathf.Max(0f, slideHit.distance - skin);
@@ -637,20 +641,189 @@ public class PlanetWalker : MonoBehaviour
         return radius + 0.06f * scale;
     }
 
-    static bool IsWalkableObstacleHit(Collider col, Vector3 normal, Vector3 up, Vector3 radial)
+    /// <summary>
+    /// If the capsule is embedded in a rock, tree, or other solid prop, move the feet
+    /// sideways onto free ground. Never push along planet-up — that fights the ground stick
+    /// and drops the player straight back into the collider.
+    /// </summary>
+    Vector3 PushFeetOutOfSolidProps(Vector3 feet, Vector3 up)
     {
-        if (NyxaraTerrainCollision.IsBlockingWall(col))
+        if (_planet == null || up.sqrMagnitude < 0.0001f)
+            return feet;
+
+        GetCapsuleEnds(feet, up, out Vector3 bottom, out Vector3 top, out float radius);
+        return feet + SeparateFromSolidProps(bottom, top, radius, up);
+    }
+
+    Vector3 SeparateFromSolidProps(Vector3 bottom, Vector3 top, float radius, Vector3 up)
+    {
+        Vector3 push = Vector3.zero;
+        for (int iter = 0; iter < 4; iter++)
+        {
+            Vector3 b = bottom + push;
+            Vector3 t = top + push;
+            int count = Physics.OverlapCapsuleNonAlloc(
+                b,
+                t,
+                Mathf.Max(0.05f, radius - 0.04f),
+                PropOverlaps,
+                groundLayer,
+                QueryTriggerInteraction.Ignore);
+            if (count <= 0)
+                break;
+
+            bool moved = false;
+            int n = Mathf.Min(count, PropOverlaps.Length);
+            for (int i = 0; i < n; i++)
+            {
+                Collider col = PropOverlaps[i];
+                if (!IsPlanetObstacle(col))
+                    continue;
+                if (!TryPushOutOfProp(col, b, t, radius, up, out Vector3 delta))
+                    continue;
+
+                push += delta;
+                b += delta;
+                t += delta;
+                moved = true;
+            }
+
+            if (!moved)
+                break;
+        }
+
+        return push;
+    }
+
+    static bool TryPushOutOfProp(
+        Collider col,
+        Vector3 bottom,
+        Vector3 top,
+        float radius,
+        Vector3 up,
+        out Vector3 worldPush)
+    {
+        worldPush = Vector3.zero;
+        if (col is BoxCollider box)
+            return TryPushOutOfBox(box, bottom, top, radius, up, out worldPush);
+
+        Vector3 mid = (bottom + top) * 0.5f;
+        Vector3 closest = col.ClosestPoint(mid);
+        Vector3 away = mid - closest;
+        float dist = away.magnitude;
+        if (dist > 0.0001f && dist >= radius - 0.02f)
             return false;
 
-        if (normal.sqrMagnitude < 0.001f)
+        Vector3 dir;
+        if (dist > 0.0001f)
+            dir = away / dist;
+        else
+        {
+            dir = Vector3.ProjectOnPlane(mid - col.bounds.center, up);
+            if (dir.sqrMagnitude < 0.0001f)
+                dir = Vector3.Cross(up, Vector3.right);
+            dir.Normalize();
+        }
+
+        float needed = (dist > 0.0001f ? radius - dist : radius) + 0.04f;
+        worldPush = Vector3.ProjectOnPlane(dir * needed, up);
+        if (worldPush.sqrMagnitude < 0.0000001f)
+            worldPush = dir * needed;
+        return worldPush.sqrMagnitude > 0.0000001f;
+    }
+
+    static bool TryPushOutOfBox(
+        BoxCollider box,
+        Vector3 bottom,
+        Vector3 top,
+        float radius,
+        Vector3 up,
+        out Vector3 worldPush)
+    {
+        worldPush = Vector3.zero;
+        Transform tr = box.transform;
+        Vector3 lossy = tr.lossyScale;
+        Vector3 expanded = box.size * 0.5f;
+        expanded.x += radius / Mathf.Max(0.0001f, Mathf.Abs(lossy.x));
+        expanded.y += radius / Mathf.Max(0.0001f, Mathf.Abs(lossy.y));
+        expanded.z += radius / Mathf.Max(0.0001f, Mathf.Abs(lossy.z));
+
+        Vector3 localA = tr.InverseTransformPoint(bottom) - box.center;
+        Vector3 localB = tr.InverseTransformPoint(top) - box.center;
+
+        // How far the capsule must travel on each local axis before every sample is outside.
+        // Contact slop ignores a brush against the face so walking along a rock doesn't jitter.
+        const float slop = 0.03f;
+        const int samples = 5;
+        var pen = new float[3];
+        var sign = new float[3] { 1f, 1f, 1f };
+        bool inside = false;
+
+        for (int s = 0; s < samples; s++)
+        {
+            Vector3 p = Vector3.Lerp(localA, localB, s / (float)(samples - 1));
+            float dx = expanded.x - Mathf.Abs(p.x);
+            float dy = expanded.y - Mathf.Abs(p.y);
+            float dz = expanded.z - Mathf.Abs(p.z);
+            if (dx <= slop || dy <= slop || dz <= slop)
+                continue;
+
+            inside = true;
+            if (dx > pen[0])
+            {
+                pen[0] = dx;
+                sign[0] = p.x >= 0f ? 1f : -1f;
+            }
+            if (dy > pen[1])
+            {
+                pen[1] = dy;
+                sign[1] = p.y >= 0f ? 1f : -1f;
+            }
+            if (dz > pen[2])
+            {
+                pen[2] = dz;
+                sign[2] = p.z >= 0f ? 1f : -1f;
+            }
+        }
+
+        if (!inside)
             return false;
 
-        normal.Normalize();
-        if (Vector3.Dot(normal, up) > 0.4f)
-            return true;
+        // Drop the planet-up part of the exit, then lengthen the sideways push so the
+        // capsule still clears the face. An upward-only pop gets pulled back into the
+        // prop by the ground stick.
+        Vector3 best = Vector3.zero;
+        float bestDist = float.MaxValue;
+        for (int axis = 0; axis < 3; axis++)
+        {
+            if (pen[axis] <= slop)
+                continue;
 
-        // Outward-facing prop slope (common when stepping onto a rock on the sphere).
-        return Vector3.Dot(normal, radial) > 0.2f;
+            Vector3 local = Vector3.zero;
+            local[axis] = sign[axis] * (pen[axis] + 0.04f);
+            Vector3 world = tr.TransformVector(local);
+            float worldLen = world.magnitude;
+            if (worldLen < 0.0001f)
+                continue;
+
+            Vector3 tangentDir = Vector3.ProjectOnPlane(world / worldLen, up);
+            float align = tangentDir.magnitude;
+            if (align < 0.2f)
+                continue;
+
+            float distance = Mathf.Min(4f, worldLen / align);
+            if (distance >= bestDist)
+                continue;
+
+            bestDist = distance;
+            best = tangentDir / align * distance;
+        }
+
+        if (bestDist == float.MaxValue)
+            return false;
+
+        worldPush = best;
+        return true;
     }
 
     bool IsPlanetObstacle(Collider col)

@@ -26,6 +26,15 @@ public class PlanetSurfaceAlign : MonoBehaviour
         SnapToSurface(recordUndo: false);
     }
 
+    /// <summary>
+    /// Sit on the walk surface at <paramref name="groundHover"/>. Nearby props do not add height.
+    /// </summary>
+    public void DropToGround(float groundHover, bool recordUndo = true)
+    {
+        hover = Mathf.Max(0f, groundHover);
+        SnapToSurface(recordUndo);
+    }
+
     void OnValidate()
     {
         hover = Mathf.Max(0f, hover);
@@ -130,7 +139,8 @@ public class PlanetSurfaceAlign : MonoBehaviour
     }
 
     /// <summary>
-    /// Editor drag: update yaw from rotation if needed, capture height as hover, then snap laterally.
+    /// Editor drag: keep yaw, then stick to the ground. Hover stays as set —
+    /// sliding past another prop does not lift this one.
     /// </summary>
     public void EditorHandleMoved()
     {
@@ -148,13 +158,6 @@ public class PlanetSurfaceAlign : MonoBehaviour
             float extracted = PlanetSurfacePose.ExtractYaw(transform.rotation, upHint);
             if (!Mathf.Approximately(extracted, yaw))
                 yaw = extracted;
-
-            // Remember how high the user placed the prop above the analytic surface.
-            float surfaceRadius = _tiles != null && _tiles.ProvidesWalkSurface
-                ? _tiles.GetWalkSurfaceRadius(upHint)
-                : planet.GetTerrainRadius(upHint);
-            float currentRadius = radial.magnitude;
-            hover = Mathf.Max(0f, currentRadius - surfaceRadius);
         }
 
         SnapToSurface(recordUndo: true);
