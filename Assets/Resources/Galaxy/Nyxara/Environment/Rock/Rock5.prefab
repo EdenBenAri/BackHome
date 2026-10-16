@@ -13,7 +13,7 @@ GameObject:
   - component: {fileID: 8685342743724737870}
   - component: {fileID: 3907936926265248104}
   m_Layer: 3
-  m_Name: RockBlueRidgeFormation
+  m_Name: Rock5
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

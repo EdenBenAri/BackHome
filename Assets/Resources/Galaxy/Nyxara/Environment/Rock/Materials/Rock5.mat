@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: BlueRidgeFormation
+  m_Name: Rock5
   m_Shader: {fileID: 4800000, guid: e4f8a21c7b6d9053c8e1f4a63720d5b9, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
