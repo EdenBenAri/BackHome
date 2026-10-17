@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: 13cc24f3a8805932c8ed290be97eab2b
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Presets/Pixel Asteroid Run.asset
+  uploadId: 978290

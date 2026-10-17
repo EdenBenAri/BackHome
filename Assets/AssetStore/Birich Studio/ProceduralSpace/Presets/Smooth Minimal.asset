@@ -1,0 +1,109 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 41902be8802f841259bf94c25b159fbc, type: 3}
+  m_Name: Smooth Minimal
+  m_EditorClassIdentifier: BirichStudio.ProceduralSpace::BirichStudio.ProceduralSpace.SpaceBackgroundProfile
+  description: 'Space as a whisper: sparse stars, no shooting stars, barely any motion.
+    For UI and menus.'
+  pixelArt: 0
+  pixelsPerUnit: 12
+  archetypeWeights:
+  - 2.5
+  - 0.3
+  - 0.2
+  - 0.4
+  - 0.4
+  - 0.2
+  - 0.2
+  - 0.3
+  bodyCountScale: 0.5
+  planetKindWeights:
+  - 1
+  - 1
+  - 1
+  - 1
+  - 1
+  - 0
+  - 1
+  - 1
+  planetScale: 1
+  heroRadius: {x: 9, y: 15}
+  midRadius: {x: 2.2, y: 4}
+  smallRadius: {x: 0.7, y: 1.8}
+  autoFitToCamera: 1
+  referenceViewHeight: 17
+  skyOffset: {x: 0, y: 0}
+  spread: {x: 18, y: 10}
+  separationFactor: 2.2
+  heroEdgePush: 11
+  parallaxStrength: 1
+  parallaxSmall: 0.1
+  parallaxLarge: 0.025
+  nebulaParallax: 0.03
+  farStarParallax: 0.1
+  midStarParallax: 0.2
+  nearStarParallax: 0.35
+  driftVelocity: {x: 0.03, y: 0.004}
+  wrapBodies: 1
+  wrapSpacing: 2.6
+  spinPeriod: {x: 85, y: 210}
+  tiltRange: {x: -38, y: 38}
+  targetSurfaceTexels: 34
+  surfaceBlockRange: {x: 2, y: 4}
+  starDensityScale: 0.25
+  starHueVariety: 1
+  twinkleAmount: 0.5
+  blinkFraction: 0.04
+  nebulaIntensity: 0.4
+  ringChance: 0.5
+  moonChance: 0.6
+  maxMoonsPerBody: 2
+  baseColor: {r: 0.031, g: 0.024, b: 0.055, a: 1}
+  baseColor2: {r: 0.078, g: 0.051, b: 0.125, a: 1}
+  gradientDirection: {x: 0.35, y: 1}
+  gradientScale: 0.012
+  proceduralLight: 1
+  lightDirection: {x: -0.55, y: 0.45}
+  lightElevation: 0.45
+  lightElevationRange: {x: 0.14, y: 0.45}
+  brightStarDensity: 0.05
+  dustAmount: 0.55
+  starSpikes: 0.45
+  starSpikeCount: 6
+  distantGalaxyDensity: 0.015
+  shadowDarkness: 0.96
+  planetAmbient: 0.035
+  atmosphereGlow: 0.6
+  terminatorSteps: 5
+  surfaceColorSteps: 8
+  pixelHueShift: 0.6
+  ditherAmount: 1
+  shootingStars: 0
+  shootingStarPeriod: 9
+  shootingStarSpeed: 30
+  shootingStarTail: 4
+  shootingStarBrightness: 1.3
+  shootingStarTracks: 1
+  shootingStarColor: {r: 0.9, g: 0.95, b: 1, a: 1}
+  nebulaPalette:
+  - {r: 0.42, g: 0.16, b: 0.58, a: 1}
+  - {r: 0.16, g: 0.13, b: 0.45, a: 1}
+  - {r: 0.72, g: 0.34, b: 0.42, a: 1}
+  - {r: 0.16, g: 0.42, b: 0.52, a: 1}
+  - {r: 0.1, g: 0.18, b: 0.42, a: 1}
+  - {r: 0.45, g: 0.7, b: 0.7, a: 1}
+  - {r: 0.55, g: 0.2, b: 0.22, a: 1}
+  - {r: 0.3, g: 0.12, b: 0.3, a: 1}
+  - {r: 0.85, g: 0.48, b: 0.28, a: 1}
+  - {r: 0.22, g: 0.42, b: 0.34, a: 1}
+  - {r: 0.12, g: 0.2, b: 0.38, a: 1}
+  - {r: 0.62, g: 0.76, b: 0.48, a: 1}

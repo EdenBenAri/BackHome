@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 60aa4363f6f0ab2a3af4211efd3c132d
+ShaderIncludeImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Shaders/Include/SurfaceContext.hlsl
+  uploadId: 978290

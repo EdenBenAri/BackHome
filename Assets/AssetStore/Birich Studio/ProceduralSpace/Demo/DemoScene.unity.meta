@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: f3a22b5f4e0fcd685a75236b24c6fc5a
+DefaultImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Demo/DemoScene.unity
+  uploadId: 978290

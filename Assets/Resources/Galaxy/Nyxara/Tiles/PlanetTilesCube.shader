@@ -4,8 +4,8 @@ Shader "BackHome/PlanetTilesCube"
     {
         _BaseMap("Texture", 2D) = "white" {}
         _BaseColor("Color", Color) = (1, 1, 1, 1)
-        _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.92
-        _ShadeCeil("Shade Ceil", Range(0.5, 1.2)) = 1.04
+        _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.96
+        _ShadeCeil("Shade Ceil", Range(0.5, 1.2)) = 1
     }
 
     SubShader
@@ -73,10 +73,13 @@ Shader "BackHome/PlanetTilesCube"
             {
                 half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
                 half3 n = normalize(input.normalWS);
-                // Soft directional shade so cube sides read as blocks.
+                // Soft top wash. Sides stay close to the tile color, like a flat cartoon map.
                 half3 lightDir = normalize(half3(0.35, 0.9, 0.25));
-                half ndl = saturate(dot(n, lightDir));
-                half shade = lerp(_ShadeFloor, _ShadeCeil, ndl) * PlanetTileBevel(input.uv);
+                half ndl = dot(n, lightDir);
+                half wrap = 0.85h;
+                half t = saturate((ndl + wrap) / (1.0h + wrap));
+                t = t * t * (3.0h - 2.0h * t);
+                half shade = lerp(_ShadeFloor, _ShadeCeil, t) * PlanetTileBevel(input.uv);
                 half3 rgb = tex.rgb * _BaseColor.rgb * input.color.rgb * shade;
                 return half4(rgb, 1);
             }

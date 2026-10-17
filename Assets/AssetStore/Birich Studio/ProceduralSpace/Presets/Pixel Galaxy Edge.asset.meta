@@ -1,0 +1,15 @@
+fileFormatVersion: 2
+guid: e6d4abb286e81fdb993b1e6b899fbd1d
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 11400000
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Presets/Pixel Galaxy Edge.asset
+  uploadId: 978290

@@ -1,0 +1,66 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!21 &2100000
+Material:
+  serializedVersion: 8
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: ProceduralSpace
+  m_Shader: {fileID: 4800000, guid: f849f9fd575e166ce89c2641b866a73b, type: 3}
+  m_Parent: {fileID: 0}
+  m_ModifiedSerializedProperties: 0
+  m_ValidKeywords: []
+  m_InvalidKeywords: []
+  m_LightmapFlags: 4
+  m_EnableInstancingVariants: 0
+  m_DoubleSidedGI: 0
+  m_CustomRenderQueue: -1
+  stringTagMap: {}
+  disabledShaderPasses: []
+  m_LockedProperties: 
+  m_SavedProperties:
+    serializedVersion: 3
+    m_TexEnvs: []
+    m_Ints: []
+    m_Floats:
+    - _BlinkFraction: 0.1
+    - _BlinkRateMax: 3.2
+    - _BlinkRateMin: 0.9
+    - _BlinkSharpness: 3.5
+    - _DitherAmount: 1
+    - _FarStarBright: 0.55
+    - _FarStarDensity: 0.005
+    - _FarStarParallax: 0.1
+    - _GradientScale: 0.012
+    - _NearStarBright: 1.3
+    - _NearStarDensity: 0.0014
+    - _NearStarParallax: 0.35
+    - _NebAmount: 0.18
+    - _NebContrast: 2.2
+    - _NebParallax: 0.03
+    - _NebScale: 0.035
+    - _NebStyle: 0
+    - _PPU: 12
+    - _PixelArt: 0
+    - _PlanetAmbient: 0.1
+    - _PlanetColorSteps: 8
+    - _PlanetLightSteps: 5
+    - _PlanetShadow: 0.9
+    - _StarHueVariety: 0.35
+    - _TimeOffset: 0
+    - _TwinkleAmount: 0.5
+    - _TwinkleSpeed: 1.6
+    m_Colors:
+    - _BaseColor: {r: 0.031, g: 0.024, b: 0.054999977, a: 1}
+    - _BaseColor2: {r: 0.07799999, g: 0.050999977, b: 0.12499998, a: 1}
+    - _FarStarColor: {r: 0.78, g: 0.74, b: 0.92, a: 1}
+    - _GradientDir: {r: 0.35, g: 1, b: 0, a: 0}
+    - _NearStarColor: {r: 1, g: 0.96999997, b: 1, a: 1}
+    - _NebColA: {r: 0.41999996, g: 0.15999997, b: 0.58, a: 1}
+    - _NebColB: {r: 0.15999997, g: 0.12999997, b: 0.45, a: 1}
+    - _NebColC: {r: 0.72, g: 0.33999997, b: 0.41999996, a: 1}
+    - _PlanetLightDir: {r: -0.55, g: 0.45, b: 0, a: 0}
+  m_BuildTextureStacks: []
+  m_AllowLocking: 1

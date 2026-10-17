@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: e0bb33b7e53d13482a9905592be44988
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Documentation/CHANGELOG.md
+  uploadId: 978290

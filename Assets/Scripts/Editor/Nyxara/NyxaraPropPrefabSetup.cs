@@ -517,39 +517,39 @@ public static class NyxaraPropPrefabSetup
         if (mat.HasProperty("_BaseColor"))
             mat.SetColor("_BaseColor", Color.white);
 
-        // Casual toon defaults (XP Heroes style).
+        // Flat cartoon defaults, matched to XP Hero: albedo stays even, almost no shade.
         if (mat.HasProperty("_Brightness"))
-            mat.SetFloat("_Brightness", 1.25f);
+            mat.SetFloat("_Brightness", 1.04f);
         if (mat.HasProperty("_ShadeSteps"))
-            mat.SetFloat("_ShadeSteps", 3f);
+            mat.SetFloat("_ShadeSteps", 2f);
         if (mat.HasProperty("_ShadeSoftness"))
-            mat.SetFloat("_ShadeSoftness", 0.45f);
+            mat.SetFloat("_ShadeSoftness", 0.85f);
         if (mat.HasProperty("_ShadeFloor"))
-            mat.SetFloat("_ShadeFloor", 0.72f);
+            mat.SetFloat("_ShadeFloor", 0.94f);
         if (mat.HasProperty("_Saturation"))
-            mat.SetFloat("_Saturation", 1.2f);
+            mat.SetFloat("_Saturation", 1.04f);
         if (mat.HasProperty("_Contrast"))
-            mat.SetFloat("_Contrast", 0.98f);
+            mat.SetFloat("_Contrast", 1f);
         if (mat.HasProperty("_ShadowTint"))
-            mat.SetColor("_ShadowTint", new Color(0.96f, 0.91f, 0.8f, 1f));
+            mat.SetColor("_ShadowTint", new Color(0.98f, 0.98f, 0.97f, 1f));
         if (mat.HasProperty("_KeyTint"))
-            mat.SetColor("_KeyTint", new Color(1f, 0.99f, 0.96f, 1f));
+            mat.SetColor("_KeyTint", Color.white);
         if (mat.HasProperty("_SpecularColor"))
-            mat.SetColor("_SpecularColor", new Color(1f, 1f, 1f, 0.55f));
+            mat.SetColor("_SpecularColor", new Color(1f, 1f, 1f, 0f));
         if (mat.HasProperty("_SpecularSize"))
-            mat.SetFloat("_SpecularSize", 0.22f);
+            mat.SetFloat("_SpecularSize", 0.08f);
         if (mat.HasProperty("_SpecularSoftness"))
-            mat.SetFloat("_SpecularSoftness", 0.06f);
+            mat.SetFloat("_SpecularSoftness", 0.04f);
         if (mat.HasProperty("_RimColor"))
-            mat.SetColor("_RimColor", new Color(0.85f, 0.95f, 1f, 0.35f));
+            mat.SetColor("_RimColor", new Color(1f, 1f, 1f, 0f));
         if (mat.HasProperty("_RimPower"))
-            mat.SetFloat("_RimPower", 3.5f);
+            mat.SetFloat("_RimPower", 4f);
         if (mat.HasProperty("_RimLightMask"))
-            mat.SetFloat("_RimLightMask", 0.75f);
+            mat.SetFloat("_RimLightMask", 0.5f);
         if (mat.HasProperty("_AmbientStrength"))
-            mat.SetFloat("_AmbientStrength", 0.5f);
+            mat.SetFloat("_AmbientStrength", 0.2f);
         if (mat.HasProperty("_AmbientTint"))
-            mat.SetColor("_AmbientTint", new Color(1f, 0.96f, 0.88f, 1f));
+            mat.SetColor("_AmbientTint", Color.white);
 
         if (emission != null && mat.HasProperty("_EmissionMap"))
         {

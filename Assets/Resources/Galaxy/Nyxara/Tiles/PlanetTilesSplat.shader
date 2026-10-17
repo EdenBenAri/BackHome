@@ -8,8 +8,8 @@ Shader "BackHome/PlanetTilesSplat"
         _Splat3("Splat 3 (A)", 2D) = "white" {}
         _BaseColor("Color", Color) = (1, 1, 1, 1)
         _BlendSharpness("Blend Sharpness", Range(1, 4)) = 1.65
-        _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.88
-        _ShadeCeil("Shade Ceil", Range(0.5, 1.2)) = 1.06
+        _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.96
+        _ShadeCeil("Shade Ceil", Range(0.5, 1.2)) = 1
     }
 
     SubShader
@@ -92,11 +92,14 @@ Shader "BackHome/PlanetTilesSplat"
                 half3 albedo = c0.rgb * w.r + c1.rgb * w.g + c2.rgb * w.b + c3.rgb * w.a;
                 half3 n = normalize(input.normalWS);
                 half3 lightDir = normalize(half3(0.35, 0.9, 0.25));
-                half ndl = saturate(dot(n, lightDir));
+                half ndl = dot(n, lightDir);
+                half wrap = 0.85h;
+                half t = saturate((ndl + wrap) / (1.0h + wrap));
+                t = t * t * (3.0h - 2.0h * t);
                 // R is Grass_brightened, A is Grass_darked. Dirt and clay stay flat.
                 half grass = saturate(w.r + w.a);
                 half bevel = lerp(1.0h, PlanetTileBevel(input.uv), grass);
-                half shade = lerp(_ShadeFloor, _ShadeCeil, ndl) * bevel;
+                half shade = lerp(_ShadeFloor, _ShadeCeil, t) * bevel;
                 return half4(albedo * _BaseColor.rgb * shade, 1);
             }
             ENDHLSL

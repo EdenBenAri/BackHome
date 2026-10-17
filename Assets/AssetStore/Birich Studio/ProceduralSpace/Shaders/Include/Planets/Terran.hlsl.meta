@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: bc6fa459e7ca1efc187f9406115fd573
+ShaderIncludeImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Shaders/Include/Planets/Terran.hlsl
+  uploadId: 978290

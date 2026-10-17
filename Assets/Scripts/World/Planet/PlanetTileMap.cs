@@ -1317,9 +1317,9 @@ public class PlanetTileMap : MonoBehaviour
         if (splat)
         {
             if (mat.HasProperty("_ShadeFloor"))
-                mat.SetFloat("_ShadeFloor", 0.88f);
+                mat.SetFloat("_ShadeFloor", 0.96f);
             if (mat.HasProperty("_ShadeCeil"))
-                mat.SetFloat("_ShadeCeil", 1.06f);
+                mat.SetFloat("_ShadeCeil", 1.0f);
             if (mat.HasProperty("_BlendSharpness"))
                 mat.SetFloat("_BlendSharpness", tileset.SplatBlendSharpness);
 
@@ -1341,9 +1341,9 @@ public class PlanetTileMap : MonoBehaviour
         else
         {
             if (mat.HasProperty("_ShadeFloor"))
-                mat.SetFloat("_ShadeFloor", 0.82f);
+                mat.SetFloat("_ShadeFloor", 0.96f);
             if (mat.HasProperty("_ShadeCeil"))
-                mat.SetFloat("_ShadeCeil", 1.02f);
+                mat.SetFloat("_ShadeCeil", 1.0f);
 
             Texture2D tex = tileset.Texture;
             if (tex != null)

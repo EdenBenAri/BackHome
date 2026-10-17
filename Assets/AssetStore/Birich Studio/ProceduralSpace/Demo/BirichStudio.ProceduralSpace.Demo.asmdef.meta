@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: aabe16c10e8a2f55a933e3d5092627b6
+AssemblyDefinitionImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Demo/BirichStudio.ProceduralSpace.Demo.asmdef
+  uploadId: 978290

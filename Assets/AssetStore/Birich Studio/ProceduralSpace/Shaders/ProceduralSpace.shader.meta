@@ -1,0 +1,16 @@
+fileFormatVersion: 2
+guid: f849f9fd575e166ce89c2641b866a73b
+ShaderImporter:
+  externalObjects: {}
+  defaultTextures: []
+  nonModifiableTextures: []
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Shaders/ProceduralSpace.shader
+  uploadId: 978290

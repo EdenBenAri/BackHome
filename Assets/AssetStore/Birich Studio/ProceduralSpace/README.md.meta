@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: 822591f8fbe780093a473938e72f5a8b
+TextScriptImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/README.md
+  uploadId: 978290

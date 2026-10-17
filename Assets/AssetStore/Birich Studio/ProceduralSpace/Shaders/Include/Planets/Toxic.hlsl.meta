@@ -1,0 +1,14 @@
+fileFormatVersion: 2
+guid: f91a365f11163273b8b6ff81830e2d0c
+ShaderIncludeImporter:
+  externalObjects: {}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 400074
+  packageName: Procedural Space Background Generator
+  packageVersion: 1.0.0
+  assetPath: Assets/Birich Studio/ProceduralSpace/Shaders/Include/Planets/Toxic.hlsl
+  uploadId: 978290

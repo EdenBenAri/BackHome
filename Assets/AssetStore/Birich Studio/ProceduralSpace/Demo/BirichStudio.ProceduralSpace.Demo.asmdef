@@ -1,0 +1,23 @@
+{
+    "name": "BirichStudio.ProceduralSpace.Demo",
+    "rootNamespace": "BirichStudio.ProceduralSpace.Demo",
+    "references": [
+        "BirichStudio.ProceduralSpace",
+        "Unity.InputSystem"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "1.0.0",
+            "define": "BIRICH_INPUTSYSTEM"
+        }
+    ],
+    "noEngineReferences": false
+}
