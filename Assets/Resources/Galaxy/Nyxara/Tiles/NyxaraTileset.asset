@@ -175,5 +175,3 @@ MonoBehaviour:
   - {fileID: 2800000, guid: df73a5b6a8127ff40a8c6840516304de, type: 3}
   splatTiling: 1
   splatBlendSharpness: 5
-  grassDetail: {fileID: 2800000, guid: 1330b81702c958b4dbe525d3f825bc28, type: 3}
-  grassDetailStrength: 5

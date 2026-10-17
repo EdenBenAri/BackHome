@@ -6,8 +6,6 @@ Shader "BackHome/PlanetTilesSplat"
         _Splat1("Splat 1 (G)", 2D) = "white" {}
         _Splat2("Splat 2 (B)", 2D) = "white" {}
         _Splat3("Splat 3 (A)", 2D) = "white" {}
-        _GrassDetail("Grass Detail", 2D) = "black" {}
-        _GrassDetailStrength("Grass Detail Strength", Range(0, 8)) = 5
         _BaseColor("Color", Color) = (1, 1, 1, 1)
         _BlendSharpness("Blend Sharpness", Range(1, 4)) = 1.65
         _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.88
@@ -42,19 +40,14 @@ Shader "BackHome/PlanetTilesSplat"
             TEXTURE2D(_Splat1);
             TEXTURE2D(_Splat2);
             TEXTURE2D(_Splat3);
-            TEXTURE2D(_GrassDetail);
             SAMPLER(sampler_Splat0);
-            SAMPLER(sampler_GrassDetail);
 
             CBUFFER_START(UnityPerMaterial)
                 float4 _Splat0_ST;
-                float4 _GrassDetail_ST;
-                float4 _GrassDetail_TexelSize;
                 half4 _BaseColor;
                 half _BlendSharpness;
                 half _ShadeFloor;
                 half _ShadeCeil;
-                half _GrassDetailStrength;
             CBUFFER_END
 
             struct Attributes
@@ -102,17 +95,6 @@ Shader "BackHome/PlanetTilesSplat"
                 half ndl = saturate(dot(n, lightDir));
                 // R is Grass_brightened, A is Grass_darked. Dirt and clay stay flat.
                 half grass = saturate(w.r + w.a);
-                // Grass_texture is a few thin tufts on a large clear canvas.
-                // Draw them large, skip mips, and darken the grass underneath.
-                float2 detailUv = input.uv * 0.18;
-                half tuft = SAMPLE_TEXTURE2D_LOD(_GrassDetail, sampler_GrassDetail, detailUv, 0).a;
-                float2 texel = _GrassDetail_TexelSize.xy * 3.0;
-                tuft = max(tuft, SAMPLE_TEXTURE2D_LOD(_GrassDetail, sampler_GrassDetail, detailUv + float2(texel.x, 0), 0).a);
-                tuft = max(tuft, SAMPLE_TEXTURE2D_LOD(_GrassDetail, sampler_GrassDetail, detailUv - float2(texel.x, 0), 0).a);
-                tuft = max(tuft, SAMPLE_TEXTURE2D_LOD(_GrassDetail, sampler_GrassDetail, detailUv + float2(0, texel.y), 0).a);
-                tuft = max(tuft, SAMPLE_TEXTURE2D_LOD(_GrassDetail, sampler_GrassDetail, detailUv - float2(0, texel.y), 0).a);
-                half ink = saturate(tuft * _GrassDetailStrength) * grass;
-                albedo = lerp(albedo, albedo * 0.28h, ink);
                 half bevel = lerp(1.0h, PlanetTileBevel(input.uv), grass);
                 half shade = lerp(_ShadeFloor, _ShadeCeil, ndl) * bevel;
                 return half4(albedo * _BaseColor.rgb * shade, 1);

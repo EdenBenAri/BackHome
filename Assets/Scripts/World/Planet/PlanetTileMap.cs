@@ -1335,10 +1335,6 @@ public class PlanetTileMap : MonoBehaviour
                 mat.SetTexture("_Splat2", s2);
             if (mat.HasProperty("_Splat3"))
                 mat.SetTexture("_Splat3", s3);
-            if (mat.HasProperty("_GrassDetail") && tileset.GrassDetail != null)
-                mat.SetTexture("_GrassDetail", tileset.GrassDetail);
-            if (mat.HasProperty("_GrassDetailStrength"))
-                mat.SetFloat("_GrassDetailStrength", tileset.GrassDetailStrength);
             if (s0 != null)
                 mat.mainTexture = s0;
         }
