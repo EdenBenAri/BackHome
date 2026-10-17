@@ -45,6 +45,7 @@ public static class SnarlfangSetup
     static readonly string ResultPath = Path.Combine(Application.dataPath, "..", "Temp", "SnarlfangSetup.result.txt");
     static readonly string DiagTriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSnarlfangDiag.trigger");
     static readonly string DiagPath = Path.Combine(Application.dataPath, "..", "Temp", "SnarlfangDiag.txt");
+    static readonly string StripTriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeStripIcosphere.trigger");
 
     static bool _autoStarted;
 
@@ -77,6 +78,32 @@ public static class SnarlfangSetup
             try { File.Delete(DiagTriggerPath); } catch { /* ignore */ }
             Diagnose();
         }
+
+        if (File.Exists(StripTriggerPath))
+        {
+            try { File.Delete(StripTriggerPath); } catch { /* ignore */ }
+            ReimportCreatureModels();
+        }
+    }
+
+    static void ReimportCreatureModels()
+    {
+        string[] folders =
+        {
+            "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models",
+            "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models"
+        };
+
+        foreach (string folder in folders)
+        {
+            if (!AssetDatabase.IsValidFolder(folder))
+                continue;
+
+            foreach (string guid in AssetDatabase.FindAssets("t:Model", new[] { folder }))
+                AssetDatabase.ImportAsset(AssetDatabase.GUIDToAssetPath(guid), ImportAssetOptions.ForceUpdate);
+        }
+
+        WriteResult("icosphere stripped from imported creature models");
     }
 
     static void WatchTrigger()
@@ -110,8 +137,8 @@ public static class SnarlfangSetup
         _autoStarted = true;
         Setup(force: false);
         SetupIdles(force: false);
-        EnsureAttacks();
-        EnsureDeath();
+        EnsureAttacks(force: false);
+        EnsureDeath(force: false);
     }
 
     static void Diagnose()
@@ -286,7 +313,7 @@ public static class SnarlfangSetup
         so.FindProperty("displayName").stringValue = "Snarlfang";
         so.FindProperty("specialAbility").intValue = (int)CreatureSpecialAbility.Stealth;
         so.FindProperty("abilityDuration").floatValue = 2f;
-        so.FindProperty("stealthOpacity").floatValue = 0.22f;
+        so.FindProperty("stealthOpacity").floatValue = 0.07f;
         so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(stats);
         return stats;
@@ -333,6 +360,8 @@ public static class SnarlfangSetup
             instance.transform.localScale = Vector3.one;
             PrefabUtility.UnpackPrefabInstance(instance, PrefabUnpackMode.Completely, InteractionMode.AutomatedAction);
 
+            int removed = RemoveIcosphere(instance);
+
             AnimationClip clip = AssetDatabase.LoadAllAssetsAtPath(ModelPath)
                 .OfType<AnimationClip>()
                 .Where(c => c != null && !c.name.StartsWith("__preview"))
@@ -367,12 +396,29 @@ public static class SnarlfangSetup
             AddCreatureComponents(instance, stats, barHeight);
 
             PrefabUtility.SaveAsPrefabAsset(instance, PrefabPath);
-            Debug.Log($"[BackHome] Snarlfang prefab saved. clip={(clip != null ? clip.name : "none")} height={height:0.00}");
+            Debug.Log($"[BackHome] Snarlfang prefab saved. removedIcosphere={removed} clip={(clip != null ? clip.name : "none")} height={height:0.00}");
         }
         finally
         {
             Object.DestroyImmediate(instance);
         }
+    }
+
+    static int RemoveIcosphere(GameObject instance)
+    {
+        var doomed = new List<GameObject>();
+        foreach (Transform child in instance.GetComponentsInChildren<Transform>(true))
+        {
+            if (child == null || child == instance.transform)
+                continue;
+            if (child.name == "Icosphere")
+                doomed.Add(child.gameObject);
+        }
+
+        foreach (GameObject extra in doomed)
+            Object.DestroyImmediate(extra);
+
+        return doomed.Count;
     }
 
     static float MeasureHeight(GameObject instance)
@@ -559,10 +605,8 @@ public static class SnarlfangSetup
                 return;
             }
 
-            AnimationClip idle1 = AssetDatabase.LoadAssetAtPath<AnimationClip>(Idle1ClipPath)
-                ?? ExtractLoopingClip(ModelPath, "Idle1", Idle1ClipPath);
-            AnimationClip idle2 = AssetDatabase.LoadAssetAtPath<AnimationClip>(Idle2ClipPath)
-                ?? ExtractLoopingClip(Idle2ModelPath, "Idle2", Idle2ClipPath);
+            AnimationClip idle1 = LoadOrExtract(force, Idle1ClipPath, ModelPath, "Idle1");
+            AnimationClip idle2 = LoadOrExtract(force, Idle2ClipPath, Idle2ModelPath, "Idle2");
             AnimationClip running = ExtractLoopingClip(RunningModelPath, "Running", RunningClipPath);
             controller = CreateIdleController(idle1, idle2, running);
             Avatar avatar = AssetDatabase.LoadAllAssetsAtPath(ModelPath).OfType<Avatar>().FirstOrDefault();
@@ -574,7 +618,7 @@ public static class SnarlfangSetup
             AssetDatabase.ImportAsset(PrefabPath, ImportAssetOptions.ForceUpdate);
             string paths = string.Join(" | ", SamplePaths(running).Take(4));
             WriteResult($"idle ok. layers={controller.layers.Length} states={controller.layers[0].stateMachine.states.Length} idle1={idle1.length:0.00}s idle2={idle2.length:0.00}s run={running.length:0.00}s paths={paths}");
-            EnsureAttacks();
+            EnsureAttacks(force);
         }
         catch (System.Exception e)
         {
@@ -583,7 +627,7 @@ public static class SnarlfangSetup
         }
     }
 
-    static void EnsureAttacks()
+    static void EnsureAttacks(bool force)
     {
         try
         {
@@ -591,14 +635,12 @@ public static class SnarlfangSetup
             if (controller == null)
                 return;
 
-            AnimationClip light = AssetDatabase.LoadAssetAtPath<AnimationClip>(LightClipPath)
-                ?? ExtractLoopingClip(LightModelPath, "LightAttack", LightClipPath, loop: true);
-            AnimationClip heavy = AssetDatabase.LoadAssetAtPath<AnimationClip>(HeavyClipPath)
-                ?? ExtractLoopingClip(HeavyModelPath, "HeavyAttack", HeavyClipPath, loop: false);
+            AnimationClip light = LoadOrExtract(force, LightClipPath, LightModelPath, "LightAttack", loop: true);
+            AnimationClip heavy = LoadOrExtract(force, HeavyClipPath, HeavyModelPath, "HeavyAttack", loop: false);
             AddAttackStates(controller, light, heavy);
             AssetDatabase.SaveAssets();
             WriteResult($"attacks ok light={light.length:0.00}s heavy={heavy.length:0.00}s");
-            EnsureDeath();
+            EnsureDeath(force);
         }
         catch (System.Exception e)
         {
@@ -607,7 +649,19 @@ public static class SnarlfangSetup
         }
     }
 
-    static void EnsureDeath()
+    static AnimationClip LoadOrExtract(bool force, string clipPath, string modelPath, string clipName, bool loop = true)
+    {
+        if (!force)
+        {
+            AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(clipPath);
+            if (existing != null)
+                return existing;
+        }
+
+        return ExtractLoopingClip(modelPath, clipName, clipPath, loop);
+    }
+
+    static void EnsureDeath(bool force)
     {
         try
         {
@@ -615,8 +669,7 @@ public static class SnarlfangSetup
             if (controller == null || controller.layers == null || controller.layers.Length == 0)
                 return;
 
-            AnimationClip death = AssetDatabase.LoadAssetAtPath<AnimationClip>(DeathClipPath)
-                ?? ExtractLoopingClip(DeathModelPath, "Death", DeathClipPath, loop: false);
+            AnimationClip death = LoadOrExtract(force, DeathClipPath, DeathModelPath, "Death", loop: false);
             if (death == null)
                 return;
 
@@ -1071,6 +1124,22 @@ public static class SnarlfangSetup
 public class SnarlfangRunSetupHook : AssetPostprocessor
 {
     static bool _busy;
+
+    void OnPostprocessModel(GameObject root)
+    {
+        if (root == null || string.IsNullOrEmpty(assetPath) || assetPath.IndexOf("/Creatures/", System.StringComparison.Ordinal) < 0)
+            return;
+
+        var doomed = new List<GameObject>();
+        foreach (Transform child in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (child != null && child != root.transform && child.name == "Icosphere")
+                doomed.Add(child.gameObject);
+        }
+
+        foreach (GameObject extra in doomed)
+            Object.DestroyImmediate(extra);
+    }
 
     static void OnPostprocessAllAssets(string[] importedAssets, string[] deletedAssets, string[] movedAssets, string[] movedFromAssetPaths)
     {

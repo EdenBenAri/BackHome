@@ -33,10 +33,10 @@ ModelImporter:
     clipAnimations:
     - serializedVersion: 16
       name: Running
-      takeName: target_character|target_character|target_character|run_fast_6_inplace
-      internalID: -2917375398650501931
+      takeName: target_character|target_character|target_character|run_fast_7
+      internalID: 2841967529702960216
       firstFrame: 0
-      lastFrame: 20
+      lastFrame: 21
       wrapMode: 2
       orientationOffsetY: 0
       level: 0
