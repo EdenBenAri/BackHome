@@ -15,7 +15,6 @@ public class Creature : MonoBehaviour, IVitalsReadable
     bool _dying;
     Action _diedNoArg;
     CreatureChase _chase;
-    CreatureAbility _ability;
     CreatureAnimator _anim;
 
     public CreatureStats Stats => stats;
@@ -26,22 +25,6 @@ public class Creature : MonoBehaviour, IVitalsReadable
     public float AttackDamage => stats != null ? stats.AttackDamage : 0f;
     public float AttackSpeed => stats != null ? stats.AttackSpeed : 0f;
     public float AttackRange => stats != null ? stats.AttackRange : 0f;
-
-    public void GetActiveAttack(out CreatureAttackKind kind, out float damage, out float speed, out float range)
-    {
-        bool special = _ability != null && _ability.IsSpecialAttack;
-        kind = special ? CreatureAttackKind.Special : CreatureAttackKind.Basic;
-
-        if (stats == null)
-        {
-            damage = 0f;
-            speed = 0f;
-            range = 0f;
-            return;
-        }
-
-        stats.GetAttack(kind, out damage, out speed, out range);
-    }
     public float CurrentHealth => _currentHealth;
     public float CurrentOxygen => 0f;
     public float MaxOxygen => 0f;
@@ -49,9 +32,6 @@ public class Creature : MonoBehaviour, IVitalsReadable
     public float HealthNormalized => MaxHealth > 0f ? _currentHealth / MaxHealth : 0f;
     public bool IsAlive => _currentHealth > 0f && !_dying;
     public bool HasStats => stats != null;
-
-    /// <summary>False while stealthed. Weapons skip this creature until stealth ends.</summary>
-    public bool IsTargetable => _ability == null || _ability.IsTargetable;
 
     /// <summary>True while frozen - e.g. the instant the player dies, so every creature stops dead
     /// in place and can't keep chasing/attacking during the short beat where the player's own
@@ -78,19 +58,7 @@ public class Creature : MonoBehaviour, IVitalsReadable
         _anim = GetComponent<CreatureAnimator>();
         if (_anim == null)
             _anim = GetComponentInChildren<CreatureAnimator>();
-        EnsureSpecialAbility();
         ResetHealth();
-    }
-
-    void EnsureSpecialAbility()
-    {
-        if (stats == null || stats.SpecialAbility == CreatureSpecialAbility.None)
-            return;
-
-        if (GetComponent<CreatureAbility>() == null)
-            gameObject.AddComponent<CreatureAbility>();
-
-        _ability = GetComponent<CreatureAbility>();
     }
 
     void OnValidate()
@@ -137,7 +105,7 @@ public class Creature : MonoBehaviour, IVitalsReadable
 
     bool ApplyDamage(float amount)
     {
-        if (!IsAlive || !IsTargetable || amount <= 0f)
+        if (!IsAlive || amount <= 0f)
             return false;
 
         _currentHealth = Mathf.Max(0f, _currentHealth - amount);

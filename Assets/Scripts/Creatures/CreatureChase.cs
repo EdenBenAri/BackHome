@@ -59,11 +59,6 @@ public class CreatureChase : MonoBehaviour
     /// <summary>True while actively chasing / fighting the player.</summary>
     public bool IsAggroed => _state == State.Aggroed;
 
-    /// <summary>Fired once when this creature spots the player and enters the chase. Not fired for damage aggro.</summary>
-    public event System.Action PlayerSpotted;
-
-    CreatureAbility _ability;
-
     /// <summary>True during the short hit-shove after taking damage.</summary>
     public bool IsKnockedBack => _knockActive;
 
@@ -83,7 +78,6 @@ public class CreatureChase : MonoBehaviour
 
     void Start()
     {
-        _ability = GetComponent<CreatureAbility>();
         CaptureHome();
     }
 
@@ -237,10 +231,9 @@ public class CreatureChase : MonoBehaviour
 
         float distToPlayer = GetSurfaceDistanceTo(player.transform.position);
 
-        // Stop at the active strike range and face the player.
-        _creature.GetActiveAttack(out _, out _, out _, out float attack);
-        bool holdForAttack = _ability == null || !_ability.BlocksAttack;
-        if (holdForAttack && attack > 0f && distToPlayer <= attack)
+        // Stop at attack range and face the player.
+        float attack = _creature.AttackRange;
+        if (attack > 0f && distToPlayer <= attack)
         {
             FaceToward(player.transform.position);
             _anim?.SetMoving(false);
@@ -283,10 +276,7 @@ public class CreatureChase : MonoBehaviour
 
     void SpotPlayer()
     {
-        bool fresh = _state != State.Aggroed;
         EnterAggro();
-        if (fresh)
-            PlayerSpotted?.Invoke();
     }
 
     void BeginReturnHome()

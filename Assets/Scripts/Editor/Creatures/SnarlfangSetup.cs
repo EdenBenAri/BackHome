@@ -19,9 +19,7 @@ public static class SnarlfangSetup
     const string Idle2ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/Idle2.anim";
     const string RunningClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/Running.anim";
     const string LightModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Light_Attack.fbx";
-    const string HeavyModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Heavy_Attack.fbx";
     const string LightClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/LightAttack.anim";
-    const string HeavyClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/HeavyAttack.anim";
     const string DeathModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Models/Snarlfang_Animation_Death.fbx";
     const string DeathClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/Death.anim";
     const string ControllerPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Animations/Snarlfang.controller";
@@ -311,9 +309,6 @@ public static class SnarlfangSetup
         var stats = AssetDatabase.LoadAssetAtPath<CreatureStats>(StatsPath);
         var so = new SerializedObject(stats);
         so.FindProperty("displayName").stringValue = "Snarlfang";
-        so.FindProperty("specialAbility").intValue = (int)CreatureSpecialAbility.Stealth;
-        so.FindProperty("abilityDuration").floatValue = 2f;
-        so.FindProperty("stealthOpacity").floatValue = 0.07f;
         so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(stats);
         return stats;
@@ -636,10 +631,9 @@ public static class SnarlfangSetup
                 return;
 
             AnimationClip light = LoadOrExtract(force, LightClipPath, LightModelPath, "LightAttack", loop: true);
-            AnimationClip heavy = LoadOrExtract(force, HeavyClipPath, HeavyModelPath, "HeavyAttack", loop: false);
-            AddAttackStates(controller, light, heavy);
+            AddAttackStates(controller, light);
             AssetDatabase.SaveAssets();
-            WriteResult($"attacks ok light={light.length:0.00}s heavy={heavy.length:0.00}s");
+            WriteResult($"attacks ok light={light.length:0.00}s");
             EnsureDeath(force);
         }
         catch (System.Exception e)
@@ -767,21 +761,18 @@ public static class SnarlfangSetup
         }
     }
 
-    static void AddAttackStates(AnimatorController controller, AnimationClip lightClip, AnimationClip heavyClip)
+    static void AddAttackStates(AnimatorController controller, AnimationClip lightClip)
     {
         EnsureParameter(controller, "IsAttacking", AnimatorControllerParameterType.Bool);
         EnsureParameter(controller, "AttackKind", AnimatorControllerParameterType.Int);
         EnsureParameter(controller, "AttackAnimSpeed", AnimatorControllerParameterType.Float);
 
         AnimatorStateMachine machine = controller.layers[0].stateMachine;
+        RemoveState(machine, "HeavyAttack");
         AnimatorState light = FindState(machine, "LightAttack") ?? machine.AddState("LightAttack", new Vector3(540, 210, 0));
-        AnimatorState heavy = FindState(machine, "HeavyAttack") ?? machine.AddState("HeavyAttack", new Vector3(540, -70, 0));
         light.motion = lightClip;
-        heavy.motion = heavyClip;
         light.speedParameterActive = true;
-        heavy.speedParameterActive = true;
         light.speedParameter = "AttackAnimSpeed";
-        heavy.speedParameter = "AttackAnimSpeed";
 
         AnimatorState idle1 = FindState(machine, "Idle1");
         AnimatorState idle2 = FindState(machine, "Idle2");
@@ -790,20 +781,26 @@ public static class SnarlfangSetup
         LinkAttack(idle1, light, CreatureAttackKind.Basic);
         LinkAttack(idle2, light, CreatureAttackKind.Basic);
         LinkAttack(run, light, CreatureAttackKind.Basic);
-        LinkAttack(heavy, light, CreatureAttackKind.Basic);
-
-        // Special Attack is only the Stealth exit. Nothing in the controller may enter it on its own.
-        Unlink(idle1, heavy);
-        Unlink(idle2, heavy);
-        Unlink(run, heavy);
-        Unlink(light, heavy);
 
         LinkAttackExit(light, run, moving: true);
-        LinkAttackExit(heavy, run, moving: true);
         LinkAttackExit(light, idle1, moving: false);
-        LinkAttackExit(heavy, idle1, moving: false);
 
         EditorUtility.SetDirty(controller);
+    }
+
+    static void RemoveState(AnimatorStateMachine machine, string stateName)
+    {
+        AnimatorState state = FindState(machine, stateName);
+        if (state == null)
+            return;
+
+        foreach (ChildAnimatorState child in machine.states)
+        {
+            if (child.state != null && child.state != state)
+                Unlink(child.state, state);
+        }
+
+        machine.RemoveState(state);
     }
 
     static void LinkAttack(AnimatorState from, AnimatorState to, CreatureAttackKind kind)

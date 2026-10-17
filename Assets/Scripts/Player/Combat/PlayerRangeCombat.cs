@@ -307,6 +307,6 @@ public class PlayerRangeCombat : MonoBehaviour
 
     static bool CanTarget(Creature creature)
     {
-        return creature != null && creature.IsAlive && creature.IsTargetable;
+        return creature != null && creature.IsAlive;
     }
 }

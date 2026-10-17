@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// Drives creature Animator bools shared by locomotion and combat.
 /// Expects controller params: IsMoving, IsAttacking, AttackKind, AttackAnimSpeed.
-/// States: Idle / Run, plus LightAttack (Basic Attack) and HeavyAttack (Special Attack) when the creature has both.
+/// States: Idle / Run, plus LightAttack (or a shared Attack state).
 /// </summary>
 [RequireComponent(typeof(Animator))]
 public class CreatureAnimator : MonoBehaviour
@@ -17,28 +17,21 @@ public class CreatureAnimator : MonoBehaviour
     static readonly int RunHash = Animator.StringToHash("Run");
     static readonly int AttackHash = Animator.StringToHash("Attack");
     static readonly int LightAttackHash = Animator.StringToHash("LightAttack");
-    static readonly int HeavyAttackHash = Animator.StringToHash("HeavyAttack");
     static readonly int DeathHash = Animator.StringToHash("Death");
     static readonly int DieHash = Animator.StringToHash("Die");
 
     [SerializeField] string attackClipName = "Attack";
 
     Animator _animator;
-    CreatureAbility _ability;
     bool _moving;
     bool _attacking;
-    CreatureAttackKind _attackKind;
     int _hasMovingParam = -1;
     float _attackClipLength = -1f;
     float _lightClipLength = -1f;
-    float _heavyClipLength = -1f;
     float _deathClipLength = -1f;
     bool _dying;
     bool _groundDeath;
     float _deathStartTime = -1f;
-    bool _heavyLatched;
-    int _latchedHeavySerial = -1;
-    float _heavyStartTime = -1f;
     Transform _bodyRoot;
     Vector3 _bodyBindLocalPosition;
     Transform[] _bones;
@@ -89,10 +82,6 @@ public class CreatureAnimator : MonoBehaviour
         // The idle states crossfade into each other on exit time. Push the bool again after
         // that transition is chosen, and enter Run or the attack immediately instead of waiting it out.
         PushMoving();
-        ResolveAbility();
-        if (TickHeavyOpener())
-            return;
-
         if (_attacking)
         {
             TryEnterAttack();
@@ -127,8 +116,7 @@ public class CreatureAnimator : MonoBehaviour
             return false;
 
         return IsInOrEntering(AttackHash)
-            || IsInOrEntering(LightAttackHash)
-            || IsInOrEntering(HeavyAttackHash);
+            || IsInOrEntering(LightAttackHash);
     }
 
     bool IsInOrEntering(int stateHash)
@@ -156,35 +144,14 @@ public class CreatureAnimator : MonoBehaviour
 
     public void SetAttacking(bool attacking)
     {
-        SetAttacking(attacking, CreatureAttackKind.Basic);
-    }
-
-    public void SetAttacking(bool attacking, CreatureAttackKind kind)
-    {
         if (_dying)
             return;
 
-        // One heavy clip per stealth exit. Later SetAttacking calls must not restart it.
-        if (_heavyLatched)
-        {
-            _attacking = attacking;
-            if (_animator != null && HasParameter(IsAttackingHash))
-                _animator.SetBool(IsAttackingHash, attacking);
-            return;
-        }
-
-        bool kindChanged = _attackKind != kind;
-        _attackKind = kind;
-
         if (_animator != null && HasParameter(AttackKindHash))
-            _animator.SetInteger(AttackKindHash, (int)kind);
+            _animator.SetInteger(AttackKindHash, (int)CreatureAttackKind.Basic);
 
         if (_attacking == attacking)
-        {
-            if (attacking && kindChanged)
-                TryEnterAttack();
             return;
-        }
 
         _attacking = attacking;
         if (_animator != null && HasParameter(IsAttackingHash))
@@ -199,145 +166,33 @@ public class CreatureAnimator : MonoBehaviour
         if (_animator == null || !_animator.isInitialized)
             return;
 
-        int hash = _attackKind == CreatureAttackKind.Special ? HeavyAttackHash : LightAttackHash;
-        if (!_animator.HasState(0, hash))
-        {
-            // Grimling only has the shared Attack state, and its controller transitions on IsAttacking.
-            if (hash != AttackHash && _animator.HasState(0, AttackHash) && _attackKind == CreatureAttackKind.Basic)
-                return;
-            if (!_animator.HasState(0, AttackHash))
-                return;
-            hash = AttackHash;
-        }
-
-        if (IsInOrEntering(hash))
+        // Controllers without a LightAttack state transition on IsAttacking alone.
+        if (!_animator.HasState(0, LightAttackHash))
             return;
 
-        _animator.CrossFadeInFixedTime(hash, 0.08f, 0, 0f);
-    }
-
-    void ResolveAbility()
-    {
-        if (_ability == null)
-            _ability = GetComponent<CreatureAbility>() ?? GetComponentInParent<CreatureAbility>();
-    }
-
-    /// <summary>
-    /// Plays the stealth-exit special attack once, then hands the swing to basic attacks.
-    /// Returns true when this frame was consumed by that opener.
-    /// </summary>
-    bool TickHeavyOpener()
-    {
-        bool heavy = _ability != null && _ability.IsSpecialAttack;
-        if (!heavy)
-        {
-            if (!_heavyLatched)
-                return false;
-
-            _heavyLatched = false;
-            _latchedHeavySerial = -1;
-            _heavyStartTime = -1f;
-            BeginLightAttacks();
-            return true;
-        }
-
-        int serial = _ability.SpecialSwingSerial;
-        if (!_heavyLatched || _latchedHeavySerial != serial)
-        {
-            _heavyLatched = true;
-            _latchedHeavySerial = serial;
-            _heavyStartTime = -1f;
-            _attackKind = CreatureAttackKind.Special;
-            if (_animator != null && HasParameter(AttackKindHash))
-                _animator.SetInteger(AttackKindHash, (int)CreatureAttackKind.Special);
-            if (_animator != null && HasParameter(AttackAnimSpeedHash))
-                _animator.SetFloat(AttackAnimSpeedHash, 1f);
-            if (_attacking)
-                BeginHeavyClip();
-            return true;
-        }
-
-        if (_heavyStartTime < 0f)
-        {
-            if (_attacking)
-                BeginHeavyClip();
-            return true;
-        }
-
-        if (!HeavyOpenerDone())
-            return true;
-
-        _heavyLatched = false;
-        _latchedHeavySerial = -1;
-        _heavyStartTime = -1f;
-        _ability.CompleteSpecialSwing();
-        BeginLightAttacks();
-        return true;
-    }
-
-    void BeginHeavyClip()
-    {
-        _heavyStartTime = Time.time;
-        if (_animator != null && HasParameter(AttackAnimSpeedHash))
-            _animator.SetFloat(AttackAnimSpeedHash, 1f);
-        CrossFadeAttack(HeavyAttackHash, restart: true);
-    }
-
-    void BeginLightAttacks()
-    {
-        _attackKind = CreatureAttackKind.Basic;
-        if (_animator != null && HasParameter(AttackKindHash))
-            _animator.SetInteger(AttackKindHash, (int)CreatureAttackKind.Basic);
-        if (_animator != null && HasParameter(AttackAnimSpeedHash))
-            _animator.SetFloat(AttackAnimSpeedHash, 1f);
-        if (_attacking)
-            CrossFadeAttack(LightAttackHash);
-    }
-
-    bool HeavyOpenerDone()
-    {
-        float length = CacheClip(ref _heavyClipLength, "HeavyAttack");
-        if (_heavyStartTime >= 0f && length > 0.05f && Time.time - _heavyStartTime >= length)
-            return true;
-
-        if (_animator == null || !_animator.isInitialized)
-            return false;
-
-        AnimatorStateInfo state = _animator.GetCurrentAnimatorStateInfo(0);
-        if (state.shortNameHash == HeavyAttackHash && state.normalizedTime >= 0.98f && !_animator.IsInTransition(0))
-            return true;
-
-        // Leaving the clip (a flinch, a step back) spends the exit strike. It must not start again.
-        return Time.time - _heavyStartTime > 0.2f && !IsInOrEntering(HeavyAttackHash);
-    }
-
-    void CrossFadeAttack(int hash, bool restart = false)
-    {
-        if (_animator == null || !_animator.isInitialized || !_animator.HasState(0, hash))
-            return;
-        if (!restart && IsInOrEntering(hash))
+        if (IsInOrEntering(LightAttackHash))
             return;
 
-        _animator.CrossFadeInFixedTime(hash, 0.08f, 0, 0f);
+        _animator.CrossFadeInFixedTime(LightAttackHash, 0.08f, 0, 0f);
     }
 
     /// <summary>
     /// Scales the active attack clip so one cycle roughly matches 1 / attacksPerSecond.
     /// </summary>
-    public void SetAttackRate(float attacksPerSecond, CreatureAttackKind kind = CreatureAttackKind.Basic)
+    public void SetAttackRate(float attacksPerSecond)
     {
         if (_animator == null || !HasParameter(AttackAnimSpeedHash))
             return;
 
-        // Snarlfang's light and heavy clips stay at authored speed so each swing is readable.
+        // Snarlfang's light clip stays at authored speed so each swing is readable.
         // Hit rate still comes from CreatureStats. Grimling keeps the scaled Attack clip.
-        if (_animator.HasState(0, LightAttackHash) || _animator.HasState(0, HeavyAttackHash))
+        if (_animator.HasState(0, LightAttackHash))
         {
             _animator.SetFloat(AttackAnimSpeedHash, 1f);
             return;
         }
 
-        float clipLength = ClipLength(kind);
+        float clipLength = ClipLength();
         if (clipLength <= 0.01f || attacksPerSecond <= 0.01f)
         {
             _animator.SetFloat(AttackAnimSpeedHash, 1f);
@@ -478,14 +333,11 @@ public class CreatureAnimator : MonoBehaviour
 
     void CacheAttackClipLength()
     {
-        ClipLength(CreatureAttackKind.Basic);
+        ClipLength();
     }
 
-    float ClipLength(CreatureAttackKind kind)
+    float ClipLength()
     {
-        if (kind == CreatureAttackKind.Special)
-            return CacheClip(ref _heavyClipLength, "HeavyAttack");
-
         float light = CacheClip(ref _lightClipLength, "LightAttack");
         if (light > 0.01f)
             return light;

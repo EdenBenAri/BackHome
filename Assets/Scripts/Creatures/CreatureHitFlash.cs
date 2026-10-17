@@ -28,14 +28,7 @@ public class CreatureHitFlash : MonoBehaviour
     {
         _creature = GetComponent<Creature>();
         EnsureMaterial();
-    }
-
-    void Start()
-    {
-        // After CreatureAbility swaps in per-instance body materials, so a flash restores those
-        // and not the shared asset (which would pop a stealthed creature back to solid).
-        if (_renderers == null)
-            CollectRenderers();
+        CollectRenderers();
     }
 
     void OnEnable()
