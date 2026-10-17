@@ -839,7 +839,7 @@ namespace BirichStudio.ProceduralSpace
 
             float starRadius = Range(layout, 5.4f, 7.2f) * p.planetScale * Fit;
             Vector2 starAt = new Vector2(-side * ext.x * 0.46f, -ext.y * 0.18f) + p.skyOffset;
-            Color star = new Color(0.8f, 0.9f, 1f);
+            Color star = new Color(1f, 0.84f, 0.36f);
             Bodies.Add(new Body
             {
                 slot = SlotFeaturedStar,

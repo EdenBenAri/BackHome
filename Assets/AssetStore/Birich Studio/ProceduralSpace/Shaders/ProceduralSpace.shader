@@ -617,25 +617,53 @@ Shader "Birich Studio/ProceduralSpace"
                 return col * mag * tw * (core * 1.6 + halo * 0.05 + spike * 0.9 * _StarSpikes);
             }
 
-            // A nearby star drawn as a point of light: a hard core, a halo, and diffraction
-            // spikes. The featured "close star" used to be a self-lit sphere, and at that size
-            // the disc read as a moon. rgb is premultiplied; a is only the solid core.
+            // Round cartoon planet: a disc, a few flat light bands, simple stripes.
+            float4 CasualStar(float2 dv, float radius)
+            {
+                float rad = max(radius, 1e-3) * 0.42;
+                float2 p = dv / rad;
+                float r2 = dot(p, p);
+                if (r2 > 1.85) return 0.0;
+                float r = sqrt(r2);
+
+                float z = sqrt(saturate(1.0 - r2));
+                float3 n = normalize(float3(p, max(z, 0.001)));
+                float2 lxy = _PlanetLightDir.xy;
+                if (dot(lxy, lxy) < 1e-4) lxy = float2(-0.4, 0.55);
+                float3 L = normalize(float3(normalize(lxy), 0.6));
+                float lit = saturate(floor(saturate(dot(n, L)) * 3.0) / 2.0);
+
+                float stripe = step(0.5, frac(p.y * 2.2 + 0.15));
+                float3 base = lerp(float3(0.99, 0.78, 0.46), float3(0.95, 0.52, 0.36), stripe);
+                base = lerp(base, float3(0.98, 0.9, 0.72), smoothstep(0.62, 0.95, abs(p.y)));
+                float3 body = base * lerp(0.58, 1.0, lit);
+
+                float edge = smoothstep(0.72, 0.98, r2);
+                body = lerp(body, body * 0.4, edge);
+
+                float fill = 1.0 - smoothstep(0.985, 1.015, r);
+                float halo = exp(-pow(max(r - 0.94, 0.0) * 4.2, 2.0)) * (1.0 - fill) * 0.5;
+                return float4(body * fill + float3(1.0, 0.78, 0.48) * halo, fill);
+            }
+
+            // A nearby star. Cartoon skies get CasualStar; the photographic path keeps a
+            // point, a halo and diffraction spikes. rgb is premultiplied; a is solid coverage.
             float4 PointStar(float2 sp, float2 center, float radius, float3 tint)
             {
                 float2 dv = sp - center;
+                if (_Cartoon > 0.5)
+                    return CasualStar(dv, radius);
+
                 float reach = max(radius, 1e-3);
                 float r = length(dv) / reach;
                 if (r > 1.45) return 0.0;
 
-                float coreSharp = _Cartoon > 0.5 ? 6.5 : 16.0;
-                float core = exp(-pow(r * coreSharp, 2.0));
-                float halo = exp(-r * (_Cartoon > 0.5 ? 3.2 : 6.5));
+                float core = exp(-pow(r * 16.0, 2.0));
+                float halo = exp(-r * 6.5);
                 float ang = atan2(dv.y, dv.x);
-                float spikeCount = _Cartoon > 0.5 ? 4.0 : _StarSpikeCount;
-                float lobes = abs(cos(ang * (spikeCount * 0.5)));
-                float spikePow = _Cartoon > 0.5 ? 5.0 : 80.0;
-                float spike = pow(lobes, spikePow) * exp(-r * (_Cartoon > 0.5 ? 1.15 : 2.1))
-                            + pow(lobes, _Cartoon > 0.5 ? 2.5 : 12.0) * exp(-r * 4.2) * 0.45;
+                float lobes = abs(cos(ang * (_StarSpikeCount * 0.5)));
+                float spike = pow(lobes, 80.0) * exp(-r * 2.1)
+                            + pow(lobes, 12.0) * exp(-r * 4.2) * 0.45;
                 float glow = core * 2.4 + halo * 0.42 + spike * 1.25 * max(_StarSpikes, 0.7);
                 glow *= 1.0 - smoothstep(0.9, 1.4, r);
 
