@@ -13,12 +13,12 @@ MonoBehaviour:
   m_Name: SnarlfangStats
   m_EditorClassIdentifier: Assembly-CSharp::CreatureStats
   displayName: Snarlfang
-  attackDamage: 11
-  attackSpeed: 3
+  attackDamage: 15
+  attackSpeed: 5
   attackRange: 2
   maxHealth: 115
   visionRange: 12
-  movementSpeed: 7
+  movementSpeed: 9
   loot:
   - item: {fileID: 11400000, guid: 5286eb086ba375649a38e9eee22e753d, type: 2}
     minAmount: 1

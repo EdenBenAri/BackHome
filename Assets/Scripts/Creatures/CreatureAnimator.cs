@@ -19,12 +19,17 @@ public class CreatureAnimator : MonoBehaviour
     static readonly int LightAttackHash = Animator.StringToHash("LightAttack");
     static readonly int DeathHash = Animator.StringToHash("Death");
     static readonly int DieHash = Animator.StringToHash("Die");
+    static readonly int SpawnHash = Animator.StringToHash("Spawn");
 
     [SerializeField] string attackClipName = "Attack";
 
     Animator _animator;
     bool _moving;
     bool _attacking;
+    bool _spawning;
+    bool _spawnPending;
+    float _spawnEnteredAt = -1f;
+    float _spawnClipLength = -1f;
     int _hasMovingParam = -1;
     float _attackClipLength = -1f;
     float _lightClipLength = -1f;
@@ -56,9 +61,12 @@ public class CreatureAnimator : MonoBehaviour
         }
     }
 
+    /// <summary>True while the one-shot Spawn intro is playing or still waiting for the Animator to wake up.</summary>
+    public bool IsSpawning => _spawning || _spawnPending;
+
     public void SetMoving(bool moving)
     {
-        if (_dying)
+        if (_dying || _spawning)
             return;
         if (_moving == moving)
             return;
@@ -76,6 +84,15 @@ public class CreatureAnimator : MonoBehaviour
             TryEnterDeath();
             if (_groundDeath)
                 StickDeathToGround();
+            return;
+        }
+
+        if (_spawnPending)
+            TryBeginPendingSpawn();
+
+        if (_spawning)
+        {
+            HoldSpawn();
             return;
         }
 
@@ -144,7 +161,7 @@ public class CreatureAnimator : MonoBehaviour
 
     public void SetAttacking(bool attacking)
     {
-        if (_dying)
+        if (_dying || _spawning)
             return;
 
         if (_animator != null && HasParameter(AttackKindHash))
@@ -205,11 +222,77 @@ public class CreatureAnimator : MonoBehaviour
 
     public void ResetToIdle()
     {
-        if (_dying)
+        if (_dying || _spawning)
             return;
 
         SetMoving(false);
         SetAttacking(false);
+    }
+
+    /// <summary>
+    /// Plays the Spawn clip once, then returns to idle.
+    /// Safe to call on the first frame — the Animator often is not initialized yet, so the crossfade waits.
+    /// </summary>
+    public void PlaySpawn()
+    {
+        if (_dying || _animator == null)
+            return;
+
+        _spawnPending = true;
+        _spawnEnteredAt = -1f;
+        TryBeginPendingSpawn();
+    }
+
+    void TryBeginPendingSpawn()
+    {
+        if (!_spawnPending || _dying || _animator == null || !_animator.isInitialized)
+            return;
+
+        _spawnPending = false;
+        if (!_animator.HasState(0, SpawnHash))
+            return;
+
+        float length = CacheClip(ref _spawnClipLength, "Spawn");
+        if (length <= 0.05f)
+            return;
+
+        _spawning = true;
+        _moving = false;
+        _attacking = false;
+        if (HasParameter(IsMovingHash))
+            _animator.SetBool(IsMovingHash, false);
+        if (HasParameter(IsAttackingHash))
+            _animator.SetBool(IsAttackingHash, false);
+        TryEnterSpawn();
+    }
+
+    void HoldSpawn()
+    {
+        TryEnterSpawn();
+        float length = CacheClip(ref _spawnClipLength, "Spawn");
+        if (_spawnEnteredAt < 0f || length <= 0.05f)
+            return;
+        if (Time.time < _spawnEnteredAt + length - 0.05f)
+            return;
+
+        _spawning = false;
+        if (_animator != null && _animator.HasState(0, Idle1Hash))
+            _animator.CrossFadeInFixedTime(Idle1Hash, 0.15f, 0, 0f);
+        else if (_animator != null && _animator.HasState(0, Animator.StringToHash("Idle")))
+            _animator.CrossFadeInFixedTime("Idle", 0.15f, 0, 0f);
+    }
+
+    void TryEnterSpawn()
+    {
+        if (_animator == null || !_animator.isInitialized || !_animator.HasState(0, SpawnHash))
+            return;
+        if (IsInOrEntering(SpawnHash))
+            return;
+        if (_spawnEnteredAt >= 0f)
+            return;
+
+        _spawnEnteredAt = Time.time;
+        _animator.CrossFadeInFixedTime(SpawnHash, 0.05f, 0, 0f);
     }
 
     /// <summary>
@@ -218,6 +301,8 @@ public class CreatureAnimator : MonoBehaviour
     public float PlayDeath()
     {
         _dying = true;
+        _spawning = false;
+        _spawnPending = false;
         _moving = false;
         _attacking = false;
 

@@ -3,10 +3,9 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Spawns creature prefabs across a spherical planet walk surface.
-/// Place one spawner per planet (or per spawn config). Assign any planet + any prefabs.
-/// When a spawned creature dies, it is re-queued individually after that entry's respawn time
-/// (FIFO by death order — never batch-respawns several at once).
+/// Spawns mobs and one optional king per spawn point on a spherical planet.
+/// Mobs respawn individually after their own short timer. A king is a single creature:
+/// after it dies, a countdown shows where it stood, then it returns when that timer ends.
 /// </summary>
 [DefaultExecutionOrder(50)]
 public class CreatureSpawner : MonoBehaviour
@@ -49,6 +48,10 @@ public class CreatureSpawner : MonoBehaviour
     [Serializable]
     public struct SpawnPoint
     {
+        [Tooltip("Planet Areas child name (A1–A5). Creatures of this den spawn around that " +
+            "volume and are parented under it.")]
+        public string areaId;
+
         [Tooltip("Optional marker on the planet surface. Used only when areaId is empty. " +
             "When areaId is set, creatures parent under that Areas child instead.")]
         public Transform anchor;
@@ -57,12 +60,22 @@ public class CreatureSpawner : MonoBehaviour
         [Min(0.1f)]
         public float radius;
 
-        [Tooltip("Creatures confined to this spawn point, additive to spawnEntries.")]
+        [Tooltip("Mobs confined to this spawn point, additive to spawnEntries.")]
         public SpawnEntry[] creatures;
 
-        [Tooltip("Planet Areas child name (A1–A5). Creatures of this den spawn around that " +
-            "volume and are parented under it.")]
-        public string areaId;
+        [Tooltip("Optional king for this area. One alive at a time. Empty prefab means mobs only.")]
+        public KingSpawn king;
+    }
+
+    [Serializable]
+    public struct KingSpawn
+    {
+        [Tooltip("King prefab. Leave empty when this spawn point has no king.")]
+        public GameObject prefab;
+
+        [Tooltip("Seconds after this king dies before it returns.")]
+        [Min(1f)]
+        public float respawnSeconds;
     }
 
     /// <summary>One combined-list entry: a global row from <see cref="spawnEntries"/> (unrestricted,
@@ -83,7 +96,7 @@ public class CreatureSpawner : MonoBehaviour
     [SerializeField] SpawnEntry[] spawnEntries = Array.Empty<SpawnEntry>();
 
     [Header("Spawn Points")]
-    [Tooltip("Optional — hand-placed anchor markers where a specific creature list spawns confined to a small radius (a precise, dense \"den\"), additive to spawnEntries.")]
+    [Tooltip("One row per area. Each row has its mobs, and one optional king.")]
     [SerializeField] SpawnPoint[] spawnPoints = Array.Empty<SpawnPoint>();
 
     [Header("Timing")]
@@ -107,10 +120,23 @@ public class CreatureSpawner : MonoBehaviour
     const bool OnlyWalkableTiles = true;
     static readonly LayerMask GroundLayer = 1 << 3; // Ground
 
+    sealed class LiveKing
+    {
+        public int spawnPointIndex;
+        public Creature creature;
+        public float readyAt;
+        public bool waiting;
+        public bool hasPose;
+        public Vector3 feet;
+        public Vector3 up;
+        public AreaKingCountdown countdown;
+    }
+
     readonly List<TrackedCreature> _tracked = new();
     readonly List<Vector3> _acceptedDirs = new();
     readonly List<PendingRespawn> _pendingRespawns = new();
     readonly List<ResolvedEntry> _allEntries = new();
+    readonly List<LiveKing> _kings = new();
     LootDropPool _lootPool;
 
     void OnValidate()
@@ -133,6 +159,9 @@ public class CreatureSpawner : MonoBehaviour
                 for (int i = 0; i < point.creatures.Length; i++)
                     point.creatures[i] = ClampEntry(point.creatures[i]);
             }
+
+            if (point.king.prefab != null && point.king.respawnSeconds < 1f)
+                point.king.respawnSeconds = 180f;
 
             spawnPoints[p] = point;
         }
@@ -157,22 +186,37 @@ public class CreatureSpawner : MonoBehaviour
 
     void Update()
     {
-        if (_pendingRespawns.Count == 0)
-            return;
+        if (_pendingRespawns.Count > 0)
+        {
+            // One mob respawn per frame, in death order, only when that creature's timer is ready.
+            PendingRespawn next = _pendingRespawns[0];
+            if (Time.time >= next.readyAt)
+            {
+                _pendingRespawns.RemoveAt(0);
+                TryRespawn(next);
+            }
+        }
 
-        // One respawn per frame, in death order, only when that creature's timer is ready.
-        PendingRespawn next = _pendingRespawns[0];
-        if (Time.time < next.readyAt)
-            return;
+        for (int i = 0; i < _kings.Count; i++)
+        {
+            LiveKing live = _kings[i];
+            if (!live.waiting || Time.time < live.readyAt)
+                continue;
 
-        _pendingRespawns.RemoveAt(0);
-        TryRespawn(next);
+            if (!SpawnKing(live))
+                live.readyAt = Time.time + 0.5f;
+        }
     }
 
     void OnDestroy()
     {
         UnsubscribeAll();
         _pendingRespawns.Clear();
+        for (int i = 0; i < _kings.Count; i++)
+        {
+            if (_kings[i].creature != null)
+                _kings[i].creature.Died -= OnKingDied;
+        }
     }
 
     [ContextMenu("Spawn All")]
@@ -190,7 +234,8 @@ public class CreatureSpawner : MonoBehaviour
         BuildAllEntries();
 
         int totalRequested = GetTotalRequestedCount();
-        if (totalRequested <= 0)
+        bool anyKing = HasAnyKing();
+        if (totalRequested <= 0 && !anyKing)
         {
             Debug.LogWarning($"{name}: no spawn entries with count > 0.", this);
             return;
@@ -199,6 +244,12 @@ public class CreatureSpawner : MonoBehaviour
         _tiles?.EnsureWalkColliders();
         EnsureSpawnRoot();
         _acceptedDirs.Clear();
+
+        if (totalRequested <= 0)
+        {
+            SpawnKings();
+            return;
+        }
 
         for (int e = 0; e < _allEntries.Count; e++)
         {
@@ -226,6 +277,129 @@ public class CreatureSpawner : MonoBehaviour
 
                 placed++;
             }
+        }
+
+        SpawnKings();
+    }
+
+    bool HasAnyKing()
+    {
+        if (spawnPoints == null)
+            return false;
+
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            if (spawnPoints[i].king.prefab != null)
+                return true;
+        }
+
+        return false;
+    }
+
+    void SpawnKings()
+    {
+        if (spawnPoints == null)
+            return;
+
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            if (spawnPoints[i].king.prefab == null)
+                continue;
+
+            var live = new LiveKing { spawnPointIndex = i };
+            _kings.Add(live);
+            if (!SpawnKing(live))
+            {
+                live.waiting = true;
+                live.readyAt = Time.time + 0.5f;
+            }
+        }
+    }
+
+    bool SpawnKing(LiveKing live)
+    {
+        if (live.creature != null && live.creature.IsAlive)
+            return true;
+        if (live.spawnPointIndex < 0 || live.spawnPointIndex >= spawnPoints.Length)
+            return false;
+
+        SpawnPoint point = spawnPoints[live.spawnPointIndex];
+        GameObject prefab = point.king.prefab;
+        if (prefab == null || !TryResolvePlanet())
+            return false;
+
+        Vector3 origin = GetSpawnOrigin(point);
+        Vector3 radial = origin - planet.Center;
+        if (radial.sqrMagnitude < 0.0001f)
+            return false;
+
+        if (!TryGetSurfacePose(radial.normalized, out Vector3 position, out Quaternion rotation))
+            return false;
+
+        Transform parent = FindPlanetArea(point.areaId);
+        if (parent == null)
+            parent = point.anchor != null ? point.anchor : spawnRoot;
+
+        Vector3 prefabScale = prefab.transform.localScale;
+        GameObject instance = Instantiate(prefab, position, rotation, parent);
+        CancelParentScale(instance.transform, prefabScale);
+        string area = string.IsNullOrWhiteSpace(point.areaId) ? "King" : point.areaId.Trim();
+        instance.name = $"{area}_{prefab.name}";
+
+        Creature creature = instance.GetComponent<Creature>();
+        if (creature == null)
+            creature = instance.GetComponentInChildren<Creature>();
+
+        live.creature = creature;
+        live.waiting = false;
+        live.readyAt = -1f;
+        live.hasPose = true;
+        live.feet = position;
+        live.up = rotation * Vector3.up;
+        if (creature != null)
+            creature.Died += OnKingDied;
+
+        EnsureKingCountdown(live, area);
+        live.countdown.Hide();
+        return true;
+    }
+
+    void EnsureKingCountdown(LiveKing live, string area)
+    {
+        if (live.countdown != null)
+            return;
+
+        var go = new GameObject($"NextKing_{area}");
+        go.transform.SetParent(transform, false);
+        live.countdown = go.AddComponent<AreaKingCountdown>();
+    }
+
+    void OnKingDied(Creature creature)
+    {
+        if (creature == null)
+            return;
+
+        for (int i = 0; i < _kings.Count; i++)
+        {
+            LiveKing live = _kings[i];
+            if (live.creature != creature)
+                continue;
+
+            creature.Died -= OnKingDied;
+            live.creature = null;
+            TryDropLoot(creature, creature.transform.position);
+
+            SpawnPoint point = spawnPoints[live.spawnPointIndex];
+            float delay = Mathf.Max(1f, point.king.respawnSeconds);
+            live.readyAt = Time.time + delay;
+            live.waiting = true;
+
+            Vector3 feet = live.hasPose ? live.feet : creature.transform.position;
+            Vector3 up = live.hasPose ? live.up : creature.transform.up;
+            string area = string.IsNullOrWhiteSpace(point.areaId) ? "King" : point.areaId.Trim();
+            EnsureKingCountdown(live, area);
+            live.countdown.Show(feet, up, live.readyAt);
+            return;
         }
     }
 
@@ -315,6 +489,29 @@ public class CreatureSpawner : MonoBehaviour
 
         _tracked.Clear();
         _acceptedDirs.Clear();
+
+        for (int i = 0; i < _kings.Count; i++)
+        {
+            LiveKing live = _kings[i];
+            if (live.creature != null)
+            {
+                live.creature.Died -= OnKingDied;
+                if (Application.isPlaying)
+                    Destroy(live.creature.gameObject);
+                else
+                    DestroyImmediate(live.creature.gameObject);
+            }
+
+            if (live.countdown != null)
+            {
+                if (Application.isPlaying)
+                    Destroy(live.countdown.gameObject);
+                else
+                    DestroyImmediate(live.countdown.gameObject);
+            }
+        }
+
+        _kings.Clear();
     }
 
     void TryRespawn(PendingRespawn pending)
@@ -433,12 +630,14 @@ public class CreatureSpawner : MonoBehaviour
             readyAt = Time.time + delay
         });
 
-        TryDropLoot(tracked);
+        Vector3 dropPos = tracked.instance != null
+            ? tracked.instance.transform.position
+            : transform.position;
+        TryDropLoot(tracked.creature, dropPos);
     }
 
-    void TryDropLoot(TrackedCreature tracked)
+    void TryDropLoot(Creature creature, Vector3 dropPos)
     {
-        Creature creature = tracked.creature;
         if (creature == null || !creature.HasStats)
             return;
 
@@ -446,10 +645,6 @@ public class CreatureSpawner : MonoBehaviour
         LootEntry[] table = stats.Loot;
         if (table == null || table.Length == 0)
             return;
-
-        Vector3 dropPos = tracked.instance != null
-            ? tracked.instance.transform.position
-            : transform.position;
 
         EnsureLootPool();
         for (int i = 0; i < table.Length; i++)
