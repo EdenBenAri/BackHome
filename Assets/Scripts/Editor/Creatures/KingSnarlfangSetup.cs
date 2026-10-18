@@ -3,13 +3,11 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Animations;
-using UnityEditor.SceneManagement;
 using UnityEngine;
-using UnityEngine.SceneManagement;
 
 /// <summary>
-/// Builds King Snarlfang: CasualToon material, boss stats, spawn/idle/run/attack/death animator,
-/// and the A1 king slot on <see cref="CreatureSpawner"/>.
+/// Builds King Snarlfang: CasualToon material, boss stats, and a spawn/idle/run/attack/death animator.
+/// Does not assign the prefab on CreatureSpawner.
 /// </summary>
 public static class KingSnarlfangSetup
 {
@@ -37,9 +35,6 @@ public static class KingSnarlfangSetup
     const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/CreaturesVitalsBars.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
-    const string ScenePath = "Assets/Scenes/PlanetNyxara.unity";
-    const string AreaId = "A1";
-    const float RespawnSeconds = 180f;
     const float TargetHeight = 4.2f;
     const float ModelScale = 2f;
 
@@ -101,9 +96,7 @@ public static class KingSnarlfangSetup
         {
             bool hasPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath) != null;
             bool animatorReady = AnimatorReady();
-            bool sceneLoaded = SceneManager.GetSceneByPath(ScenePath).isLoaded;
-            bool slotted = sceneLoaded ? HasSceneSlot() : SceneFileHasSlot();
-            if (!force && hasPrefab && animatorReady && slotted)
+            if (!force && hasPrefab && animatorReady)
             {
                 WriteResult("already set up");
                 return;
@@ -121,9 +114,8 @@ public static class KingSnarlfangSetup
             if (force || !AnimatorReady())
                 EnsureAnimator(force);
 
-            bool scene = EnsureSceneSlot();
             AssetDatabase.SaveAssets();
-            WriteResult(scene ? "ok" : "ok, scene slot skipped");
+            WriteResult("ok");
         }
         catch (System.Exception e)
         {
@@ -597,106 +589,6 @@ public static class KingSnarlfangSetup
         {
             PrefabUtility.UnloadPrefabContents(root);
         }
-    }
-
-    static bool SceneFileHasSlot()
-    {
-        string full = Path.Combine(Application.dataPath, "Scenes/PlanetNyxara.unity");
-        if (!File.Exists(full))
-            return false;
-
-        string text = File.ReadAllText(full);
-        return text.Contains("guid: 7442317b075a59f4fa7c20488bdaa985")
-            && !text.Contains("AreaKingSpawner");
-    }
-
-    static bool HasSceneSlot()
-    {
-        Scene scene = SceneManager.GetSceneByPath(ScenePath);
-        if (!scene.isLoaded)
-            return false;
-
-        CreatureSpawner spawner = FindInScene<CreatureSpawner>(scene);
-        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
-        if (spawner == null || prefab == null)
-            return false;
-        if (spawner.GetComponent("AreaKingSpawner") != null)
-            return false;
-
-        var so = new SerializedObject(spawner);
-        SerializedProperty points = so.FindProperty("spawnPoints");
-        for (int i = 0; i < points.arraySize; i++)
-        {
-            SerializedProperty point = points.GetArrayElementAtIndex(i);
-            if (point.FindPropertyRelative("areaId").stringValue != AreaId)
-                continue;
-
-            SerializedProperty king = point.FindPropertyRelative("king");
-            return king != null && king.FindPropertyRelative("prefab").objectReferenceValue == prefab;
-        }
-
-        return false;
-    }
-
-    static bool EnsureSceneSlot()
-    {
-        Scene scene = SceneManager.GetSceneByPath(ScenePath);
-        if (!scene.isLoaded)
-            scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Additive);
-
-        CreatureSpawner mobs = FindInScene<CreatureSpawner>(scene);
-        if (mobs == null)
-        {
-            Debug.LogWarning("[BackHome] King Snarlfang: CreatureSpawner was not in " + ScenePath);
-            return false;
-        }
-
-        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
-        if (prefab == null)
-            throw new System.InvalidOperationException("King Snarlfang prefab is missing.");
-
-        Component leftover = mobs.GetComponent("AreaKingSpawner");
-        if (leftover != null)
-            Object.DestroyImmediate(leftover);
-        GameObjectUtility.RemoveMonoBehavioursWithMissingScript(mobs.gameObject);
-
-        var so = new SerializedObject(mobs);
-        SerializedProperty points = so.FindProperty("spawnPoints");
-        SerializedProperty slot = null;
-        for (int i = 0; i < points.arraySize; i++)
-        {
-            SerializedProperty point = points.GetArrayElementAtIndex(i);
-            if (point.FindPropertyRelative("areaId").stringValue == AreaId)
-            {
-                slot = point;
-                break;
-            }
-        }
-
-        if (slot == null)
-            throw new System.InvalidOperationException("Spawn point A1 was not found.");
-
-        SerializedProperty king = slot.FindPropertyRelative("king");
-        king.FindPropertyRelative("prefab").objectReferenceValue = prefab;
-        if (king.FindPropertyRelative("respawnSeconds").floatValue < 1f)
-            king.FindPropertyRelative("respawnSeconds").floatValue = RespawnSeconds;
-
-        so.ApplyModifiedPropertiesWithoutUndo();
-        EditorSceneManager.MarkSceneDirty(scene);
-        EditorSceneManager.SaveScene(scene);
-        return true;
-    }
-
-    static T FindInScene<T>(Scene scene) where T : Component
-    {
-        foreach (GameObject root in scene.GetRootGameObjects())
-        {
-            T found = root.GetComponent<T>();
-            if (found != null)
-                return found;
-        }
-
-        return null;
     }
 
     static AnimationClip ExtractClip(string modelPath, string clipName, string outputPath, bool loop)

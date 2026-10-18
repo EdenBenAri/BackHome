@@ -49,15 +49,14 @@ public class CreatureSpawner : MonoBehaviour
     [Serializable]
     public struct SpawnPoint
     {
+        [Tooltip("Your label for this den. Shown as this spawn point's header. Not used at runtime.")]
+        public string areaName;
+
         [Tooltip("Planet Areas child name (A1–A5). Creatures of this den spawn around that " +
             "volume and are parented under it.")]
         public string areaId;
 
-        [Tooltip("Optional marker on the planet surface. Used only when areaId is empty. " +
-            "When areaId is set, creatures parent under that Areas child instead.")]
-        public Transform anchor;
-
-        [Tooltip("Max distance (world units) from the origin creatures can land. Small = a tight, dense cluster.")]
+        [Tooltip("Max distance (world units) from the area creatures can land. Small = a tight, dense cluster.")]
         [Min(0.1f)]
         public float radius;
 
@@ -80,8 +79,8 @@ public class CreatureSpawner : MonoBehaviour
     }
 
     /// <summary>One combined-list entry: a global row from <see cref="spawnEntries"/> (unrestricted,
-    /// spawnPointIndex -1) or a row from a specific <see cref="SpawnPoint"/> (confined to a small
-    /// radius around a hand-placed anchor).</summary>
+    /// spawnPointIndex -1) or a row from a specific <see cref="SpawnPoint"/> (confined to that
+    /// area's radius).</summary>
     struct ResolvedEntry
     {
         public SpawnEntry entry;
@@ -150,7 +149,11 @@ public class CreatureSpawner : MonoBehaviour
             spawnEntries = Array.Empty<SpawnEntry>();
 
         for (int i = 0; i < spawnEntries.Length; i++)
-            spawnEntries[i] = ClampEntry(spawnEntries[i]);
+        {
+            SpawnEntry clamped = ClampEntry(spawnEntries[i]);
+            if (!SameEntry(spawnEntries[i], clamped))
+                spawnEntries[i] = clamped;
+        }
 
         if (spawnPoints == null)
             spawnPoints = Array.Empty<SpawnPoint>();
@@ -158,17 +161,36 @@ public class CreatureSpawner : MonoBehaviour
         for (int p = 0; p < spawnPoints.Length; p++)
         {
             SpawnPoint point = spawnPoints[p];
-            point.radius = Mathf.Max(0.1f, point.radius);
+            bool changed = false;
+
+            float radius = Mathf.Max(0.1f, point.radius);
+            if (!Mathf.Approximately(point.radius, radius))
+            {
+                point.radius = radius;
+                changed = true;
+            }
+
             if (point.creatures != null)
             {
                 for (int i = 0; i < point.creatures.Length; i++)
-                    point.creatures[i] = ClampEntry(point.creatures[i]);
+                {
+                    SpawnEntry clamped = ClampEntry(point.creatures[i]);
+                    if (SameEntry(point.creatures[i], clamped))
+                        continue;
+
+                    point.creatures[i] = clamped;
+                    changed = true;
+                }
             }
 
             if (point.king.prefab != null && point.king.respawnSeconds < 1f)
+            {
                 point.king.respawnSeconds = 180f;
+                changed = true;
+            }
 
-            spawnPoints[p] = point;
+            if (changed)
+                spawnPoints[p] = point;
         }
 
         if (lootPool == null && spawnRoot != null)
@@ -182,6 +204,12 @@ public class CreatureSpawner : MonoBehaviour
         entry.minSeparationDegrees = Mathf.Max(0f, entry.minSeparationDegrees);
         return entry;
     }
+
+    static bool SameEntry(SpawnEntry a, SpawnEntry b) =>
+        a.prefab == b.prefab
+        && a.count == b.count
+        && Mathf.Approximately(a.respawnTime, b.respawnTime)
+        && Mathf.Approximately(a.minSeparationDegrees, b.minSeparationDegrees);
 
     void Start()
     {
@@ -235,7 +263,6 @@ public class CreatureSpawner : MonoBehaviour
             return;
         }
 
-        BindSpawnPointAnchors();
         BuildAllEntries();
 
         int totalRequested = GetTotalRequestedCount();
@@ -343,7 +370,7 @@ public class CreatureSpawner : MonoBehaviour
 
         Transform parent = FindPlanetArea(point.areaId);
         if (parent == null)
-            parent = point.anchor != null ? point.anchor : spawnRoot;
+            parent = spawnRoot;
 
         Vector3 prefabScale = prefab.transform.localScale;
         GameObject instance = Instantiate(prefab, position, rotation, parent);
@@ -444,37 +471,6 @@ public class CreatureSpawner : MonoBehaviour
     static float ResolveMinSeparationDegrees(SpawnEntry entry) =>
         entry.minSeparationDegrees > 0.01f ? entry.minSeparationDegrees : MinSeparationDegrees;
 
-    [ContextMenu("Snap Spawn Points To Areas")]
-    public void BindSpawnPointAnchors()
-    {
-        if (spawnPoints == null || spawnPoints.Length == 0)
-            return;
-
-        if (!TryResolvePlanet())
-            return;
-
-        for (int p = 0; p < spawnPoints.Length; p++)
-        {
-            SpawnPoint point = spawnPoints[p];
-            if (string.IsNullOrWhiteSpace(point.areaId))
-                continue;
-
-            Transform area = FindPlanetArea(point.areaId);
-            if (area == null)
-            {
-                Debug.LogWarning(
-                    $"{name}: spawn point {p} area '{point.areaId}' was not found under {planet.name}/Areas.",
-                    this);
-                continue;
-            }
-
-            if (point.anchor == null)
-                continue;
-
-            point.anchor.position = area.position;
-        }
-    }
-
     [ContextMenu("Clear Spawned")]
     public void ClearSpawned()
     {
@@ -538,7 +534,7 @@ public class CreatureSpawner : MonoBehaviour
         Vector3 dir;
         if (resolved.spawnPointIndex >= 0)
         {
-            // Spawn-point-confined creature — re-roll a fresh point around the anchor rather than
+            // Spawn-point-confined creature — re-roll a fresh point around the area rather than
             // reusing the exact death position, still respecting spacing/walkability below.
             float minDot = ComputeMinDot(ResolveMinSeparationDegrees(resolved.entry));
             if (!TryPickSpawnDirection(minDot, resolved.spawnPointIndex, out dir))
@@ -769,8 +765,8 @@ public class CreatureSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Area dens parent under the matching Areas child (A1–A5). A hand-placed anchor is only
-    /// used when that den has no areaId. Everything else uses <see cref="spawnRoot"/>.
+    /// Area dens parent under the matching Areas child (A1–A5). Everything else uses
+    /// <see cref="spawnRoot"/>.
     /// </summary>
     Transform ResolveSpawnParent(ResolvedEntry resolved)
     {
@@ -782,9 +778,6 @@ public class CreatureSpawner : MonoBehaviour
             Transform area = FindPlanetArea(point.areaId);
             if (area != null)
                 return area;
-
-            if (point.anchor != null)
-                return point.anchor;
         }
 
         EnsureSpawnRoot();
@@ -815,15 +808,15 @@ public class CreatureSpawner : MonoBehaviour
     static float NonZero(float value) => Mathf.Abs(value) < 0.0001f ? 1f : value;
 
     /// <summary>Picks a spawn direction satisfying spacing/walkability, optionally confined to a
-    /// hand-placed spawn point. <paramref name="spawnPointIndex"/> &gt;= 0 samples only within that
-    /// <see cref="spawnPoints"/> entry's radius around its anchor; &lt; 0 samples the whole sphere.</summary>
+    /// spawn area. <paramref name="spawnPointIndex"/> &gt;= 0 samples only within that
+    /// <see cref="spawnPoints"/> entry's radius around its Areas child; &lt; 0 samples the whole sphere.</summary>
     bool TryPickSpawnDirection(float minDot, int spawnPointIndex, out Vector3 dir)
     {
         dir = Vector3.up;
 
         bool useSpawnPoint = spawnPointIndex >= 0 && spawnPoints != null && spawnPointIndex < spawnPoints.Length;
         SpawnPoint spawnPoint = useSpawnPoint ? spawnPoints[spawnPointIndex] : default;
-        if (useSpawnPoint && spawnPoint.anchor == null && FindPlanetArea(spawnPoint.areaId) == null)
+        if (useSpawnPoint && FindPlanetArea(spawnPoint.areaId) == null)
             useSpawnPoint = false;
 
         for (int attempt = 0; attempt < MaxPlacementAttempts; attempt++)
@@ -877,9 +870,8 @@ public class CreatureSpawner : MonoBehaviour
         return false;
     }
 
-    /// <summary>Samples a direction within the spawn point's radius of its origin (area volume or
-    /// hand-placed marker), area-uniformly across the disk. Shared math lives in
-    /// <see cref="PlanetRadialSampling"/>.</summary>
+    /// <summary>Samples a direction within the spawn point's radius of its area, area-uniformly
+    /// across the disk. Shared math lives in <see cref="PlanetRadialSampling"/>.</summary>
     bool TryGetRandomPointNearSpawnPoint(SpawnPoint spawnPoint, out Vector3 dir)
     {
         dir = Vector3.up;
@@ -887,23 +879,20 @@ public class CreatureSpawner : MonoBehaviour
             return false;
 
         Vector3 origin = GetSpawnOrigin(spawnPoint);
-        if (origin.sqrMagnitude < 0.0001f && spawnPoint.anchor == null && FindPlanetArea(spawnPoint.areaId) == null)
+        if (origin.sqrMagnitude < 0.0001f)
             return false;
 
         return PlanetRadialSampling.TryGetRandomPointNear(planet, origin, spawnPoint.radius, out dir);
     }
 
     /// <summary>
-    /// World origin of a spawn den. Prefers the named Areas child (A1–A5) so dens follow the
-    /// encounter volumes even when the planet is rotated; falls back to the hand-placed marker.
+    /// World origin of a spawn den: the named Areas child (A1–A5), so dens follow the
+    /// encounter volumes even when the planet is rotated.
     /// </summary>
     Vector3 GetSpawnOrigin(SpawnPoint spawnPoint)
     {
         Transform area = FindPlanetArea(spawnPoint.areaId);
-        if (area != null)
-            return area.position;
-
-        return spawnPoint.anchor != null ? spawnPoint.anchor.position : Vector3.zero;
+        return area != null ? area.position : Vector3.zero;
     }
 
     Transform FindAreasRoot()

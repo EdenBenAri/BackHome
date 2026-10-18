@@ -3,12 +3,12 @@ using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEditor.Animations;
-using UnityEditor.SceneManagement;
 using UnityEngine;
 
 /// <summary>
-/// Builds Snarlfang: CasualToon material, creature components, A1 spawn,
+/// Builds Snarlfang: CasualToon material, creature components,
 /// a 50/50 Idle1/Idle2 animator, and a Run state driven by IsMoving.
+/// Does not assign the prefab on CreatureSpawner.
 /// </summary>
 public static class SnarlfangSetup
 {
@@ -34,8 +34,6 @@ public static class SnarlfangSetup
     const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/CreaturesVitalsBars.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
-    const string AreaId = "A1";
-    const int SpawnCount = 4;
     const float TargetHeight = 1.8f;
 
     static readonly string TriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupSnarlfang.trigger");
@@ -212,8 +210,7 @@ public static class SnarlfangSetup
         try
         {
             bool hasPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath) != null;
-            bool spawned = HasSpawnEntry();
-            if (!force && hasPrefab && spawned)
+            if (!force && hasPrefab)
             {
                 WriteResult("already set up");
                 return;
@@ -226,8 +223,6 @@ public static class SnarlfangSetup
             if (force || !hasPrefab)
                 BuildPrefab(material, stats);
 
-            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
-            EnsureSpawn(prefab);
             AssetDatabase.SaveAssets();
             WriteResult("ok");
         }
@@ -502,86 +497,6 @@ public static class SnarlfangSetup
         flashSo.FindProperty("hitColor").colorValue = Color.white;
         flashSo.FindProperty("flashDuration").floatValue = 0.1f;
         flashSo.ApplyModifiedPropertiesWithoutUndo();
-    }
-
-    static bool HasSpawnEntry()
-    {
-        CreatureSpawner spawner = Object.FindAnyObjectByType<CreatureSpawner>(FindObjectsInactive.Include);
-        if (spawner == null)
-            return false;
-
-        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
-        if (prefab == null)
-            return false;
-
-        var so = new SerializedObject(spawner);
-        SerializedProperty points = so.FindProperty("spawnPoints");
-        for (int i = 0; i < points.arraySize; i++)
-        {
-            SerializedProperty point = points.GetArrayElementAtIndex(i);
-            if (point.FindPropertyRelative("areaId").stringValue != AreaId)
-                continue;
-
-            SerializedProperty creatures = point.FindPropertyRelative("creatures");
-            for (int c = 0; c < creatures.arraySize; c++)
-            {
-                if (creatures.GetArrayElementAtIndex(c).FindPropertyRelative("prefab").objectReferenceValue == prefab)
-                    return true;
-            }
-        }
-
-        return false;
-    }
-
-    static void EnsureSpawn(GameObject prefab)
-    {
-        if (prefab == null)
-            throw new System.InvalidOperationException("Snarlfang prefab is missing.");
-
-        CreatureSpawner spawner = Object.FindAnyObjectByType<CreatureSpawner>(FindObjectsInactive.Include);
-        if (spawner == null)
-            throw new System.InvalidOperationException("CreatureSpawner was not found in the open scene.");
-
-        var so = new SerializedObject(spawner);
-        SerializedProperty points = so.FindProperty("spawnPoints");
-        SerializedProperty a1 = null;
-        for (int i = 0; i < points.arraySize; i++)
-        {
-            SerializedProperty point = points.GetArrayElementAtIndex(i);
-            if (point.FindPropertyRelative("areaId").stringValue == AreaId)
-            {
-                a1 = point;
-                break;
-            }
-        }
-
-        if (a1 == null)
-            throw new System.InvalidOperationException("Spawn point A1 was not found.");
-
-        SerializedProperty creatures = a1.FindPropertyRelative("creatures");
-        for (int c = 0; c < creatures.arraySize; c++)
-        {
-            SerializedProperty existing = creatures.GetArrayElementAtIndex(c);
-            if (existing.FindPropertyRelative("prefab").objectReferenceValue == prefab)
-            {
-                existing.FindPropertyRelative("count").intValue = SpawnCount;
-                so.ApplyModifiedPropertiesWithoutUndo();
-                EditorSceneManager.MarkSceneDirty(spawner.gameObject.scene);
-                EditorSceneManager.SaveScene(spawner.gameObject.scene);
-                return;
-            }
-        }
-
-        int index = creatures.arraySize;
-        creatures.InsertArrayElementAtIndex(index);
-        SerializedProperty entry = creatures.GetArrayElementAtIndex(index);
-        entry.FindPropertyRelative("prefab").objectReferenceValue = prefab;
-        entry.FindPropertyRelative("count").intValue = SpawnCount;
-        entry.FindPropertyRelative("respawnTime").floatValue = 4f;
-        entry.FindPropertyRelative("minSeparationDegrees").floatValue = 1.5f;
-        so.ApplyModifiedPropertiesWithoutUndo();
-        EditorSceneManager.MarkSceneDirty(spawner.gameObject.scene);
-        EditorSceneManager.SaveScene(spawner.gameObject.scene);
     }
 
     static void SetupIdles(bool force)
