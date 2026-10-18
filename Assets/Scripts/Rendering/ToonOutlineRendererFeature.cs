@@ -6,8 +6,8 @@ using UnityEngine.Rendering.RendererUtils;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// Screen-space ink outline. Samples the camera depth texture, which includes
-/// the planet because terrain shaders write a depth-normals prepass.
+/// Screen-space ink outline. Ink is drawn only where creatures, the player, and the
+/// player's weapons stamped the stencil. Planet ground and environment props stay unmarked.
 /// </summary>
 public class ToonOutlineRendererFeature : ScriptableRendererFeature
 {
@@ -60,6 +60,7 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
         class MaskPassData
         {
             public RendererListHandle planets;
+            public RendererListHandle subjects;
         }
 
         class PassData
@@ -94,15 +95,25 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                 RendererListParams rendererListParams = new RendererListParams(renderingData.cullResults, drawSettings, filterSettings);
                 RendererListHandle planetMask = renderGraph.CreateRendererList(rendererListParams);
 
-                using (IRasterRenderGraphBuilder maskBuilder = renderGraph.AddRasterRenderPass("Planet Outline Mask", out MaskPassData maskData))
+                DrawingSettings subjectDraw = RenderingUtils.CreateDrawingSettings(
+                    new ShaderTagId("OutlineSubject"), renderingData, cameraData, lightData, SortingCriteria.None);
+                FilteringSettings subjectFilter = new FilteringSettings(
+                    RenderQueueRange.opaque, -1, ToonOutlineSubjects.RenderingLayer);
+                RendererListParams subjectParams = new RendererListParams(renderingData.cullResults, subjectDraw, subjectFilter);
+                RendererListHandle subjectMask = renderGraph.CreateRendererList(subjectParams);
+
+                using (IRasterRenderGraphBuilder maskBuilder = renderGraph.AddRasterRenderPass("Outline Mask", out MaskPassData maskData))
                 {
                     maskData.planets = planetMask;
+                    maskData.subjects = subjectMask;
                     maskBuilder.UseRendererList(planetMask);
+                    maskBuilder.UseRendererList(subjectMask);
                     maskBuilder.SetRenderAttachment(resources.activeColorTexture, 0, AccessFlags.ReadWrite);
                     maskBuilder.SetRenderAttachmentDepth(resources.activeDepthTexture, AccessFlags.ReadWrite);
                     maskBuilder.SetRenderFunc(static (MaskPassData data, RasterGraphContext context) =>
                     {
                         context.cmd.DrawRendererList(data.planets);
+                        context.cmd.DrawRendererList(data.subjects);
                     });
                 }
             }
@@ -124,6 +135,33 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                     Blitter.BlitTexture(context.cmd, data.source, new Vector4(1f, 1f, 0f, 0f), data.material, 0);
                 });
             }
+        }
+    }
+}
+
+/// <summary>
+/// Marks meshes that should receive the toon ink outline: creatures, the player, and weapons.
+/// Light Layer 7. Together with the Default bit the serialized mask is 129.
+/// </summary>
+public static class ToonOutlineSubjects
+{
+    public const uint RenderingLayer = 1u << 7;
+
+    public static void Mark(Component root)
+    {
+        if (root == null)
+            return;
+
+        Renderer[] renderers = root.GetComponentsInChildren<Renderer>(true);
+        for (int i = 0; i < renderers.Length; i++)
+        {
+            Renderer renderer = renderers[i];
+            if (renderer == null)
+                continue;
+
+            uint mask = renderer.renderingLayerMask | RenderingLayer;
+            if (renderer.renderingLayerMask != mask)
+                renderer.renderingLayerMask = mask;
         }
     }
 }

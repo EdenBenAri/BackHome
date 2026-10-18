@@ -270,6 +270,7 @@ public class FloatingWeapon : MonoBehaviour
 
         GameObject instance = Instantiate(prefab, hover);
         instance.name = prefab.name;
+        ToonOutlineSubjects.Mark(instance.transform);
         StripPhysics(instance);
 
         Transform visual = instance.transform;

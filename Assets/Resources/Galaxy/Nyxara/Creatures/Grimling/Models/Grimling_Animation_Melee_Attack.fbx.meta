@@ -33,10 +33,10 @@ ModelImporter:
     clipAnimations:
     - serializedVersion: 16
       name: LightAttack
-      takeName: target_character|target_character|target_character|Simple_Kick
-      internalID: -5125756325781185787
+      takeName: target_character|target_character|target_character|Right_Hand_Sword_Slash
+      internalID: -5947226023543274914
       firstFrame: 0
-      lastFrame: 56.000004
+      lastFrame: 36
       wrapMode: 2
       orientationOffsetY: 0
       level: 0

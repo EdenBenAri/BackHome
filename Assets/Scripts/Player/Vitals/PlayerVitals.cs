@@ -72,6 +72,7 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
 
     void Awake()
     {
+        ToonOutlineSubjects.Mark(this);
         RebuildLoadout();
         ResetVitals();
     }

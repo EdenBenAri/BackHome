@@ -36,13 +36,13 @@ Shader "BackHome/ToonOutline"
             ZWrite Off
             Cull Off
 
-            // Bit 0 is set on visible planet pixels. Ink stays on characters and props.
+            // Bit 1 is stamped on visible creatures, the player, and the player's weapons.
             Stencil
             {
-                Ref 1
-                ReadMask 1
+                Ref 2
+                ReadMask 2
                 WriteMask 0
-                Comp NotEqual
+                Comp Equal
                 Pass Keep
                 Fail Keep
                 ZFail Keep

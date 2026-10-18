@@ -33,10 +33,10 @@ ModelImporter:
     clipAnimations:
     - serializedVersion: 16
       name: Idle2
-      takeName: target_character|target_character|target_character|Collect_Object
-      internalID: -336603860467319587
+      takeName: target_character|target_character|target_character|Female_Walk_Pick_Put_In_Pocke
+      internalID: -8183990230389879130
       firstFrame: 0
-      lastFrame: 144
+      lastFrame: 228
       wrapMode: 2
       orientationOffsetY: 0
       level: 0

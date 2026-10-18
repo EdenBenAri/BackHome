@@ -35,9 +35,11 @@ public static class GrimlingSetup
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 1.8f;
+    const float DisplayScale = 3f;
 
     static readonly string ResultPath = Path.Combine(Application.dataPath, "..", "Temp", "GrimlingSetup.result.txt");
     static readonly string TriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupGrimling.trigger");
+    static readonly string PatchTriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomePatchGrimling.trigger");
 
     [InitializeOnLoadMethod]
     static void Boot()
@@ -55,6 +57,12 @@ public static class GrimlingSetup
     {
         if (EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode)
             return;
+
+        if (File.Exists(PatchTriggerPath))
+        {
+            try { File.Delete(PatchTriggerPath); } catch { /* ignore */ }
+            PatchScaleAndSpawns();
+        }
 
         if (!File.Exists(TriggerPath))
             return;
@@ -237,6 +245,8 @@ public static class GrimlingSetup
                 height = MeasureHeight(instance);
             }
 
+            instance.transform.localScale *= DisplayScale;
+
             float barHeight = height > 0.05f ? height + 0.25f : 2.2f;
             AddCreatureComponents(instance, stats, barHeight);
 
@@ -352,6 +362,82 @@ public static class GrimlingSetup
         flashSo.FindProperty("hitColor").colorValue = Color.white;
         flashSo.FindProperty("flashDuration").floatValue = 0.1f;
         flashSo.ApplyModifiedPropertiesWithoutUndo();
+    }
+
+    // Restores the in-game scale and rebinds den spawners after an FBX rebuild.
+    static void PatchScaleAndSpawns()
+    {
+        try
+        {
+            GameObject root = PrefabUtility.LoadPrefabContents(PrefabPath);
+            try
+            {
+                root.transform.localScale = Vector3.one * DisplayScale;
+                PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+            }
+            finally
+            {
+                PrefabUtility.UnloadPrefabContents(root);
+            }
+
+            KeepPrefabGuid();
+            int fixedSpawns = FixBrokenGrimlingSpawns();
+            WriteResult($"patched scale={DisplayScale:0.##} spawns={fixedSpawns}");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogException(e);
+            WriteResult("PATCH FAILED: " + e);
+        }
+    }
+
+    static int FixBrokenGrimlingSpawns()
+    {
+        var scene = UnityEditor.SceneManagement.EditorSceneManager.GetActiveScene();
+        if (!scene.IsValid() || !scene.path.EndsWith("PlanetNyxara.unity", System.StringComparison.OrdinalIgnoreCase))
+        {
+            Debug.LogWarning("[BackHome] Grimling spawn fix skipped; PlanetNyxara is not the active scene.");
+            return 0;
+        }
+
+        var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
+        if (prefab == null)
+            throw new System.InvalidOperationException("Grimling prefab was not found.");
+
+        int fixedCount = 0;
+        foreach (CreatureSpawner spawner in UnityEngine.Object.FindObjectsByType<CreatureSpawner>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            var so = new SerializedObject(spawner);
+            SerializedProperty points = so.FindProperty("spawnPoints");
+            bool changed = false;
+            for (int i = 0; i < points.arraySize; i++)
+            {
+                SerializedProperty point = points.GetArrayElementAtIndex(i);
+                string area = point.FindPropertyRelative("areaId").stringValue;
+                if (area != "A3" && area != "A4" && area != "A5")
+                    continue;
+
+                SerializedProperty creatures = point.FindPropertyRelative("creatures");
+                for (int c = 0; c < creatures.arraySize; c++)
+                {
+                    SerializedProperty prefabProp = creatures.GetArrayElementAtIndex(c).FindPropertyRelative("prefab");
+                    if (prefabProp.objectReferenceValue == prefab)
+                        continue;
+
+                    prefabProp.objectReferenceValue = prefab;
+                    fixedCount++;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+                so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        if (fixedCount > 0)
+            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(scene);
+
+        return fixedCount;
     }
 
     static void KeepPrefabGuid()

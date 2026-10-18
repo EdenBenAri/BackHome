@@ -54,6 +54,7 @@ public class Creature : MonoBehaviour, IVitalsReadable
 
     void Awake()
     {
+        ToonOutlineSubjects.Mark(this);
         _chase = GetComponent<CreatureChase>();
         _anim = GetComponent<CreatureAnimator>();
         if (_anim == null)
