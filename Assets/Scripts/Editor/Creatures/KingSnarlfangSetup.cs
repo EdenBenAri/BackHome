@@ -41,6 +41,7 @@ public static class KingSnarlfangSetup
     const string AreaId = "A1";
     const float RespawnSeconds = 180f;
     const float TargetHeight = 4.2f;
+    const float ModelScale = 2f;
 
     static readonly string TriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupKingSnarlfang.trigger");
     static readonly string ResultPath = Path.Combine(Application.dataPath, "..", "Temp", "KingSnarlfangSetup.result.txt");
@@ -313,6 +314,12 @@ public static class KingSnarlfangSetup
             {
                 instance.transform.localScale = Vector3.one * (TargetHeight / height);
                 height = MeasureHeight(instance);
+            }
+
+            foreach (Transform child in instance.transform)
+            {
+                if (child.name == "target_character" || child.name == "Mesh_0")
+                    child.localScale *= ModelScale;
             }
 
             float barHeight = height > 0.05f ? height + 0.45f : 4.6f;
@@ -752,8 +759,10 @@ public static class KingSnarlfangSetup
                 continue;
 
             AnimationCurve curve = AnimationUtility.GetEditorCurve(source, binding);
+            // target_character is rotated -90° on X, so hips local Y is forward and local Z is up.
+            // Root-motion runs slide along Y and then the loop snaps them backward.
             bool lockHips = path.EndsWith("Hips", System.StringComparison.Ordinal)
-                && (binding.propertyName == "m_LocalPosition.x" || binding.propertyName == "m_LocalPosition.z");
+                && (binding.propertyName == "m_LocalPosition.x" || binding.propertyName == "m_LocalPosition.y");
             if (lockHips && curve.keys.Length > 0)
             {
                 float locked = curve.keys[0].value;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using TMPro;
 using UnityEngine;
 
 /// <summary>
@@ -101,6 +102,10 @@ public class CreatureSpawner : MonoBehaviour
 
     [Header("Timing")]
     [SerializeField] bool spawnOnStart = true;
+
+    [Header("King countdown")]
+    [Tooltip("World-space font for the next-king timer. Lilita One matches the rest of the casual HUD.")]
+    [SerializeField] TMP_FontAsset kingCountdownFont;
 
     [Header("Presentation")]
     [Tooltip("Optional Animator state to force on spawn (e.g. idle). Leave empty to leave Animator alone.")]
@@ -372,6 +377,7 @@ public class CreatureSpawner : MonoBehaviour
         var go = new GameObject($"NextKing_{area}");
         go.transform.SetParent(transform, false);
         live.countdown = go.AddComponent<AreaKingCountdown>();
+        live.countdown.UseFont(kingCountdownFont);
     }
 
     void OnKingDied(Creature creature)

@@ -10,18 +10,24 @@ using UnityEngine;
 [DefaultExecutionOrder(900)]
 public class AreaKingCountdown : MonoBehaviour
 {
-    const float TitleSize = 3.2f;
-    const float TimerSize = 6.1f;
+    const float TitleSize = 4.2f;
+    const float TimerSize = 8f;
     const float Lift = 3.8f;
     const float OpaqueDistance = 32f;
     const float HiddenDistance = 68f;
 
+    TMP_FontAsset _font;
     TMP_Text _title;
     TMP_Text _timer;
     Vector3 _up = Vector3.up;
     float _readyAt;
     bool _shown;
     bool _fontWarned;
+
+    public void UseFont(TMP_FontAsset font)
+    {
+        _font = font;
+    }
 
     public void Show(Vector3 groundPosition, Vector3 up, float readyAt)
     {
@@ -77,7 +83,7 @@ public class AreaKingCountdown : MonoBehaviour
         if (_title != null && _timer != null)
             return;
 
-        TMP_FontAsset font = TMP_Settings.defaultFontAsset;
+        TMP_FontAsset font = _font != null ? _font : TMP_Settings.defaultFontAsset;
         if (font == null)
             font = Resources.Load<TMP_FontAsset>("Fonts & Materials/LiberationSans SDF");
         if (font == null && !_fontWarned)
@@ -87,8 +93,8 @@ public class AreaKingCountdown : MonoBehaviour
             return;
         }
 
-        _title = CreateLine("Title", "NEXT KING", TitleSize, 2.35f, font, 10f);
-        _timer = CreateLine("Time", "00 : 00", TimerSize, 0f, font, 4f);
+        _title = CreateLine("Title", "NEXT KING", TitleSize, 3.4f, font, 4f);
+        _timer = CreateLine("Time", "00 : 00", TimerSize, 0f, font, 2f);
     }
 
     TMP_Text CreateLine(string objectName, string value, float size, float localY, TMP_FontAsset font, float tracking)
@@ -103,15 +109,15 @@ public class AreaKingCountdown : MonoBehaviour
         text.font = font;
         text.text = value;
         text.fontSize = size;
-        text.fontStyle = FontStyles.Bold;
+        text.fontStyle = FontStyles.Normal;
         text.alignment = TextAlignmentOptions.Center;
         text.color = Color.white;
         text.characterSpacing = tracking;
-        text.enableWordWrapping = false;
+        text.textWrappingMode = TextWrappingModes.NoWrap;
         text.overflowMode = TextOverflowModes.Overflow;
         text.outlineWidth = 0.18f;
         text.outlineColor = new Color32(28, 22, 36, 210);
-        text.rectTransform.sizeDelta = new Vector2(22f, size + 1f);
+        text.rectTransform.sizeDelta = new Vector2(30f, size + 1.5f);
 
         Renderer renderer = text.renderer;
         if (renderer != null)
