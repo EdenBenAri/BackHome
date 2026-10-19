@@ -31,6 +31,20 @@ namespace BirichStudio.ProceduralSpace
                  "quad must still sit inside the far plane.")]
         [SerializeField] private float distance = 50f;
 
+        [Tooltip("World meters that fill one screen. Camera travel is scaled into the sky " +
+                 "by this, so a parallax of 1 slides the sky by one screen per this many meters. " +
+                 "Lower values make the background move faster.")]
+        [SerializeField] private float parallaxScreenMeters = 32f;
+
+        static readonly int SkyTravelId = Shader.PropertyToID("_SkyTravel");
+
+        MeshRenderer _renderer;
+        MaterialPropertyBlock _block;
+        Vector2 _travel;
+        Vector3 _motionPos;
+        Vector3 _groundForward = Vector3.forward;
+        bool _hasMotion;
+
         /// <summary>The camera being followed (resolved).</summary>
         public Camera TargetCamera
         {
@@ -60,6 +74,58 @@ namespace BirichStudio.ProceduralSpace
             float width = height * cam.aspect;
 
             transform.localScale = new Vector3(width * padding, height * padding, 1f);
+            AccumulateTravel(cam, height);
+        }
+
+        /// <summary>
+        /// Scroll the sky by how the camera actually moved across the ground.
+        /// The offset is in view-plane units, so turning around the planet slides
+        /// the stars instead of flattening one axis and stretching them.
+        /// </summary>
+        void AccumulateTravel(Camera cam, float screenHeight)
+        {
+            Vector3 pos = cam.transform.position;
+            Vector3 up = cam.transform.up;
+            Vector3 right = cam.transform.right;
+            Vector3 groundForward = Vector3.ProjectOnPlane(cam.transform.forward, up);
+            if (groundForward.sqrMagnitude > 0.0001f)
+                groundForward.Normalize();
+            else if (_groundForward.sqrMagnitude > 0.0001f)
+                groundForward = _groundForward;
+            _groundForward = groundForward;
+
+            if (!_hasMotion)
+            {
+                _motionPos = pos;
+                _hasMotion = true;
+            }
+            else if ((pos - _motionPos).sqrMagnitude > 40f * 40f)
+            {
+                // A portal or a camera cut is not walking.
+                _motionPos = pos;
+            }
+            else
+            {
+                float dt = Time.deltaTime > 0.0001f ? Time.deltaTime : 0.016f;
+                float blend = 1f - Mathf.Exp(-10f * dt);
+                Vector3 next = Vector3.Lerp(_motionPos, pos, blend);
+                Vector3 delta = next - _motionPos;
+                _motionPos = next;
+
+                float gain = screenHeight / Mathf.Max(1f, parallaxScreenMeters);
+                _travel.x += Vector3.Dot(delta, right) * gain;
+                _travel.y += Vector3.Dot(delta, groundForward) * gain;
+            }
+
+            if (_renderer == null)
+                _renderer = GetComponent<MeshRenderer>();
+            if (_renderer == null)
+                return;
+
+            _block ??= new MaterialPropertyBlock();
+            _renderer.GetPropertyBlock(_block);
+            _block.SetVector(SkyTravelId, new Vector4(_travel.x, _travel.y, 0f, 0f));
+            _renderer.SetPropertyBlock(_block);
         }
     }
 }

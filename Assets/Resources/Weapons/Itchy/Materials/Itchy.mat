@@ -39,7 +39,7 @@ Material:
     m_Ints: []
     m_Floats:
     - _AmbientStrength: 1
-    - _Brightness: 1
+    - _Brightness: 0.8
     - _BumpScale: 0.4
     - _Contrast: 0.96
     - _Cull: 2

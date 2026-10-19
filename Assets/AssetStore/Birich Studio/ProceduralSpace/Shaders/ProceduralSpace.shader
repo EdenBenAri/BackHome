@@ -130,6 +130,10 @@ Shader "Birich Studio/ProceduralSpace"
             float  _PixelArt, _Cartoon, _PPU, _TimeOffset;
             float  _DebugNoise;   // dev-only: >0 renders raw noise layers for driver triage
             float4 _DriftVec;   // xy: sky drift in units/s — a virtual camera glide through space
+            // xy: camera travel in the view plane, in the same units as the quad.
+            // Fed every frame by SpaceCameraFit. World XY is not used: it collapses
+            // when the camera looks along X and stretches the sky into streaks.
+            float4 _SkyTravel;
 
             float4 _BaseColor, _BaseColor2, _GradientDir;
             float  _GradientScale;
@@ -1836,7 +1840,9 @@ Shader "Birich Studio/ProceduralSpace"
                 Varyings OUT;
                 VertexPositionInputs pos = GetVertexPositionInputs(IN.positionOS.xyz);
                 OUT.positionHCS = pos.positionCS;
-                OUT.worldPos = pos.positionWS.xy;
+                // View-plane coordinates stay full-width at every camera angle.
+                // _SkyTravel scrolls that plane as the camera moves.
+                OUT.worldPos = pos.positionVS.xy + _SkyTravel.xy;
                 return OUT;
             }
 
@@ -1873,7 +1879,7 @@ Shader "Birich Studio/ProceduralSpace"
                 // Drift is a virtual camera glide: adding it to the camera position moves every
                 // layer at its own parallax rate (near stars fastest, giants slowest), so even a
                 // perfectly static camera reads as slowly traveling through space.
-                float2 cam = _WorldSpaceCameraPos.xy + _DriftVec.xy * Now();
+                float2 cam = _SkyTravel.xy + _DriftVec.xy * Now();
 
                 // World-space size of one screen pixel — measured here, in uniform control flow,
                 // because derivative instructions are illegal inside the dynamic body loops below.
