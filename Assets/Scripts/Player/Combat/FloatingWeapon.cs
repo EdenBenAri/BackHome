@@ -275,7 +275,6 @@ public class FloatingWeapon : MonoBehaviour
 
         Transform visual = instance.transform;
         visual.localPosition = Vector3.zero;
-        visual.localRotation = Quaternion.identity;
         visual.localScale = Vector3.one;
         EquippedWeapon attack = instance.GetComponent<EquippedWeapon>();
         if (attack != null)

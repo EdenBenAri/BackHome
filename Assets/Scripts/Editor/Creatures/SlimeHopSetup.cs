@@ -53,11 +53,28 @@ public static class SlimeHopSetup
 
     public static void Apply()
     {
-        EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Slime", "Animations");
-        AnimationClip idle = SaveClip(CreateIdleClip(), IdleClipPath);
-        AnimationClip jump = SaveClip(CreateJumpClip(), JumpClipPath);
-        AnimatorController controller = CreateController(idle, jump);
-        WirePrefab(controller);
+        ApplyTo(PrefabPath, IdleClipPath, JumpClipPath, ControllerPath, 1f);
+    }
+
+    /// <summary>
+    /// Same squash-and-pop hop, aimed at another slime prefab. <paramref name="hopHeight"/>
+    /// scales the jump lift (1 = the regular slime).
+    /// </summary>
+    public static void ApplyTo(string prefabPath, string idleClipPath, string jumpClipPath, string controllerPath, float hopHeight)
+    {
+        string folder = Path.GetDirectoryName(idleClipPath)?.Replace('\\', '/');
+        if (!string.IsNullOrEmpty(folder) && !AssetDatabase.IsValidFolder(folder))
+        {
+            string parent = Path.GetDirectoryName(folder)?.Replace('\\', '/');
+            string child = Path.GetFileName(folder);
+            if (!string.IsNullOrEmpty(parent) && !string.IsNullOrEmpty(child))
+                EnsureFolder(parent, child);
+        }
+
+        AnimationClip idle = SaveClip(CreateIdleClip(), idleClipPath);
+        AnimationClip jump = SaveClip(CreateJumpClip(Mathf.Max(0.01f, hopHeight)), jumpClipPath);
+        AnimatorController controller = CreateController(idle, jump, controllerPath);
+        WirePrefab(controller, prefabPath);
         AssetDatabase.SaveAssets();
     }
 
@@ -77,7 +94,7 @@ public static class SlimeHopSetup
         return clip;
     }
 
-    static AnimationClip CreateJumpClip()
+    static AnimationClip CreateJumpClip(float hopHeight)
     {
         var clip = new AnimationClip { name = "Jump", frameRate = 60 };
         var settings = AnimationUtility.GetAnimationClipSettings(clip);
@@ -86,7 +103,7 @@ public static class SlimeHopSetup
 
         // Flat dome on the ground, round ball in the air, splat on the landing.
         float[] times = { 0f, 0.06f, 0.14f, 0.26f, 0.36f, 0.44f, 0.54f };
-        float[] posY = { 0f, 0f, 0.35f, 2.05f, 0.7f, 0f, 0f };
+        float[] posY = { 0f, 0f, 0.35f * hopHeight, 2.05f * hopHeight, 0.7f * hopHeight, 0f, 0f };
         float[] scaleY = { 0.48f, 0.4f, 1.12f, 1.04f, 1.08f, 0.36f, 0.48f };
         float[] scaleXZ = { 1.45f, 1.58f, 0.94f, 0.98f, 0.96f, 1.66f, 1.45f };
         WriteHopCurves(clip, times, posY, scaleY, scaleXZ);
@@ -143,11 +160,11 @@ public static class SlimeHopSetup
         return existing;
     }
 
-    static AnimatorController CreateController(AnimationClip idle, AnimationClip jump)
+    static AnimatorController CreateController(AnimationClip idle, AnimationClip jump, string controllerPath)
     {
-        AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
         if (controller == null)
-            controller = AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
+            controller = AnimatorController.CreateAnimatorControllerAtPath(controllerPath);
 
         while (controller.parameters.Length > 0)
             controller.RemoveParameter(0);
@@ -189,14 +206,14 @@ public static class SlimeHopSetup
         return controller;
     }
 
-    static void WirePrefab(AnimatorController controller)
+    static void WirePrefab(AnimatorController controller, string prefabPath)
     {
-        GameObject root = PrefabUtility.LoadPrefabContents(PrefabPath);
+        GameObject root = PrefabUtility.LoadPrefabContents(prefabPath);
         try
         {
             Transform body = FindNamed(root.transform, "Body");
             if (body == null)
-                throw new System.InvalidOperationException("Slime prefab has no Body.");
+                throw new System.InvalidOperationException(prefabPath + " has no Body.");
 
             Transform hop = body.parent != null && body.parent.name == "Hop"
                 ? body.parent
@@ -217,7 +234,7 @@ public static class SlimeHopSetup
             if (root.GetComponent<CreatureAnimator>() == null)
                 root.AddComponent<CreatureAnimator>();
 
-            PrefabUtility.SaveAsPrefabAsset(root, PrefabPath);
+            PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
         }
         finally
         {

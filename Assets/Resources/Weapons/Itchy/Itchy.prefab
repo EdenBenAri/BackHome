@@ -45,10 +45,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b7e4c18f6a2d49c3b9e1f5048d2a76c5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::RangedWeapon
-  slotOffset: {x: 1.03, y: 4.26, z: 0.06}
-  visualEuler: {x: 0, y: -90, z: 0}
-  targetSize: 2
-  muzzleOffset: 0.9
+  slotOffset: {x: 1.5, y: 2.2, z: 0.15}
+  visualEuler: {x: -90, y: -90, z: 0}
+  targetSize: 1.6
+  muzzleOffset: 0.72
   muzzleAnchor: {fileID: 0}
   aimHeight: 0.7
   muzzleVFX: {fileID: 6818450731999971250, guid: f627b9c8c33d91c408c8f1f53322e76e, type: 3}
@@ -135,13 +135,13 @@ PrefabInstance:
       value: 1
       objectReference: {fileID: 0}
     - target: {fileID: -7511558181221131132, guid: aeb7c1a5c3266fa40b7f19ae2899f98a, type: 3}
-      propertyPath: 'm_Materials.Array.data[0]'
-      value: 
-      objectReference: {fileID: 2100000, guid: a6d07a65612bfb74281dc4b94751445e, type: 2}
-    - target: {fileID: -7511558181221131132, guid: aeb7c1a5c3266fa40b7f19ae2899f98a, type: 3}
       propertyPath: m_RenderingLayerMask
       value: 129
       objectReference: {fileID: 0}
+    - target: {fileID: -7511558181221131132, guid: aeb7c1a5c3266fa40b7f19ae2899f98a, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: a6d07a65612bfb74281dc4b94751445e, type: 2}
     - target: {fileID: 919132149155446097, guid: aeb7c1a5c3266fa40b7f19ae2899f98a, type: 3}
       propertyPath: m_Name
       value: Thorncaster_Carbine

@@ -362,6 +362,16 @@ public static class SlimeSetup
         chaseSo.FindProperty("knockbackCooldown").floatValue = 0.5f;
         chaseSo.ApplyModifiedPropertiesWithoutUndo();
 
+        SphereCollider body = instance.GetComponent<SphereCollider>();
+        if (body == null)
+            body = instance.AddComponent<SphereCollider>();
+        body.isTrigger = true;
+        body.center = new Vector3(0f, 1.7f, 0f);
+        body.radius = 1.7f;
+
+        if (instance.GetComponent<SlimeBody>() == null)
+            instance.AddComponent<SlimeBody>();
+
         CreatureHitFlash flash = instance.GetComponent<CreatureHitFlash>();
         if (flash == null)
             flash = instance.AddComponent<CreatureHitFlash>();
