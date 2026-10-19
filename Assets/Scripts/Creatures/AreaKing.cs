@@ -15,6 +15,8 @@ public class AreaKing : MonoBehaviour
 
     void Awake()
     {
+        // Creature.Awake marks the black outline first. This runs later and switches the body to red.
+        ToonOutlineSubjects.MarkKing(this);
         _creature = GetComponent<Creature>();
         _anim = GetComponent<CreatureAnimator>();
         if (_anim == null)

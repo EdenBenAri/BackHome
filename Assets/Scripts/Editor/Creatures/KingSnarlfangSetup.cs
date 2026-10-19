@@ -37,6 +37,7 @@ public static class KingSnarlfangSetup
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 4.2f;
     const float ModelScale = 2f;
+    const float KingScale = 2f;
 
     static readonly string TriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupKingSnarlfang.trigger");
     static readonly string ResultPath = Path.Combine(Application.dataPath, "..", "Temp", "KingSnarlfangSetup.result.txt");
@@ -313,6 +314,8 @@ public static class KingSnarlfangSetup
                 if (child.name == "target_character" || child.name == "Mesh_0")
                     child.localScale *= ModelScale;
             }
+
+            instance.transform.localScale *= KingScale;
 
             float barHeight = height > 0.05f ? height + 0.45f : 4.6f;
             AddCreatureComponents(instance, stats, barHeight);

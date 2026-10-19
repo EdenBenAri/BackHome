@@ -61,6 +61,7 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
         {
             public RendererListHandle planets;
             public RendererListHandle subjects;
+            public RendererListHandle kings;
         }
 
         class PassData
@@ -102,18 +103,28 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                 RendererListParams subjectParams = new RendererListParams(renderingData.cullResults, subjectDraw, subjectFilter);
                 RendererListHandle subjectMask = renderGraph.CreateRendererList(subjectParams);
 
+                DrawingSettings kingDraw = RenderingUtils.CreateDrawingSettings(
+                    new ShaderTagId("OutlineSubjectKing"), renderingData, cameraData, lightData, SortingCriteria.None);
+                FilteringSettings kingFilter = new FilteringSettings(
+                    RenderQueueRange.opaque, -1, ToonOutlineSubjects.KingRenderingLayer);
+                RendererListParams kingParams = new RendererListParams(renderingData.cullResults, kingDraw, kingFilter);
+                RendererListHandle kingMask = renderGraph.CreateRendererList(kingParams);
+
                 using (IRasterRenderGraphBuilder maskBuilder = renderGraph.AddRasterRenderPass("Outline Mask", out MaskPassData maskData))
                 {
                     maskData.planets = planetMask;
                     maskData.subjects = subjectMask;
+                    maskData.kings = kingMask;
                     maskBuilder.UseRendererList(planetMask);
                     maskBuilder.UseRendererList(subjectMask);
+                    maskBuilder.UseRendererList(kingMask);
                     maskBuilder.SetRenderAttachment(resources.activeColorTexture, 0, AccessFlags.ReadWrite);
                     maskBuilder.SetRenderAttachmentDepth(resources.activeDepthTexture, AccessFlags.ReadWrite);
                     maskBuilder.SetRenderFunc(static (MaskPassData data, RasterGraphContext context) =>
                     {
                         context.cmd.DrawRendererList(data.planets);
                         context.cmd.DrawRendererList(data.subjects);
+                        context.cmd.DrawRendererList(data.kings);
                     });
                 }
             }
@@ -133,6 +144,7 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                 {
                     context.cmd.SetGlobalTexture(DepthTextureId, data.depth);
                     Blitter.BlitTexture(context.cmd, data.source, new Vector4(1f, 1f, 0f, 0f), data.material, 0);
+                    Blitter.BlitTexture(context.cmd, data.source, new Vector4(1f, 1f, 0f, 0f), data.material, 1);
                 });
             }
         }
@@ -141,13 +153,24 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
 
 /// <summary>
 /// Marks meshes that should receive the toon ink outline: creatures, the player, and weapons.
-/// Light Layer 7. Together with the Default bit the serialized mask is 129.
+/// Regular subjects use light layer 7 (black ink). Area kings use light layer 8 (red ink).
 /// </summary>
 public static class ToonOutlineSubjects
 {
     public const uint RenderingLayer = 1u << 7;
+    public const uint KingRenderingLayer = 1u << 8;
 
     public static void Mark(Component root)
+    {
+        ApplyLayer(root, RenderingLayer, KingRenderingLayer);
+    }
+
+    public static void MarkKing(Component root)
+    {
+        ApplyLayer(root, KingRenderingLayer, RenderingLayer);
+    }
+
+    static void ApplyLayer(Component root, uint add, uint remove)
     {
         if (root == null)
             return;
@@ -159,7 +182,7 @@ public static class ToonOutlineSubjects
             if (renderer == null)
                 continue;
 
-            uint mask = renderer.renderingLayerMask | RenderingLayer;
+            uint mask = (renderer.renderingLayerMask & ~remove) | add;
             if (renderer.renderingLayerMask != mask)
                 renderer.renderingLayerMask = mask;
         }

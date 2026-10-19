@@ -469,6 +469,69 @@ Shader "BackHome/CasualToon"
             }
             ENDHLSL
         }
+
+        // Same stamp as OutlineSubject, on stencil bit 2, for area kings only.
+        // ToonOutlineSubjects.KingRenderingLayer is what admits a renderer into this pass.
+        Pass
+        {
+            Name "OutlineSubjectKing"
+            Tags { "LightMode" = "OutlineSubjectKing" }
+
+            ColorMask 0
+            ZWrite Off
+            ZTest LEqual
+            Cull [_Cull]
+
+            Stencil
+            {
+                Ref 4
+                ReadMask 4
+                WriteMask 4
+                Comp Always
+                Pass Replace
+                Fail Keep
+                ZFail Keep
+            }
+
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex OutlineSubjectVert
+            #pragma fragment OutlineSubjectFrag
+            #pragma multi_compile_instancing
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+
+            struct OutlineSubjectAttributes
+            {
+                float4 positionOS : POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+            };
+
+            struct OutlineSubjectVaryings
+            {
+                float4 positionCS : SV_POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            OutlineSubjectVaryings OutlineSubjectVert(OutlineSubjectAttributes input)
+            {
+                OutlineSubjectVaryings output = (OutlineSubjectVaryings)0;
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_TRANSFER_INSTANCE_ID(input, output);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
+                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                return output;
+            }
+
+            half4 OutlineSubjectFrag(OutlineSubjectVaryings input) : SV_Target
+            {
+                UNITY_SETUP_INSTANCE_ID(input);
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+                return 0;
+            }
+            ENDHLSL
+        }
     }
 
     FallBack Off

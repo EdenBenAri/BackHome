@@ -4,6 +4,7 @@ Shader "BackHome/ToonOutline"
     {
         [Header(Ink)]
         _OutlineColor("Ink Color", Color) = (0.04, 0.03, 0.07, 1)
+        _KingOutlineColor("King Ink", Color) = (0.86, 0.09, 0.12, 1)
         _OutlineThickness("Thickness (pixels)", Range(1, 4)) = 2
         _SilhouetteStrength("Silhouette", Range(0, 1)) = 1
         _CreaseStrength("Creases", Range(0, 1)) = 0.55
@@ -36,7 +37,7 @@ Shader "BackHome/ToonOutline"
             ZWrite Off
             Cull Off
 
-            // Bit 1 is stamped on visible creatures, the player, and the player's weapons.
+            // Bit 1 is stamped on regular creatures, the player, and the player's weapons.
             Stencil
             {
                 Ref 2
@@ -60,6 +61,7 @@ Shader "BackHome/ToonOutline"
             // Kept as plain uniforms. The fullscreen pass draws with a property block that only
             // sets _BlitTexture; a UnityPerMaterial cbuffer gets dropped on that draw.
             float4 _OutlineColor;
+            float4 _KingOutlineColor;
             float _OutlineThickness;
             float _SilhouetteStrength;
             float _CreaseStrength;
@@ -100,10 +102,8 @@ Shader "BackHome/ToonOutline"
                 return lenSq > 1e-8 ? c * rsqrt(lenSq) : float3(0, 0, 0);
             }
 
-            half4 Frag(Varyings input) : SV_Target
+            half4 Ink(float2 uv, float3 inkRgb, float inkAlpha)
             {
-                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
-                float2 uv = input.texcoord;
                 float2 texel = _CameraDepthTexture_TexelSize.xy * max(_OutlineThickness, 1.0);
 
                 float eyeC = EyeAt(uv);
@@ -145,9 +145,138 @@ Shader "BackHome/ToonOutline"
                 outline = saturate(outline);
 
                 float3 scene = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv).rgb;
-                float3 ink = _OutlineColor.rgb;
-                float3 color = lerp(scene, ink, outline * _OutlineColor.a);
+                float3 color = lerp(scene, inkRgb, outline * inkAlpha);
                 return float4(color, 1);
+            }
+
+            half4 Frag(Varyings input) : SV_Target
+            {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+                return Ink(input.texcoord, _OutlineColor.rgb, _OutlineColor.a);
+            }
+            ENDHLSL
+        }
+
+        Pass
+        {
+            Name "ToonOutlineKing"
+            ZTest Always
+            ZWrite Off
+            Cull Off
+
+            // Bit 2 is stamped only on area kings.
+            Stencil
+            {
+                Ref 4
+                ReadMask 4
+                WriteMask 0
+                Comp Equal
+                Pass Keep
+                Fail Keep
+                ZFail Keep
+            }
+
+            HLSLPROGRAM
+            #pragma target 3.5
+            #pragma vertex Vert
+            #pragma fragment FragKing
+
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/DeclareDepthTexture.hlsl"
+            #include "Packages/com.unity.render-pipelines.core/Runtime/Utilities/Blit.hlsl"
+
+            float4 _OutlineColor;
+            float4 _KingOutlineColor;
+            float _OutlineThickness;
+            float _SilhouetteStrength;
+            float _CreaseStrength;
+            float _DepthSensitivity;
+            float _DepthSoftness;
+            float _NormalThreshold;
+            float _NormalSoftness;
+            float _FadeStart;
+            float _FadeEnd;
+
+            float RawDepth(float2 uv)
+            {
+                return SAMPLE_TEXTURE2D_X(_CameraDepthTexture, sampler_PointClamp, uv).r;
+            }
+
+            float EyeAt(float2 uv)
+            {
+                return LinearEyeDepth(RawDepth(uv), _ZBufferParams);
+            }
+
+            float3 SurfaceNormal(float2 uv, float2 offset)
+            {
+                float raw0 = RawDepth(uv);
+                float rawX = RawDepth(uv + float2(offset.x, 0));
+                float rawY = RawDepth(uv + float2(0, offset.y));
+
+                float sky = step(0.995, Linear01Depth(raw0, _ZBufferParams));
+                sky += step(0.995, Linear01Depth(rawX, _ZBufferParams));
+                sky += step(0.995, Linear01Depth(rawY, _ZBufferParams));
+                if (sky > 0.5)
+                    return float3(0, 0, 0);
+
+                float3 p0 = ComputeViewSpacePosition(uv, raw0, unity_CameraInvProjection);
+                float3 pX = ComputeViewSpacePosition(uv + float2(offset.x, 0), rawX, unity_CameraInvProjection);
+                float3 pY = ComputeViewSpacePosition(uv + float2(0, offset.y), rawY, unity_CameraInvProjection);
+                float3 c = cross(pX - p0, pY - p0);
+                float lenSq = dot(c, c);
+                return lenSq > 1e-8 ? c * rsqrt(lenSq) : float3(0, 0, 0);
+            }
+
+            half4 Ink(float2 uv, float3 inkRgb, float inkAlpha)
+            {
+                float2 texel = _CameraDepthTexture_TexelSize.xy * max(_OutlineThickness, 1.0);
+
+                float eyeC = EyeAt(uv);
+                float eyeL = EyeAt(uv + float2(-texel.x, 0));
+                float eyeR = EyeAt(uv + float2( texel.x, 0));
+                float eyeD = EyeAt(uv + float2(0, -texel.y));
+                float eyeU = EyeAt(uv + float2(0,  texel.y));
+
+                float scale = max(eyeC, 0.5);
+                float delta = max(max(eyeL, eyeR), max(eyeD, eyeU)) - eyeC;
+                delta = max(delta, 0.0);
+                float spread = max(max(abs(eyeL - eyeC), abs(eyeR - eyeC)), max(abs(eyeD - eyeC), abs(eyeU - eyeC)));
+
+                float deriv = max(abs(ddx(eyeC)), abs(ddy(eyeC)));
+                delta = max(delta, deriv);
+                spread = max(spread, deriv);
+
+                float gate = scale * _DepthSensitivity;
+                float depthHigh = gate * (1.0 + max(_DepthSoftness, 0.001));
+                float depthMask = smoothstep(gate, depthHigh, delta);
+                float spreadMask = smoothstep(gate, depthHigh, spread);
+
+                float3 n0 = SurfaceNormal(uv, texel);
+                float3 n1 = SurfaceNormal(uv + texel, texel);
+                float crease = 0;
+                if (dot(n0, n0) > 0.5 && dot(n1, n1) > 0.5)
+                {
+                    float angle = 1.0 - saturate(dot(n0, n1));
+                    float creaseHigh = _NormalThreshold + max(_NormalSoftness, 0.001);
+                    crease = smoothstep(_NormalThreshold, creaseHigh, angle);
+                }
+
+                crease *= saturate(1.0 - spreadMask);
+
+                float fadeEnd = max(_FadeEnd, _FadeStart + 0.01);
+                float fade = 1.0 - smoothstep(_FadeStart, fadeEnd, eyeC);
+                float outline = max(depthMask * _SilhouetteStrength, crease * _CreaseStrength) * fade;
+                outline = saturate(outline);
+
+                float3 scene = SAMPLE_TEXTURE2D_X(_BlitTexture, sampler_LinearClamp, uv).rgb;
+                float3 color = lerp(scene, inkRgb, outline * inkAlpha);
+                return float4(color, 1);
+            }
+
+            half4 FragKing(Varyings input) : SV_Target
+            {
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
+                return Ink(input.texcoord, _KingOutlineColor.rgb, _KingOutlineColor.a);
             }
             ENDHLSL
         }
