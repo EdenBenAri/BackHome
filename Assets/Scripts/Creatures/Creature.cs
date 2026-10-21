@@ -148,6 +148,8 @@ public class Creature : MonoBehaviour, IVitalsReadable
         Died?.Invoke(this);
 
         float clipLength = _anim != null ? _anim.PlayDeath() : 0f;
+        if (clipLength <= 0.05f)
+            SendMessage("PlaySplash", SendMessageOptions.DontRequireReceiver);
         float delay = clipLength > 0.05f ? clipLength : destroyDelay;
         if (delay <= 0f)
             Destroy(gameObject);

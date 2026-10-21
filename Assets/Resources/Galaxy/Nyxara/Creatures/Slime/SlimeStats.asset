@@ -18,7 +18,7 @@ MonoBehaviour:
   attackRange: 2
   maxHealth: 80
   visionRange: 12
-  movementSpeed: 5
+  movementSpeed: 8
   loot:
   - item: {fileID: 11400000, guid: 5286eb086ba375649a38e9eee22e753d, type: 2}
     minAmount: 1
