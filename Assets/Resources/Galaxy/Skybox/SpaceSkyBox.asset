@@ -48,7 +48,7 @@ MonoBehaviour:
   spread: {x: 18, y: 10}
   separationFactor: 2.2
   heroEdgePush: 11
-  parallaxStrength: 1
+  parallaxStrength: 0.1
   parallaxSmall: 0.1
   parallaxLarge: 0.025
   nebulaParallax: 0.03

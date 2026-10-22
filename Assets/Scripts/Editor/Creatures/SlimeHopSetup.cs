@@ -7,8 +7,9 @@ using UnityEngine.Rendering;
 
 /// <summary>
 /// Hand-authored hop and attack for Slime. While moving, the body squashes flat, pops into a
-/// round ball in the air, then splats on landing. The attack loads a squash, then fires a
-/// crescent wave forward — the slime-king slash from the XP Hero reference.
+/// round ball in the air, then splats on landing. The attack coils, then launches the whole
+/// body forward in about 0.3s and fires a crescent wave ahead of the leap.
+/// The king also gets a one-shot Spawn: a puddle on the floor that stretches up into the rest pose.
 /// </summary>
 public static class SlimeHopSetup
 {
@@ -22,18 +23,24 @@ public static class SlimeHopSetup
     const string KingIdleClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/King/Animations/Idle.anim";
     const string KingJumpClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/King/Animations/Jump.anim";
     const string KingControllerPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/King/Animations/King_Slime.controller";
+    const string KingSpawnClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/King/Animations/Spawn.anim";
+
+    // Opening puddle. CreatureAnimator applies the same scale before the Animator wakes up.
+    const float SpawnFlatY = 0.045f;
+    const float SpawnFlatXZ = 2.3f;
+    const float SpawnLength = 0.64f;
 
     const string SlashShaderPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/SlimeSlash.shader";
     const string SlashMaterialPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Mob/Materials/SlimeSlash.mat";
     const string SlashMeshPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Mob/Models/SlashCrescent.asset";
 
-    const float AttackClipLength = 0.5f;
+    const float AttackClipLength = 0.3f;
 
     const string DeathClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Mob/Animations/Death.anim";
 
     static readonly string ResultPath = Path.Combine(Application.dataPath, "..", "Temp", "SlimeHopSetup.result.txt");
     static readonly string TriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupSlimeHop.trigger");
-    static bool _deathApplied;
+    static bool _kingSpawnEnsured;
 
     struct BodyFit
     {
@@ -47,29 +54,102 @@ public static class SlimeHopSetup
     {
         EditorApplication.update += WatchTrigger;
         EditorApplication.delayCall += WatchTrigger;
-        EditorApplication.delayCall += EnsureDeathOnce;
+        EditorApplication.delayCall += EnsureKingSpawn;
+        EditorApplication.delayCall += StripDeathSmear;
     }
 
-    static void EnsureDeathOnce()
+    /// <summary>
+    /// The floor-smear Death clip used to be rebuilt whenever this setup ran.
+    /// Delete that clip and pull it off the mob controller if it shows up again.
+    /// Particles stay on <see cref="SlimeDeathSplash"/>.
+    /// </summary>
+    static void StripDeathSmear()
     {
-        if (_deathApplied)
+        if (EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode)
+        {
+            EditorApplication.delayCall += StripDeathSmear;
+            return;
+        }
+
+        if (AssetDatabase.LoadAssetAtPath<AnimationClip>(DeathClipPath) != null)
+            AssetDatabase.DeleteAsset(DeathClipPath);
+
+        AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        if (controller == null)
+            return;
+
+        bool changed = false;
+        for (int i = controller.parameters.Length - 1; i >= 0; i--)
+        {
+            if (controller.parameters[i].name != "Die")
+                continue;
+
+            controller.RemoveParameter(i);
+            changed = true;
+        }
+
+        AnimatorStateMachine machine = controller.layers[0].stateMachine;
+        AnimatorStateTransition[] any = machine.anyStateTransitions;
+        for (int i = any.Length - 1; i >= 0; i--)
+        {
+            AnimatorStateTransition transition = any[i];
+            if (transition == null)
+                continue;
+
+            bool toDeath = transition.destinationState != null && transition.destinationState.name == "Death";
+            if (!toDeath)
+            {
+                foreach (AnimatorCondition condition in transition.conditions)
+                {
+                    if (condition.parameter == "Die")
+                    {
+                        toDeath = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!toDeath)
+                continue;
+
+            machine.RemoveAnyStateTransition(transition);
+            changed = true;
+        }
+
+        ChildAnimatorState[] states = machine.states;
+        for (int i = states.Length - 1; i >= 0; i--)
+        {
+            if (states[i].state == null || states[i].state.name != "Death")
+                continue;
+
+            machine.RemoveState(states[i].state);
+            changed = true;
+        }
+
+        if (!changed)
+            return;
+
+        EditorUtility.SetDirty(controller);
+        AssetDatabase.SaveAssets();
+    }
+
+    static void EnsureKingSpawn()
+    {
+        if (_kingSpawnEnsured)
             return;
 
         if (EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode)
         {
-            EditorApplication.delayCall += EnsureDeathOnce;
+            EditorApplication.delayCall += EnsureKingSpawn;
             return;
         }
 
-        GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>(PrefabPath);
-        AnimationClip deathClip = AssetDatabase.LoadAssetAtPath<AnimationClip>(DeathClipPath);
-        bool hasSplash = prefab != null && prefab.GetComponent<SlimeDeathSplash>() != null;
-        bool ready = deathClip != null && deathClip.length <= 0.35f && hasSplash;
-        _deathApplied = true;
-        if (ready)
+        _kingSpawnEnsured = true;
+        if (AssetDatabase.LoadAssetAtPath<AnimationClip>(KingSpawnClipPath) != null
+            && ControllerHasState(KingControllerPath, "Spawn"))
             return;
 
-        SetupFromMenu();
+        ApplyTo(KingPrefabPath, KingIdleClipPath, KingJumpClipPath, KingControllerPath, 2f);
     }
 
     static void WatchTrigger()
@@ -103,6 +183,7 @@ public static class SlimeHopSetup
     {
         ApplyTo(PrefabPath, IdleClipPath, JumpClipPath, ControllerPath, 1f);
         ApplyTo(KingPrefabPath, KingIdleClipPath, KingJumpClipPath, KingControllerPath, 2f);
+        StripDeathSmear();
     }
 
     /// <summary>
@@ -131,12 +212,12 @@ public static class SlimeHopSetup
         idle = SaveClip(idle, idleClipPath);
         jump = SaveClip(jump, jumpClipPath);
         AnimationClip attack = SaveClip(CreateAttackClip(fit), attackClipPath);
-        AnimationClip death = null;
-        if (prefabPath == PrefabPath)
-            death = SaveClip(CreateDeathClip(fit), DeathClipPath);
+        AnimationClip spawn = null;
+        if (prefabPath == KingPrefabPath)
+            spawn = SaveClip(CreateSpawnClip(fit), KingSpawnClipPath);
         Mesh slashMesh = GetSlashMesh();
         Material slashMaterial = GetSlashMaterial();
-        AnimatorController controller = CreateController(idle, jump, attack, death, controllerPath, attackCycle);
+        AnimatorController controller = CreateController(idle, jump, attack, spawn, controllerPath, attackCycle);
         WirePrefab(controller, prefabPath, slashMesh, slashMaterial, fit);
 
         if (prefabPath == KingPrefabPath && AssetDatabase.LoadAssetAtPath<GameObject>(LegacyKingPrefabPath) != null)
@@ -243,6 +324,25 @@ public static class SlimeHopSetup
         return clip;
     }
 
+    static AnimationClip CreateSpawnClip(BodyFit fit)
+    {
+        var clip = new AnimationClip { name = "Spawn", frameRate = 60 };
+        AnimationClipSettings settings = AnimationUtility.GetAnimationClipSettings(clip);
+        settings.loopTime = false;
+        AnimationUtility.SetAnimationClipSettings(clip, settings);
+
+        // Smeared flat on the floor, then a fast stretch up into the model's rest shape.
+        // Hop's pivot is at the feet, so scale Y lifts the body off the puddle.
+        float[] times = { 0f, 0.12f, 0.2f, 0.3f, 0.4f, 0.52f, SpawnLength };
+        float[] posY = Zeros(times.Length);
+        float[] posZ = Zeros(times.Length);
+        float[] scaleY = { SpawnFlatY, 0.03f, 0.85f, 1.18f, 0.97f, 1f, 1f };
+        float[] scaleXZ = { SpawnFlatXZ, 2.48f, 1.7f, 0.9f, 1.05f, 1f, 1f };
+        WriteAttackBody(clip, times, posY, posZ, scaleXZ, scaleY, scaleXZ);
+        StampHiddenSlash(clip, fit);
+        return clip;
+    }
+
     static AnimationClip CreateAttackClip(BodyFit fit)
     {
         var clip = new AnimationClip { name = "LightAttack", frameRate = 60 };
@@ -250,73 +350,44 @@ public static class SlimeHopSetup
         settings.loopTime = true;
         AnimationUtility.SetAnimationClipSettings(clip, settings);
 
-        float pull = fit.Radius * 0.1f;
-        float lunge = fit.Radius * 0.32f;
-        float pop = fit.Radius * 0.16f;
-        float startZ = fit.Radius * 0.15f;
-        float travel = Mathf.Max(fit.Radius * 0.85f, fit.AttackRange - fit.Radius * 0.35f);
+        float pull = fit.Radius * 0.28f;
+        float lunge = Mathf.Max(fit.Radius * 1.35f, fit.AttackRange * 0.82f);
+        float hop = fit.Radius * 0.62f;
+        float startZ = fit.Radius * 0.12f;
+        float travel = Mathf.Max(lunge + fit.Radius * 0.55f, fit.AttackRange * 1.05f);
         float peak = fit.Radius * 0.9f;
 
-        // Load, spit the crescent, settle. One cycle matches 1 / attackSpeed via state speed.
-        float[] times = { 0f, 0.1f, 0.18f, 0.26f, 0.36f, AttackClipLength };
-        float[] posY = { 0f, 0f, 0f, pop, pop * 0.25f, 0f };
-        float[] posZ = { 0f, -pull, -pull, lunge, lunge * 0.2f, 0f };
-        float[] scaleX = { 1f, 1.16f, 1.26f, 0.9f, 1.06f, 1f };
-        float[] scaleY = { 1f, 0.84f, 0.72f, 1.1f, 0.96f, 1f };
-        float[] scaleZ = { 1f, 1.08f, 1.04f, 1.42f, 1.08f, 1f };
+        // Coil, then shoot the whole body forward and spring home. Plays in 0.3s at speed 1.
+        float[] times = { 0f, 0.04f, 0.08f, 0.14f, 0.20f, 0.26f, AttackClipLength };
+        float[] posY = { 0f, 0f, 0f, hop * 0.85f, hop, hop * 0.22f, 0f };
+        float[] posZ = { 0f, -pull * 0.55f, -pull, lunge * 0.72f, lunge, lunge * 0.18f, 0f };
+        float[] scaleX = { 1f, 1.18f, 1.34f, 0.86f, 0.78f, 1.22f, 1f };
+        float[] scaleY = { 1f, 0.78f, 0.58f, 1.22f, 1.08f, 0.72f, 1f };
+        float[] scaleZ = { 1f, 0.96f, 0.88f, 1.55f, 1.72f, 1.12f, 1f };
         WriteAttackBody(clip, times, posY, posZ, scaleX, scaleY, scaleZ);
 
-        float[] slashTimes = { 0f, 0.16f, 0.22f, 0.32f, 0.42f, AttackClipLength };
+        float[] slashTimes = { 0f, 0.07f, 0.11f, 0.16f, 0.23f, AttackClipLength };
         float[] slashX = Zeros(slashTimes.Length);
         float[] slashY = Filled(slashTimes.Length, fit.CenterY);
         float[] slashZ =
         {
             startZ,
             startZ,
-            startZ + travel * 0.08f,
-            startZ + travel * 0.5f,
-            startZ + travel * 0.88f,
+            startZ + travel * 0.18f,
+            startZ + travel * 0.62f,
+            startZ + travel * 0.92f,
             startZ + travel
         };
         float[] slashScale =
         {
             0f,
             0f,
-            peak * 0.72f,
+            peak * 0.8f,
             peak,
-            peak * 0.62f,
+            peak * 0.55f,
             0f
         };
         WriteSlash(clip, slashTimes, slashX, slashY, slashZ, slashScale);
-        return clip;
-    }
-
-    static AnimationClip CreateDeathClip(BodyFit fit)
-    {
-        var clip = new AnimationClip { name = "Death", frameRate = 60 };
-        AnimationClipSettings settings = AnimationUtility.GetAnimationClipSettings(clip);
-        settings.loopTime = false;
-        AnimationUtility.SetAnimationClipSettings(clip, settings);
-
-        // Same smear, squeezed so the puddle is gone 0.3s after death starts.
-        float[] times = { 0f, 0.0175f, 0.04f, 0.08f, 0.125f, 0.18f, 0.3f };
-        float[] posY = { 0f, 0.04f * fit.Radius, 0f, 0f, 0f, 0f, 0f };
-        float[] posZ = Zeros(times.Length);
-        float[] scaleX = { 1f, 0.9f, 1.45f, 1.82f, 1.96f, 1.78f, 1.74f };
-        float[] scaleY = { 1f, 1.16f, 0.34f, 0.1f, 0.07f, 0.055f, 0.05f };
-        float[] scaleZ = { 1f, 0.9f, 1.45f, 1.82f, 1.96f, 1.78f, 1.74f };
-        WriteAttackBody(clip, times, posY, posZ, scaleX, scaleY, scaleZ);
-        StampHiddenSlash(clip, fit);
-
-        AnimationUtility.SetAnimationEvents(clip, new[]
-        {
-            new AnimationEvent
-            {
-                time = 0.04f,
-                functionName = "PlaySplash",
-                messageOptions = SendMessageOptions.DontRequireReceiver
-            }
-        });
         return clip;
     }
 
@@ -423,7 +494,7 @@ public static class SlimeHopSetup
         return existing;
     }
 
-    static AnimatorController CreateController(AnimationClip idle, AnimationClip jump, AnimationClip attack, AnimationClip death, string controllerPath, float attackCycle)
+    static AnimatorController CreateController(AnimationClip idle, AnimationClip jump, AnimationClip attack, AnimationClip spawn, string controllerPath, float attackCycle)
     {
         AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
         if (controller == null)
@@ -449,8 +520,18 @@ public static class SlimeHopSetup
         AnimatorState attackState = machine.AddState("LightAttack", new Vector3(540, 210, 0));
         attackState.motion = attack;
         attackState.speedParameterActive = false;
-        attackState.speed = AttackClipLength / Mathf.Max(0.05f, attackCycle);
-        machine.defaultState = idleState;
+        attackState.speed = 1f;
+
+        if (spawn != null)
+        {
+            AnimatorState spawnState = machine.AddState("Spawn", new Vector3(280, -110, 0));
+            spawnState.motion = spawn;
+            machine.defaultState = spawnState;
+        }
+        else
+        {
+            machine.defaultState = idleState;
+        }
 
         AnimatorStateTransition toRun = idleState.AddTransition(runState);
         toRun.hasExitTime = false;
@@ -474,24 +555,6 @@ public static class SlimeHopSetup
         LinkAttack(runState, attackState);
         LinkAttackExit(attackState, runState, moving: true);
         LinkAttackExit(attackState, idleState, moving: false);
-
-        if (death != null)
-        {
-            controller.AddParameter("Die", AnimatorControllerParameterType.Trigger);
-            AnimatorState deathState = machine.AddState("Death", new Vector3(300, 280, 0));
-            deathState.motion = death;
-            deathState.speed = 1f;
-            deathState.speedParameterActive = false;
-
-            AnimatorStateTransition die = machine.AddAnyStateTransition(deathState);
-            die.hasExitTime = false;
-            die.exitTime = 0f;
-            die.hasFixedDuration = true;
-            die.duration = 0.05f;
-            die.canTransitionToSelf = false;
-            die.interruptionSource = TransitionInterruptionSource.None;
-            die.AddCondition(AnimatorConditionMode.If, 0, "Die");
-        }
 
         EditorUtility.SetDirty(controller);
         return controller;
@@ -717,6 +780,21 @@ public static class SlimeHopSetup
         }
 
         return null;
+    }
+
+    static bool ControllerHasState(string controllerPath, string stateName)
+    {
+        AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(controllerPath);
+        if (controller == null || controller.layers == null || controller.layers.Length == 0)
+            return false;
+
+        foreach (ChildAnimatorState child in controller.layers[0].stateMachine.states)
+        {
+            if (child.state != null && child.state.name == stateName)
+                return true;
+        }
+
+        return false;
     }
 
     static void EnsureFolder(string parent, string child)

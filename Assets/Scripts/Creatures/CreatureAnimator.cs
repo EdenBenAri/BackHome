@@ -21,6 +21,11 @@ public class CreatureAnimator : MonoBehaviour
     static readonly int DieHash = Animator.StringToHash("Die");
     static readonly int SpawnHash = Animator.StringToHash("Spawn");
 
+    // First frame of the king slime Spawn clip (SlimeHopSetup.CreateSpawnClip).
+    // Applied before the Animator is ready so the body is already a puddle on the first draw.
+    const float SpawnFlatY = 0.045f;
+    const float SpawnFlatXZ = 2.3f;
+
     [SerializeField] string attackClipName = "Attack";
 
     Animator _animator;
@@ -49,6 +54,7 @@ public class CreatureAnimator : MonoBehaviour
 
         CacheBody();
         CacheAttackClipLength();
+        FlattenSpawnPose();
         if (_animator != null && HasParameter(AttackAnimSpeedHash))
             _animator.SetFloat(AttackAnimSpeedHash, 1f);
 
@@ -286,13 +292,46 @@ public class CreatureAnimator : MonoBehaviour
     {
         if (_animator == null || !_animator.isInitialized || !_animator.HasState(0, SpawnHash))
             return;
-        if (IsInOrEntering(SpawnHash))
-            return;
         if (_spawnEnteredAt >= 0f)
             return;
 
+        // Spawn is the default state, so the puddle is already playing. Don't restart it.
+        // Play (not a crossfade) if we are still on another pose, so the full body never blends in.
+        if (!IsInOrEntering(SpawnHash))
+            _animator.Play(SpawnHash, 0, 0f);
+
         _spawnEnteredAt = Time.time;
-        _animator.CrossFadeInFixedTime(SpawnHash, 0.05f, 0, 0f);
+    }
+
+    void FlattenSpawnPose()
+    {
+        if (!HasClipNamed("Spawn"))
+            return;
+
+        Transform hop = transform.Find("Hop");
+        if (hop == null)
+            return;
+
+        hop.localScale = new Vector3(SpawnFlatXZ, SpawnFlatY, SpawnFlatXZ);
+    }
+
+    bool HasClipNamed(string clipName)
+    {
+        if (_animator == null || _animator.runtimeAnimatorController == null)
+            return false;
+
+        AnimationClip[] clips = _animator.runtimeAnimatorController.animationClips;
+        if (clips == null)
+            return false;
+
+        for (int i = 0; i < clips.Length; i++)
+        {
+            AnimationClip clip = clips[i];
+            if (clip != null && string.Equals(clip.name, clipName, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     /// <summary>
@@ -306,6 +345,16 @@ public class CreatureAnimator : MonoBehaviour
         _moving = false;
         _attacking = false;
 
+        // Slime death is particles only. A generated Death clip squashes the body into a floor puddle,
+        // so stop the Animator before that state can sample even if the clip gets rebuilt.
+        if (GetComponent<SlimeDeathSplash>() != null)
+        {
+            if (_animator != null)
+                _animator.enabled = false;
+            ResetHopPose();
+            return 0f;
+        }
+
         if (_animator == null || !_animator.HasState(0, DeathHash))
             return 0f;
 
@@ -317,6 +366,17 @@ public class CreatureAnimator : MonoBehaviour
 
         float length = CacheClip(ref _deathClipLength, "Death");
         return length > 0.05f ? length : 0f;
+    }
+
+    void ResetHopPose()
+    {
+        Transform hop = transform.Find("Hop");
+        if (hop == null)
+            return;
+
+        hop.localPosition = Vector3.zero;
+        hop.localRotation = Quaternion.identity;
+        hop.localScale = Vector3.one;
     }
 
     void TryEnterDeath()
