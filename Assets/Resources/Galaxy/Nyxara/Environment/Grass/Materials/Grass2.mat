@@ -44,6 +44,7 @@ Material:
     - _ShadeSteps: 3
     - _SpecularSize: 0.22
     - _SpecularSoftness: 0.5
+    - _PlayerTouch: 28
     - _WindDegrees: 16
     - _WindReach: 0.8
     m_Colors:

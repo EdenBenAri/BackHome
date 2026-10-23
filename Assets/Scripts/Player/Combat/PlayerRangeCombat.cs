@@ -21,10 +21,8 @@ public class PlayerRangeCombat : MonoBehaviour
     readonly List<Creature> _removeBuffer = new();
     Animator _animator;
     bool _firing;
-    bool _wasStandingAttack;
     int _animIDMoving;
     int _animIDAttacking;
-    int _animIDAttackVariant;
 
     /// <summary>True while at least one weapon has a living creature it will shoot.</summary>
     public bool IsFiringAtCreatures => _firing;
@@ -54,7 +52,6 @@ public class PlayerRangeCombat : MonoBehaviour
         _animator = GetComponent<Animator>();
         _animIDMoving = Animator.StringToHash("Moving");
         _animIDAttacking = Animator.StringToHash("Attacking");
-        _animIDAttackVariant = Animator.StringToHash("AttackVariant");
         if (SceneRoles.IsSpaceshipScene())
             HideRange();
     }
@@ -63,7 +60,6 @@ public class PlayerRangeCombat : MonoBehaviour
     {
         ClearQueue();
         _firing = false;
-        _wasStandingAttack = false;
         if (_animator != null)
             _animator.SetBool(_animIDAttacking, false);
     }
@@ -73,24 +69,9 @@ public class PlayerRangeCombat : MonoBehaviour
         if (_animator == null)
             return;
 
-        // Locomotion already wrote Moving this frame. Roll once each time the standing
-        // attack stance starts: Attack1 34%, Attack2 33%, Attack3 33%. The chosen clip loops
-        // until the player moves or the weapons stop firing.
+        // Locomotion already wrote Moving this frame. Attack1 loops only while standing and firing.
         bool standingAttack = !_animator.GetBool(_animIDMoving) && _firing;
-        if (standingAttack && !_wasStandingAttack)
-            _animator.SetInteger(_animIDAttackVariant, RollAttackVariant());
-        _wasStandingAttack = standingAttack;
-        _animator.SetBool(_animIDAttacking, _firing);
-    }
-
-    static int RollAttackVariant()
-    {
-        float roll = UnityEngine.Random.value;
-        if (roll < 0.34f)
-            return 0;
-        if (roll < 0.67f)
-            return 1;
-        return 2;
+        _animator.SetBool(_animIDAttacking, standingAttack);
     }
 
     void Update()

@@ -23,6 +23,6 @@ MonoBehaviour:
   moveSpeedMultiplier: 1.3
   runningAnimationSpeed: 0.5
   lowOxygenMoveSpeedDebuffPercent: 45
-  lowOxygenAnimationSpeed: 2
+  lowOxygenAnimationSpeed: 0.4
   maxHealth: 800
-  oxygenTank: 10
+  oxygenTank: 900

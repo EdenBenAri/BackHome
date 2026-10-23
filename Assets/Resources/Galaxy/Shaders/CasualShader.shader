@@ -38,6 +38,7 @@ Shader "BackHome/CasualToon"
         [Header(Wind)]
         _WindDegrees("Wind Sway", Range(0, 18)) = 0
         _WindReach("Wind Reach", Range(0.1, 12)) = 1.5
+        _PlayerTouch("Player Touch", Range(0, 40)) = 0
 
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 0
 
@@ -257,7 +258,7 @@ Shader "BackHome/CasualToon"
                 // SRP Batcher keeps those properties in UnityPerMaterial.
                 // _ShadeSteps is unused by the flat grade. Touch it so the SRP batcher
                 // keeps the property inside UnityPerMaterial.
-                half opacity = saturate(_Opacity + (_SrcBlend + _DstBlend + _ZWrite + _ShadeSteps + _WindDegrees + _WindReach) * 0);
+                half opacity = saturate(_Opacity + (_SrcBlend + _DstBlend + _ZWrite + _ShadeSteps + _WindDegrees + _WindReach + _PlayerTouch) * 0);
                 return half4(color, opacity);
             }
             ENDHLSL

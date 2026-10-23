@@ -29,12 +29,69 @@ CBUFFER_START(UnityPerMaterial)
     half _ZWrite;
     half _WindDegrees;
     half _WindReach;
+    half _PlayerTouch;
 CBUFFER_END
 
 // Filled by EnvironmentWind. xyz = world wind direction, the rest is unused.
 float4 _EnvWindDir;
 // x = slowest sway speed, y = fastest, z = how fast a gust travels across the ground.
 float4 _EnvWindParams;
+// Recent steps where the player walked through grass. xyz = position, w = age (0 fresh, 1 gone, <0 unused).
+float4 _GrassTouchPos[4];
+// xyz = walk direction at that step. w unused.
+float4 _GrassTouchDir[4];
+// x = touch radius in meters, y = how long the flick lasts in seconds.
+float4 _GrassTouchParams;
+
+// Added on top of the wind. Grass materials opt in; trees stay at zero.
+float3 CasualPlayerTouchWS(float3 positionWS, float3 upWS, float height, float mask)
+{
+    float touchDegrees = _PlayerTouch;
+    if (touchDegrees <= 0.001)
+        return float3(0, 0, 0);
+
+    float radius = _GrassTouchParams.x;
+    if (radius < 0.05)
+        radius = 1.2;
+
+    float best = 0;
+    float3 bestDir = float3(0, 0, 0);
+    [unroll]
+    for (int i = 0; i < 4; i++)
+    {
+        float4 samplePos = _GrassTouchPos[i];
+        float age = samplePos.w;
+        if (age < 0 || age > 1)
+            continue;
+
+        float3 flat = positionWS - samplePos.xyz;
+        flat -= upWS * dot(flat, upWS);
+        float dist = length(flat);
+        float proximity = saturate(1.0 - dist / radius);
+        proximity *= proximity;
+
+        // A short flick in the walk direction, then it settles back into the wind.
+        float fade = 1.0 - age;
+        float wobble = sin(age * 10.5) * fade;
+        float kick = fade * 0.72 + wobble * 0.28;
+        float amount = proximity * abs(kick);
+        if (amount <= best)
+            continue;
+
+        float3 dir = _GrassTouchDir[i].xyz;
+        float dirLen2 = dot(dir, dir);
+        dir = dirLen2 > 1e-6 ? dir * rsqrt(dirLen2) : (dist > 0.02 ? flat / max(dist, 1e-4) : float3(1, 0, 0));
+        dir -= upWS * dot(dir, upWS);
+        best = amount;
+        bestDir = dir * (kick >= 0 ? 1.0 : -1.0);
+    }
+
+    if (best <= 0)
+        return float3(0, 0, 0);
+
+    float touchAngle = radians(touchDegrees) * best * mask;
+    return bestDir * (height * sin(touchAngle));
+}
 
 // Foliage meshes are authored Z-up and the prefab turns them -90 degrees on X,
 // so object-space Z is the prop's up (away from the planet center).
@@ -93,6 +150,7 @@ float3 CasualWindOffsetOS(float3 positionOS)
     float settle = height * (cos(angle) - 1.0);
 
     float3 offsetWS = side * lean + upWS * settle;
+    offsetWS += CasualPlayerTouchWS(positionWS, upWS, height, mask);
     return mul((float3x3)GetWorldToObjectMatrix(), offsetWS);
 }
 
@@ -105,7 +163,7 @@ float CasualToonKeepMaterialLayout()
         + _Contrast + _SpecularColor.r + _SpecularSize + _SpecularSoftness
         + _RimColor.r + _RimPower + _RimLightMask + _AmbientStrength + _AmbientTint.r
         + _EmissionColor.r + _Opacity + _SrcBlend + _DstBlend + _ZWrite
-        + _WindDegrees + _WindReach) * 0;
+        + _WindDegrees + _WindReach + _PlayerTouch) * 0;
 }
 
 #endif

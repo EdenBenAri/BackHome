@@ -86,23 +86,12 @@ public static class PlayerModelSwapTool
     const string LowOxygenRunInPlaceClipPath = "Assets/Resources/Player/Animator/LowOxygenRunInPlace.anim";
     const string LowOxygenParameterName = "LowOxygen";
 
-    // Standing attack clips. Same Mixamo rig as the low-oxygen run, retargeted the same way.
-    // Attack1 is the 34% roll; Attack2 and Attack3 are 33% each.
+    // One standing attack. Plays only while the player is still and a weapon is firing.
     const string AttackParameterName = "Attacking";
-    const string AttackVariantParameterName = "AttackVariant";
-    static readonly string[] AttackModelPaths =
-    {
-        "Assets/Resources/Player/Models/Starbot_Animation_Attack1.fbx",
-        "Assets/Resources/Player/Models/Starbot_Animation_Attack2.fbx",
-        "Assets/Resources/Player/Models/Starbot_Animation_Attack3.fbx",
-    };
-    static readonly string[] AttackClipNames = { "Attack1", "Attack2", "Attack3" };
-    static readonly string[] AttackInPlacePaths =
-    {
-        "Assets/Resources/Player/Animator/Attack1InPlace.anim",
-        "Assets/Resources/Player/Animator/Attack2InPlace.anim",
-        "Assets/Resources/Player/Animator/Attack3InPlace.anim",
-    };
+    const string AttackStateName = "Attack1";
+    const string AttackModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Attack1.fbx";
+    const string AttackClipName = "Attack1";
+    const string AttackInPlacePath = "Assets/Resources/Player/Animator/Attack1InPlace.anim";
 
     // Material shared by every Meshy AI export in Model/ (they were all authored with a single
     // "Material_1" slot). The shader wired into it isn't actually URP/Lit despite the guid's
@@ -1371,9 +1360,9 @@ public static class PlayerModelSwapTool
     }
 
     /// <summary>
-    /// Bakes the three Mixamo attack takes and plays one of them, looping, while the player is
-    /// standing still and a weapon is firing at a creature. PlayerRangeCombat rolls Attack1 at 34%
-    /// and Attack2/Attack3 at 33% each time that stance starts. Moving returns to Run.
+    /// Wires the single Attack1 clip so it loops while the player is standing still and a weapon
+    /// is firing. Moving, or the weapons stopping, leaves the clip. Removes the old Attack2/Attack3
+    /// states and the AttackVariant roll.
     /// </summary>
     [MenuItem("BackHome/Player/Setup Player Attack Animations")]
     public static void SetupPlayerAttackAnimations()
@@ -1382,23 +1371,21 @@ public static class PlayerModelSwapTool
         {
             if (EditorApplication.isPlaying)
             {
-                Debug.LogError("[BackHome] Exit Play mode before setting up the attack animations.");
+                Debug.LogError("[BackHome] Exit Play mode before setting up the attack animation.");
                 return;
             }
 
-            var clips = new AnimationClip[AttackModelPaths.Length];
-            for (int i = 0; i < AttackModelPaths.Length; i++)
-            {
-                clips[i] = BakeMixamoClipInPlace(AttackModelPaths[i], AttackClipNames[i], AttackInPlacePaths[i]);
-                if (clips[i] == null)
-                    return;
-            }
+            AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(AttackInPlacePath);
+            if (clip == null)
+                clip = BakeMixamoClipInPlace(AttackModelPath, AttackClipName, AttackInPlacePath);
+            if (clip == null)
+                return;
 
-            if (!WireAttackStatesIntoController(clips))
+            if (!WireAttackStateIntoController(clip))
                 return;
 
             AssetDatabase.SaveAssets();
-            Debug.Log("[BackHome] Standing attack animations wired up: Attack1 34%, Attack2 33%, Attack3 33%, looping until the player moves.");
+            Debug.Log("[BackHome] Standing attack wired up: Attack1 loops while the player stands still and weapons are firing.");
         }
         catch (System.Exception e)
         {
@@ -1678,11 +1665,9 @@ public static class PlayerModelSwapTool
         AnimatorState idle2 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Idle2");
         AnimatorState dying = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Dying");
         AnimatorState hit = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Hit");
-        AnimatorState attack1 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Attack1");
-        AnimatorState attack2 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Attack2");
-        AnimatorState attack3 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Attack3");
+        AnimatorState attack = root.states.Select(s => s.state).FirstOrDefault(s => s.name == AttackStateName);
 
-        var touched = new[] { run, lowOxygenRun, idle1, idle2, dying, hit, attack1, attack2, attack3 }.Where(s => s != null).ToList();
+        var touched = new[] { run, lowOxygenRun, idle1, idle2, dying, hit, attack }.Where(s => s != null).ToList();
         foreach (var t in root.anyStateTransitions.Where(t => touched.Contains(t.destinationState)).ToList())
             root.RemoveAnyStateTransition(t);
 
@@ -1696,9 +1681,7 @@ public static class PlayerModelSwapTool
         AddLocomotionTransition(root, lowOxygenRun, switchDuration, hasDead, hasHit, hasLowOxygen, hasAttacking, lowOxygen: true, idleVariant: -1);
         AddLocomotionTransition(root, idle1, switchDuration, hasDead, hasHit, hasLowOxygen, hasAttacking, lowOxygen: false, idleVariant: 0);
         AddLocomotionTransition(root, idle2, switchDuration, hasDead, hasHit, hasLowOxygen, hasAttacking, lowOxygen: false, idleVariant: 1);
-        AddAttackTransition(root, attack1, 0, switchDuration, hasDead, hasHit);
-        AddAttackTransition(root, attack2, 1, switchDuration, hasDead, hasHit);
-        AddAttackTransition(root, attack3, 2, switchDuration, hasDead, hasHit);
+        AddAttackTransition(root, attack, switchDuration, hasDead, hasHit);
 
         if (dying != null && hasDead)
         {
@@ -1770,7 +1753,7 @@ public static class PlayerModelSwapTool
         t.AddCondition(lowOxygen ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0, LowOxygenParameterName);
     }
 
-    static void AddAttackTransition(AnimatorStateMachine root, AnimatorState state, int variant, float duration, bool hasDead, bool hasHit)
+    static void AddAttackTransition(AnimatorStateMachine root, AnimatorState state, float duration, bool hasDead, bool hasHit)
     {
         if (state == null)
             return;
@@ -1786,10 +1769,9 @@ public static class PlayerModelSwapTool
             t.AddCondition(AnimatorConditionMode.IfNot, 0, "Hit");
         t.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
         t.AddCondition(AnimatorConditionMode.If, 0, AttackParameterName);
-        t.AddCondition(AnimatorConditionMode.Equals, variant, AttackVariantParameterName);
     }
 
-    static bool WireAttackStatesIntoController(AnimationClip[] clips)
+    static bool WireAttackStateIntoController(AnimationClip clip)
     {
         var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
         if (controller == null)
@@ -1807,22 +1789,28 @@ public static class PlayerModelSwapTool
 
         if (!controller.parameters.Any(p => p.name == AttackParameterName))
             controller.AddParameter(AttackParameterName, AnimatorControllerParameterType.Bool);
-        if (!controller.parameters.Any(p => p.name == AttackVariantParameterName))
-            controller.AddParameter(AttackVariantParameterName, AnimatorControllerParameterType.Int);
-
-        for (int i = 0; i < clips.Length; i++)
+        for (int i = controller.parameters.Length - 1; i >= 0; i--)
         {
-            string stateName = AttackClipNames[i];
-            AnimatorState state = root.states.Select(s => s.state).FirstOrDefault(s => s.name == stateName)
-                ?? root.AddState(stateName, new Vector3(620, -80 + i * 110, 0));
-            state.motion = clips[i];
-            state.speed = 1f;
-            state.speedParameterActive = false;
+            if (controller.parameters[i].name == "AttackVariant")
+                controller.RemoveParameter(i);
         }
+
+        foreach (string extra in new[] { "Attack2", "Attack3" })
+        {
+            AnimatorState extraState = root.states.Select(s => s.state).FirstOrDefault(s => s.name == extra);
+            if (extraState != null)
+                root.RemoveState(extraState);
+        }
+
+        AnimatorState state = root.states.Select(s => s.state).FirstOrDefault(s => s.name == AttackStateName)
+            ?? root.AddState(AttackStateName, new Vector3(620, -80, 0));
+        state.motion = clip;
+        state.speed = 1f;
+        state.speedParameterActive = false;
 
         RebuildAnyStateTransitions(controller);
         EditorUtility.SetDirty(controller);
-        Debug.Log("[BackHome] Added/refreshed Attack1/Attack2/Attack3. They loop while standing and firing, and stop as soon as the player moves.");
+        Debug.Log("[BackHome] Added/refreshed Attack1. It loops while the player stands still and weapons are firing.");
         return true;
     }
 
@@ -2233,7 +2221,7 @@ public static class PlayerModelSwapTool
     /// <summary>
     /// The Mixamo retarget writes hips local Y near the avatar origin, while the authored
     /// Run/Idle clips keep the hips up around the Meshy bind height. That drops Low Oxygen and
-    /// Attack1–3 into the ground. Shift each clip's hips Y so its average matches Run.
+    /// Attack1 into the ground. Shift each clip's hips Y so its average matches Run.
     /// </summary>
     [MenuItem("BackHome/Player/Raise New Animation Height")]
     public static void RaiseNewAnimationHeight()
@@ -2249,9 +2237,7 @@ public static class PlayerModelSwapTool
             string[] paths =
             {
                 LowOxygenRunInPlaceClipPath,
-                AttackInPlacePaths[0],
-                AttackInPlacePaths[1],
-                AttackInPlacePaths[2],
+                AttackInPlacePath,
             };
 
             int raised = 0;
