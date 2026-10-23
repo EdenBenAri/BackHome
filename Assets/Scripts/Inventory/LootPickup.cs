@@ -4,6 +4,7 @@ using UnityEngine;
 /// World-space loot pickup. Pops up along planet-up, lands, then idles.
 /// Item identity is applied at spawn via <see cref="Configure"/> so one prefab can serve many items.
 /// Sprites billboard to camera; 3D meshes spin in place around planet-up.
+/// Uncollected drops return to the pool after <see cref="lifetimeSeconds"/>.
 /// </summary>
 [RequireComponent(typeof(SphereCollider))]
 public class LootPickup : MonoBehaviour
@@ -25,6 +26,8 @@ public class LootPickup : MonoBehaviour
     [SerializeField] float idleSpinDegreesPerSecond = 90f;
     [SerializeField] string dropState = "Drop";
     [SerializeField] string idleState = "Idle";
+    [Header("Lifetime")]
+    [SerializeField, Min(0f)] float lifetimeSeconds = 7f;
 
     LootDropPool _pool;
     GameObject _prefabKey;
@@ -36,6 +39,7 @@ public class LootPickup : MonoBehaviour
     Vector3 _up;
     Phase _phase;
     float _dropElapsed;
+    float _aliveElapsed;
     float _idleSpin;
     bool _collected;
     bool _idleStarted;
@@ -68,6 +72,7 @@ public class LootPickup : MonoBehaviour
         _collected = false;
         _idleStarted = false;
         _dropElapsed = 0f;
+        _aliveElapsed = 0f;
         _idleSpin = 0f;
         _phase = Phase.Dropping;
 
@@ -103,6 +108,17 @@ public class LootPickup : MonoBehaviour
     {
         if (_collected)
             return;
+
+        if (lifetimeSeconds > 0f)
+        {
+            _aliveElapsed += Time.deltaTime;
+            if (_aliveElapsed >= lifetimeSeconds)
+            {
+                _collected = true;
+                ReturnToPool();
+                return;
+            }
+        }
 
         if (_phase == Phase.Dropping)
             TickDrop();

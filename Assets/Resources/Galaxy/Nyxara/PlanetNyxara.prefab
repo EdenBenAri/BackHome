@@ -3201,6 +3201,7 @@ GameObject:
   - component: {fileID: 8023435295592196779}
   - component: {fileID: 7344556677889900112}
   - component: {fileID: 8455667788990011223}
+  - component: {fileID: 5901847263019284756}
   m_Layer: 3
   m_Name: Environment
   m_TagString: Untagged
@@ -3312,6 +3313,22 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlanetEnvironmentStreamer
   showRadius: 42
   hideRadius: 52
+--- !u!114 &5901847263019284756
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1650240586130180506}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3a8c2d14e5b4a6c9d0e1f2a3b4c5d6e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::EnvironmentWind
+  minSpeed: 0.5
+  maxSpeed: 1
+  gustSpacing: 0.4
+  directionTurnSpeed: 0.035
 --- !u!1 &1692879288673288521
 GameObject:
   m_ObjectHideFlags: 0

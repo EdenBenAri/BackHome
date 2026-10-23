@@ -78,6 +78,32 @@ public static class PlayerModelSwapTool
     const string DyingClipName = "Dying";
     const string DyingInPlaceClipPath = "Assets/Resources/Player/Animator/DyingInPlace.anim";
 
+    // Suffocation run. The export is a Mixamo rig (mixamorig:* bones) rather than the player's
+    // Meshy skeleton, so it is retargeted onto the live rig and baked in place before it can
+    // play in the same Animator as Run.
+    const string LowOxygenRunModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Low_Oxygen_Running.fbx";
+    const string LowOxygenRunClipName = "LowOxygenRun";
+    const string LowOxygenRunInPlaceClipPath = "Assets/Resources/Player/Animator/LowOxygenRunInPlace.anim";
+    const string LowOxygenParameterName = "LowOxygen";
+
+    // Standing attack clips. Same Mixamo rig as the low-oxygen run, retargeted the same way.
+    // Attack1 is the 34% roll; Attack2 and Attack3 are 33% each.
+    const string AttackParameterName = "Attacking";
+    const string AttackVariantParameterName = "AttackVariant";
+    static readonly string[] AttackModelPaths =
+    {
+        "Assets/Resources/Player/Models/Starbot_Animation_Attack1.fbx",
+        "Assets/Resources/Player/Models/Starbot_Animation_Attack2.fbx",
+        "Assets/Resources/Player/Models/Starbot_Animation_Attack3.fbx",
+    };
+    static readonly string[] AttackClipNames = { "Attack1", "Attack2", "Attack3" };
+    static readonly string[] AttackInPlacePaths =
+    {
+        "Assets/Resources/Player/Animator/Attack1InPlace.anim",
+        "Assets/Resources/Player/Animator/Attack2InPlace.anim",
+        "Assets/Resources/Player/Animator/Attack3InPlace.anim",
+    };
+
     // Material shared by every Meshy AI export in Model/ (they were all authored with a single
     // "Material_1" slot). The shader wired into it isn't actually URP/Lit despite the guid's
     // original comment - it's the project's own custom "BackHome/CasualToon" shader (same one
@@ -88,6 +114,9 @@ public static class PlayerModelSwapTool
     static readonly string SetupRunOnPlanetTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupRunOnPlanet.trigger");
     static readonly string SetupIdleAnimationsTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupIdleAnimations.trigger");
     static readonly string SetupDyingAnimationTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupDyingAnimation.trigger");
+    static readonly string SetupLowOxygenRunTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupLowOxygenRun.trigger");
+    static readonly string SetupAttackAnimationsTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupAttackAnimations.trigger");
+    static readonly string RaiseNewAnimationHeightTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeRaiseNewAnimationHeight.trigger");
     static readonly string SetupHitReactionTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupHitReaction.trigger");
     static readonly string DumpLivePlayerHierarchyTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeDumpLivePlayerHierarchy.trigger");
     static readonly string DumpBoneTransformsTriggerFilePath = System.IO.Path.Combine(Application.dataPath, "..", "Temp", "BackHomeDumpBoneTransforms.trigger");
@@ -169,6 +198,27 @@ public static class PlayerModelSwapTool
             try { System.IO.File.Delete(SetupDyingAnimationTriggerFilePath); } catch { /* ignore */ }
             Debug.Log("[BackHome] Setup-dying-animation trigger detected - wiring up the Dying death animation.");
             SetupPlayerDyingAnimation();
+        }
+
+        if (System.IO.File.Exists(SetupLowOxygenRunTriggerFilePath))
+        {
+            try { System.IO.File.Delete(SetupLowOxygenRunTriggerFilePath); } catch { /* ignore */ }
+            Debug.Log("[BackHome] Setup-low-oxygen-run trigger detected - wiring up the suffocation run.");
+            SetupPlayerLowOxygenRun();
+        }
+
+        if (System.IO.File.Exists(SetupAttackAnimationsTriggerFilePath))
+        {
+            try { System.IO.File.Delete(SetupAttackAnimationsTriggerFilePath); } catch { /* ignore */ }
+            Debug.Log("[BackHome] Setup-attack-animations trigger detected - wiring up the standing attack clips.");
+            SetupPlayerAttackAnimations();
+        }
+
+        if (System.IO.File.Exists(RaiseNewAnimationHeightTriggerFilePath))
+        {
+            try { System.IO.File.Delete(RaiseNewAnimationHeightTriggerFilePath); } catch { /* ignore */ }
+            Debug.Log("[BackHome] Raise-new-animation-height trigger detected.");
+            RaiseNewAnimationHeight();
         }
 
         if (System.IO.File.Exists(DumpLivePlayerHierarchyTriggerFilePath))
@@ -1285,6 +1335,79 @@ public static class PlayerModelSwapTool
     }
 
     /// <summary>
+    /// Bakes <c>Starbot_Animation_Low_Oxygen_Running</c> onto the player rig and adds a
+    /// "LowOxygenRun" state. PlanetWalker / TouchController set the "LowOxygen" bool while the
+    /// oxygen tank is empty, which swaps the moving state from Run to this clip. Idle is unchanged.
+    /// </summary>
+    [MenuItem("BackHome/Player/Setup Player Low Oxygen Run")]
+    public static void SetupPlayerLowOxygenRun()
+    {
+        try
+        {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogError("[BackHome] Exit Play mode before setting up the low-oxygen run.");
+                return;
+            }
+
+            // Same skeleton as the player (Mixamo names, identical bind rotations). Humanoid muscle
+            // retarget twists the hand bones — this rig has no fingers — so the hands disappear
+            // into the forearms. Copy the authored local rotations instead.
+            AnimationClip clip = ExtractMixamoByBoneRemap(LowOxygenRunModelPath, LowOxygenRunClipName, LowOxygenRunInPlaceClipPath, retargetFailed: false);
+            if (clip == null)
+                return;
+
+            if (!WireLowOxygenRunIntoController(clip))
+                return;
+
+            AssetDatabase.SaveAssets();
+            Debug.Log("[BackHome] Low-oxygen run wired up: while oxygen is 0 and the player is moving, Run swaps to Starbot_Animation_Low_Oxygen_Running.");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogException(e);
+            Debug.LogError("[BackHome] Setup-Player-Low-Oxygen-Run aborted due to the exception above.");
+        }
+    }
+
+    /// <summary>
+    /// Bakes the three Mixamo attack takes and plays one of them, looping, while the player is
+    /// standing still and a weapon is firing at a creature. PlayerRangeCombat rolls Attack1 at 34%
+    /// and Attack2/Attack3 at 33% each time that stance starts. Moving returns to Run.
+    /// </summary>
+    [MenuItem("BackHome/Player/Setup Player Attack Animations")]
+    public static void SetupPlayerAttackAnimations()
+    {
+        try
+        {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogError("[BackHome] Exit Play mode before setting up the attack animations.");
+                return;
+            }
+
+            var clips = new AnimationClip[AttackModelPaths.Length];
+            for (int i = 0; i < AttackModelPaths.Length; i++)
+            {
+                clips[i] = BakeMixamoClipInPlace(AttackModelPaths[i], AttackClipNames[i], AttackInPlacePaths[i]);
+                if (clips[i] == null)
+                    return;
+            }
+
+            if (!WireAttackStatesIntoController(clips))
+                return;
+
+            AssetDatabase.SaveAssets();
+            Debug.Log("[BackHome] Standing attack animations wired up: Attack1 34%, Attack2 33%, Attack3 33%, looping until the player moves.");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogException(e);
+            Debug.LogError("[BackHome] Setup-Player-Attack-Animations aborted due to the exception above.");
+        }
+    }
+
+    /// <summary>
     /// Adds a <see cref="PlayerHitReaction"/> component to Player.prefab's root (the same
     /// GameObject as the Animator and PlayerVitals) if it isn't already there. No-op otherwise.
     /// </summary>
@@ -1415,62 +1538,12 @@ public static class PlayerModelSwapTool
         idle2State.speedParameterActive = false;
         idle2State.speed = 1f;
 
-        // Rebuild every transition touching Run/Idle1/Idle2 from scratch so re-running this tool
-        // never leaves stale/duplicate transitions behind.
-        foreach (var t in rootStateMachine.anyStateTransitions
-                     .Where(t => t.destinationState == runState || t.destinationState == idle1State || t.destinationState == idle2State)
-                     .ToList())
-            rootStateMachine.RemoveAnyStateTransition(t);
         foreach (var t in idle1State.transitions.ToList())
             idle1State.RemoveTransition(t);
         foreach (var t in idle2State.transitions.ToList())
             idle2State.RemoveTransition(t);
 
         const float switchDuration = 0.15f;
-
-        // If the Dying/Hit state(s)/parameter(s) have already been wired up (see
-        // WireDyingStateIntoController / WireHitStateIntoController), guard every locomotion
-        // transition below with "Dead == false" / "Hit == false" too, so re-running this tool
-        // after either is wired up can never leave a way for Moving/IdleVariant to pull the
-        // character back out of its death pose or damage flinch. No-op (no condition added) the
-        // first time this ever runs, since neither parameter exists yet.
-        bool hasDeadParameter = controller.parameters.Any(p => p.name == "Dead");
-        bool hasHitParameter = controller.parameters.Any(p => p.name == "Hit");
-
-        AnimatorStateTransition toIdle1 = rootStateMachine.AddAnyStateTransition(idle1State);
-        toIdle1.hasExitTime = false;
-        toIdle1.hasFixedDuration = true;
-        toIdle1.duration = switchDuration;
-        toIdle1.canTransitionToSelf = false;
-        toIdle1.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
-        toIdle1.AddCondition(AnimatorConditionMode.Equals, 0, "IdleVariant");
-        if (hasDeadParameter)
-            toIdle1.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
-        if (hasHitParameter)
-            toIdle1.AddCondition(AnimatorConditionMode.IfNot, 0, "Hit");
-
-        AnimatorStateTransition toIdle2 = rootStateMachine.AddAnyStateTransition(idle2State);
-        toIdle2.hasExitTime = false;
-        toIdle2.hasFixedDuration = true;
-        toIdle2.duration = switchDuration;
-        toIdle2.canTransitionToSelf = false;
-        toIdle2.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
-        toIdle2.AddCondition(AnimatorConditionMode.Equals, 1, "IdleVariant");
-        if (hasDeadParameter)
-            toIdle2.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
-        if (hasHitParameter)
-            toIdle2.AddCondition(AnimatorConditionMode.IfNot, 0, "Hit");
-
-        AnimatorStateTransition toRun = rootStateMachine.AddAnyStateTransition(runState);
-        toRun.hasExitTime = false;
-        toRun.hasFixedDuration = true;
-        toRun.duration = switchDuration;
-        toRun.canTransitionToSelf = false;
-        toRun.AddCondition(AnimatorConditionMode.If, 0, "Moving");
-        if (hasDeadParameter)
-            toRun.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
-        if (hasHitParameter)
-            toRun.AddCondition(AnimatorConditionMode.IfNot, 0, "Hit");
 
         // The actual "loop N times, then swap to the other idle" alternation - no scripting
         // needed, an exit time > 1 on a looping state fires after that many full loops (integer
@@ -1488,6 +1561,8 @@ public static class PlayerModelSwapTool
         idle2ToIdle1.exitTime = 1f;
         idle2ToIdle1.hasFixedDuration = true;
         idle2ToIdle1.duration = switchDuration;
+
+        RebuildAnyStateTransitions(controller);
 
         EditorUtility.SetDirty(controller);
         Debug.Log("[BackHome] Added/refreshed Idle1 <-> Idle2 states, Moving/IdleVariant parameters, and their transitions in the AnimatorController.");
@@ -1520,8 +1595,6 @@ public static class PlayerModelSwapTool
             Debug.LogError("[BackHome] Could not find the 'Run' state in the AnimatorController - run 'Setup Player To Run On Planet Model' first.");
             return false;
         }
-        AnimatorState idle1State = rootStateMachine.states.Select(s => s.state).FirstOrDefault(s => s.name == "Idle1");
-        AnimatorState idle2State = rootStateMachine.states.Select(s => s.state).FirstOrDefault(s => s.name == "Idle2");
 
         if (!controller.parameters.Any(p => p.name == "Dead"))
             controller.AddParameter("Dead", AnimatorControllerParameterType.Bool);
@@ -1532,54 +1605,7 @@ public static class PlayerModelSwapTool
         dyingState.speedParameterActive = false;
         dyingState.speed = 1f;
 
-        // Rebuild every Any State transition touching Run/Idle1/Idle2/Dying from scratch so
-        // re-running this tool never leaves a stale/duplicate transition (or a locomotion
-        // transition missing the "Dead == false" guard) behind.
-        var locomotionStates = new[] { runState, idle1State, idle2State, dyingState }.Where(s => s != null).ToList();
-        foreach (var t in rootStateMachine.anyStateTransitions.Where(t => locomotionStates.Contains(t.destinationState)).ToList())
-            rootStateMachine.RemoveAnyStateTransition(t);
-
-        const float switchDuration = 0.15f;
-        bool hasHitParameter = controller.parameters.Any(p => p.name == "Hit");
-
-        foreach (var state in new[] { runState, idle1State, idle2State })
-        {
-            if (state == null)
-                continue;
-
-            AnimatorStateTransition t = rootStateMachine.AddAnyStateTransition(state);
-            t.hasExitTime = false;
-            t.hasFixedDuration = true;
-            t.duration = switchDuration;
-            t.canTransitionToSelf = false;
-            t.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
-            if (hasHitParameter)
-                t.AddCondition(AnimatorConditionMode.IfNot, 0, "Hit");
-
-            if (state == runState)
-                t.AddCondition(AnimatorConditionMode.If, 0, "Moving");
-            else if (state == idle1State)
-            {
-                t.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
-                t.AddCondition(AnimatorConditionMode.Equals, 0, "IdleVariant");
-            }
-            else if (state == idle2State)
-            {
-                t.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
-                t.AddCondition(AnimatorConditionMode.Equals, 1, "IdleVariant");
-            }
-        }
-
-        // Dying itself: fires from literally any state (including itself, guarded off by
-        // canTransitionToSelf) the instant "Dead" becomes true, and - deliberately - has no
-        // outgoing transition of its own, so once it's entered the state machine can never leave
-        // it again; the clip stops looping (loopTime is off) and holds its final frame forever.
-        AnimatorStateTransition toDying = rootStateMachine.AddAnyStateTransition(dyingState);
-        toDying.hasExitTime = false;
-        toDying.hasFixedDuration = true;
-        toDying.duration = 0.1f;
-        toDying.canTransitionToSelf = false;
-        toDying.AddCondition(AnimatorConditionMode.If, 0, "Dead");
+        RebuildAnyStateTransitions(controller);
 
         EditorUtility.SetDirty(controller);
         Debug.Log("[BackHome] Added/refreshed the 'Dying' state and 'Dead' parameter, and guarded every Run/Idle1/Idle2 Any State transition with 'Dead == false' so death can't be interrupted.");
@@ -1612,8 +1638,6 @@ public static class PlayerModelSwapTool
         AnimatorStateMachine rootStateMachine = controller.layers[0].stateMachine;
 
         AnimatorState runState = rootStateMachine.states.Select(s => s.state).FirstOrDefault(s => s.name == "Run");
-        AnimatorState idle1State = rootStateMachine.states.Select(s => s.state).FirstOrDefault(s => s.name == "Idle1");
-        AnimatorState idle2State = rootStateMachine.states.Select(s => s.state).FirstOrDefault(s => s.name == "Idle2");
         AnimatorState dyingState = rootStateMachine.states.Select(s => s.state).FirstOrDefault(s => s.name == "Dying");
         if (runState == null || dyingState == null)
         {
@@ -1622,15 +1646,6 @@ public static class PlayerModelSwapTool
         }
 
         Motion dyingClip = dyingState.motion;
-
-        // The clip's very first frames (the character starting to stumble) don't read well as a
-        // quick damage flinch - later in the clip (a sharper recoil) looks much better. PlayerHitReaction
-        // still only holds "Hit" true for hitDuration seconds, so starting the state at a normalized
-        // offset here is what actually selects *which* window of the clip plays (currently 0.5s-0.65s).
-        const float hitWindowStartSeconds = 0.5f;
-        AnimationClip dyingAnimClip = dyingClip as AnimationClip;
-        float dyingClipLength = dyingAnimClip != null && dyingAnimClip.length > 0.001f ? dyingAnimClip.length : 1f;
-        float hitStartNormalized = Mathf.Clamp01(hitWindowStartSeconds / dyingClipLength);
 
         if (!controller.parameters.Any(p => p.name == "Hit"))
             controller.AddParameter("Hit", AnimatorControllerParameterType.Bool);
@@ -1641,67 +1656,778 @@ public static class PlayerModelSwapTool
         hitState.speedParameterActive = false;
         hitState.speed = 1f;
 
-        // Rebuild every Any State transition touching Run/Idle1/Idle2/Dying/Hit from scratch so
-        // re-running this tool never leaves a stale/duplicate transition (or a locomotion
-        // transition missing the "Hit == false" guard) behind.
-        var locomotionStates = new[] { runState, idle1State, idle2State, dyingState, hitState }.Where(s => s != null).ToList();
-        foreach (var t in rootStateMachine.anyStateTransitions.Where(t => locomotionStates.Contains(t.destinationState)).ToList())
-            rootStateMachine.RemoveAnyStateTransition(t);
+        RebuildAnyStateTransitions(controller);
+
+        EditorUtility.SetDirty(controller);
+        Debug.Log("[BackHome] Added/refreshed the 'Hit' state and 'Hit' parameter (starting 0.5s into the Dying clip), guarded every Run/Idle1/Idle2 Any State transition with 'Hit == false' too, and made 'Dead' always win over 'Hit'.");
+        return true;
+    }
+
+    /// <summary>
+    /// Rebuilds Any State transitions for whatever of Run / LowOxygenRun / Idle1 / Idle2 / Dying / Hit
+    /// already exist. Moving with oxygen plays Run; moving at 0 oxygen plays LowOxygenRun. Dead and
+    /// Hit keep priority over both. Safe to call from every setup menu so a later re-run cannot
+    /// drop the oxygen guard.
+    /// </summary>
+    static void RebuildAnyStateTransitions(AnimatorController controller)
+    {
+        AnimatorStateMachine root = controller.layers[0].stateMachine;
+        AnimatorState run = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Run");
+        AnimatorState lowOxygenRun = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "LowOxygenRun");
+        AnimatorState idle1 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Idle1");
+        AnimatorState idle2 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Idle2");
+        AnimatorState dying = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Dying");
+        AnimatorState hit = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Hit");
+        AnimatorState attack1 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Attack1");
+        AnimatorState attack2 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Attack2");
+        AnimatorState attack3 = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "Attack3");
+
+        var touched = new[] { run, lowOxygenRun, idle1, idle2, dying, hit, attack1, attack2, attack3 }.Where(s => s != null).ToList();
+        foreach (var t in root.anyStateTransitions.Where(t => touched.Contains(t.destinationState)).ToList())
+            root.RemoveAnyStateTransition(t);
 
         const float switchDuration = 0.15f;
+        bool hasDead = controller.parameters.Any(p => p.name == "Dead");
+        bool hasHit = controller.parameters.Any(p => p.name == "Hit");
+        bool hasLowOxygen = controller.parameters.Any(p => p.name == LowOxygenParameterName);
+        bool hasAttacking = controller.parameters.Any(p => p.name == AttackParameterName);
 
-        foreach (var state in new[] { runState, idle1State, idle2State })
+        AddLocomotionTransition(root, run, switchDuration, hasDead, hasHit, hasLowOxygen, hasAttacking, lowOxygen: false, idleVariant: -1);
+        AddLocomotionTransition(root, lowOxygenRun, switchDuration, hasDead, hasHit, hasLowOxygen, hasAttacking, lowOxygen: true, idleVariant: -1);
+        AddLocomotionTransition(root, idle1, switchDuration, hasDead, hasHit, hasLowOxygen, hasAttacking, lowOxygen: false, idleVariant: 0);
+        AddLocomotionTransition(root, idle2, switchDuration, hasDead, hasHit, hasLowOxygen, hasAttacking, lowOxygen: false, idleVariant: 1);
+        AddAttackTransition(root, attack1, 0, switchDuration, hasDead, hasHit);
+        AddAttackTransition(root, attack2, 1, switchDuration, hasDead, hasHit);
+        AddAttackTransition(root, attack3, 2, switchDuration, hasDead, hasHit);
+
+        if (dying != null && hasDead)
         {
-            if (state == null)
-                continue;
+            AnimatorStateTransition toDying = root.AddAnyStateTransition(dying);
+            toDying.hasExitTime = false;
+            toDying.hasFixedDuration = true;
+            toDying.duration = 0.1f;
+            toDying.canTransitionToSelf = false;
+            toDying.AddCondition(AnimatorConditionMode.If, 0, "Dead");
+        }
 
-            AnimatorStateTransition t = rootStateMachine.AddAnyStateTransition(state);
-            t.hasExitTime = false;
-            t.hasFixedDuration = true;
-            t.duration = switchDuration;
-            t.canTransitionToSelf = false;
+        if (hit != null && hasHit)
+        {
+            // Same 0.5s window PlayerHitReaction holds. The offset selects that slice of Dying.
+            const float hitWindowStartSeconds = 0.5f;
+            var dyingClip = dying != null ? dying.motion as AnimationClip : null;
+            float dyingLength = dyingClip != null && dyingClip.length > 0.001f ? dyingClip.length : 1f;
+
+            AnimatorStateTransition toHit = root.AddAnyStateTransition(hit);
+            toHit.hasExitTime = false;
+            toHit.hasFixedDuration = true;
+            toHit.duration = 0.05f;
+            toHit.offset = Mathf.Clamp01(hitWindowStartSeconds / dyingLength);
+            toHit.canTransitionToSelf = false;
+            toHit.AddCondition(AnimatorConditionMode.If, 0, "Hit");
+            if (hasDead)
+                toHit.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
+        }
+    }
+
+    static void AddLocomotionTransition(
+        AnimatorStateMachine root,
+        AnimatorState state,
+        float duration,
+        bool hasDead,
+        bool hasHit,
+        bool hasLowOxygen,
+        bool hasAttacking,
+        bool lowOxygen,
+        int idleVariant)
+    {
+        if (state == null)
+            return;
+        if (lowOxygen && !hasLowOxygen)
+            return;
+
+        AnimatorStateTransition t = root.AddAnyStateTransition(state);
+        t.hasExitTime = false;
+        t.hasFixedDuration = true;
+        t.duration = duration;
+        t.canTransitionToSelf = false;
+        if (hasDead)
             t.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
+        if (hasHit)
             t.AddCondition(AnimatorConditionMode.IfNot, 0, "Hit");
 
-            if (state == runState)
-                t.AddCondition(AnimatorConditionMode.If, 0, "Moving");
-            else if (state == idle1State)
+        if (idleVariant >= 0)
+        {
+            t.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
+            t.AddCondition(AnimatorConditionMode.Equals, idleVariant, "IdleVariant");
+            if (hasAttacking)
+                t.AddCondition(AnimatorConditionMode.IfNot, 0, AttackParameterName);
+            return;
+        }
+
+        t.AddCondition(AnimatorConditionMode.If, 0, "Moving");
+        if (!hasLowOxygen)
+            return;
+        t.AddCondition(lowOxygen ? AnimatorConditionMode.If : AnimatorConditionMode.IfNot, 0, LowOxygenParameterName);
+    }
+
+    static void AddAttackTransition(AnimatorStateMachine root, AnimatorState state, int variant, float duration, bool hasDead, bool hasHit)
+    {
+        if (state == null)
+            return;
+
+        AnimatorStateTransition t = root.AddAnyStateTransition(state);
+        t.hasExitTime = false;
+        t.hasFixedDuration = true;
+        t.duration = duration;
+        t.canTransitionToSelf = false;
+        if (hasDead)
+            t.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
+        if (hasHit)
+            t.AddCondition(AnimatorConditionMode.IfNot, 0, "Hit");
+        t.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
+        t.AddCondition(AnimatorConditionMode.If, 0, AttackParameterName);
+        t.AddCondition(AnimatorConditionMode.Equals, variant, AttackVariantParameterName);
+    }
+
+    static bool WireAttackStatesIntoController(AnimationClip[] clips)
+    {
+        var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        if (controller == null)
+        {
+            Debug.LogError($"[BackHome] Could not load AnimatorController at {ControllerPath}");
+            return false;
+        }
+
+        AnimatorStateMachine root = controller.layers[0].stateMachine;
+        if (root.states.Select(s => s.state).All(s => s.name != "Run"))
+        {
+            Debug.LogError("[BackHome] Could not find the 'Run' state in the AnimatorController - run 'Setup Player To Run On Planet Model' first.");
+            return false;
+        }
+
+        if (!controller.parameters.Any(p => p.name == AttackParameterName))
+            controller.AddParameter(AttackParameterName, AnimatorControllerParameterType.Bool);
+        if (!controller.parameters.Any(p => p.name == AttackVariantParameterName))
+            controller.AddParameter(AttackVariantParameterName, AnimatorControllerParameterType.Int);
+
+        for (int i = 0; i < clips.Length; i++)
+        {
+            string stateName = AttackClipNames[i];
+            AnimatorState state = root.states.Select(s => s.state).FirstOrDefault(s => s.name == stateName)
+                ?? root.AddState(stateName, new Vector3(620, -80 + i * 110, 0));
+            state.motion = clips[i];
+            state.speed = 1f;
+            state.speedParameterActive = false;
+        }
+
+        RebuildAnyStateTransitions(controller);
+        EditorUtility.SetDirty(controller);
+        Debug.Log("[BackHome] Added/refreshed Attack1/Attack2/Attack3. They loop while standing and firing, and stop as soon as the player moves.");
+        return true;
+    }
+
+    static bool WireLowOxygenRunIntoController(AnimationClip clip)
+    {
+        var controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
+        if (controller == null)
+        {
+            Debug.LogError($"[BackHome] Could not load AnimatorController at {ControllerPath}");
+            return false;
+        }
+
+        AnimatorStateMachine root = controller.layers[0].stateMachine;
+        if (root.states.Select(s => s.state).All(s => s.name != "Run"))
+        {
+            Debug.LogError("[BackHome] Could not find the 'Run' state in the AnimatorController - run 'Setup Player To Run On Planet Model' first.");
+            return false;
+        }
+
+        if (!controller.parameters.Any(p => p.name == "MotionSpeed"))
+            controller.AddParameter("MotionSpeed", AnimatorControllerParameterType.Float);
+        if (!controller.parameters.Any(p => p.name == LowOxygenParameterName))
+            controller.AddParameter(LowOxygenParameterName, AnimatorControllerParameterType.Bool);
+
+        AnimatorState state = root.states.Select(s => s.state).FirstOrDefault(s => s.name == "LowOxygenRun")
+            ?? root.AddState("LowOxygenRun", new Vector3(200, -180, 0));
+        state.motion = clip;
+        state.speed = 1f;
+        state.speedParameterActive = true;
+        state.speedParameter = "MotionSpeed";
+
+        RebuildAnyStateTransitions(controller);
+        EditorUtility.SetDirty(controller);
+        Debug.Log("[BackHome] Added/refreshed LowOxygenRun. Moving at 0 oxygen plays it; any oxygen plays Run.");
+        return true;
+    }
+
+    static readonly (string humanName, string boneName)[] PlayerHumanBones =
+    {
+        ("Hips", "Hips"),
+        ("LeftUpperLeg", "LeftUpLeg"),
+        ("RightUpperLeg", "RightUpLeg"),
+        ("LeftLowerLeg", "LeftLeg"),
+        ("RightLowerLeg", "RightLeg"),
+        ("LeftFoot", "LeftFoot"),
+        ("RightFoot", "RightFoot"),
+        ("LeftToes", "LeftToeBase"),
+        ("RightToes", "RightToeBase"),
+        ("Spine", "Spine02"),
+        ("Chest", "Spine01"),
+        ("UpperChest", "Spine"),
+        ("Neck", "neck"),
+        ("Head", "Head"),
+        ("LeftShoulder", "LeftShoulder"),
+        ("RightShoulder", "RightShoulder"),
+        ("LeftUpperArm", "LeftArm"),
+        ("RightUpperArm", "RightArm"),
+        ("LeftLowerArm", "LeftForeArm"),
+        ("RightLowerArm", "RightForeArm"),
+        ("LeftHand", "LeftHand"),
+        ("RightHand", "RightHand"),
+    };
+
+    static readonly HashSet<string> PlayerRigBones = new HashSet<string>
+    {
+        "Hips",
+        "LeftUpLeg", "LeftLeg", "LeftFoot", "LeftToeBase",
+        "RightUpLeg", "RightLeg", "RightFoot", "RightToeBase",
+        "Spine02", "Spine01", "Spine", "neck", "Head",
+        "LeftShoulder", "LeftArm", "LeftForeArm", "LeftHand",
+        "RightShoulder", "RightArm", "RightForeArm", "RightHand",
+    };
+
+    /// <summary>
+    /// Imports the Mixamo take as Humanoid, retargets it through a humanoid avatar built from the
+    /// live player skeleton, and bakes the posed bones into a Generic in-place clip. Returns null
+    /// when that retarget cannot be built, so the caller can fall back to a path remap.
+    /// </summary>
+    static AnimationClip BakeMixamoClipInPlace(string modelPath, string clipName, string outputPath)
+    {
+        AnimationClip humanClip = ImportHumanoidClip(modelPath, clipName);
+        if (humanClip == null)
+            return ExtractMixamoByBoneRemap(modelPath, clipName, outputPath);
+
+        GameObject model = AssetDatabase.LoadAssetAtPath<GameObject>(RunOnPlanetModelPath);
+        if (model == null)
+        {
+            Debug.LogError($"[BackHome] Could not load the player model at {RunOnPlanetModelPath}");
+            return null;
+        }
+
+        GameObject instance = Object.Instantiate(model);
+        instance.hideFlags = HideFlags.HideAndDontSave;
+        instance.transform.position = new Vector3(0f, -10000f, 0f);
+        Avatar avatar = null;
+        try
+        {
+            avatar = BuildPlayerHumanAvatar(instance);
+            if (avatar == null)
+                return ExtractMixamoByBoneRemap(modelPath, clipName, outputPath);
+
+            AnimationClip generic = SampleHumanoidClipOntoRig(humanClip, avatar, instance);
+            if (generic == null)
+                return ExtractMixamoByBoneRemap(modelPath, clipName, outputPath);
+
+            AnimationClip baked = MakeInPlaceCopy(generic, outputPath);
+            AlignHipsHeightToRun(baked);
+            return baked;
+        }
+        finally
+        {
+            if (avatar != null)
+                Object.DestroyImmediate(avatar);
+            Object.DestroyImmediate(instance);
+        }
+    }
+
+    static AnimationClip ImportHumanoidClip(string modelPath, string clipName)
+    {
+        var importer = AssetImporter.GetAtPath(modelPath) as ModelImporter;
+        if (importer == null)
+        {
+            Debug.LogError($"[BackHome] Could not find a ModelImporter at {modelPath}");
+            return null;
+        }
+
+        importer.animationType = ModelImporterAnimationType.Human;
+        importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+        importer.optimizeGameObjects = false;
+        importer.animationCompression = ModelImporterAnimationCompression.Off;
+        importer.SaveAndReimport();
+
+        var avatar = AssetDatabase.LoadAllAssetsAtPath(modelPath).OfType<Avatar>().FirstOrDefault();
+        if (avatar == null || !avatar.isValid || !avatar.isHuman)
+        {
+            Debug.LogWarning($"[BackHome] {modelPath} did not import as a valid Humanoid. Falling back to bone-name remap.");
+            return null;
+        }
+
+        var takes = importer.importedTakeInfos;
+        if (takes == null || takes.Length == 0)
+        {
+            Debug.LogWarning($"[BackHome] {modelPath} has no embedded animation take.");
+            return null;
+        }
+
+        var take = takes[0];
+        importer.clipAnimations = new[]
+        {
+            new ModelImporterClipAnimation
             {
-                t.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
-                t.AddCondition(AnimatorConditionMode.Equals, 0, "IdleVariant");
+                name = clipName,
+                takeName = take.name,
+                firstFrame = take.startTime * take.sampleRate,
+                lastFrame = take.stopTime * take.sampleRate,
+                loopTime = true,
+                loopPose = true,
+                wrapMode = WrapMode.Loop,
             }
-            else if (state == idle2State)
+        };
+        importer.SaveAndReimport();
+
+        AnimationClip clip = AssetDatabase.LoadAllAssetsAtPath(modelPath)
+            .OfType<AnimationClip>()
+            .FirstOrDefault(c => c.name == clipName);
+        if (clip == null || !clip.isHumanMotion)
+        {
+            Debug.LogWarning($"[BackHome] '{clipName}' did not come in as a Humanoid clip. Falling back to bone-name remap.");
+            return null;
+        }
+
+        Debug.Log($"[BackHome] Imported Humanoid '{clipName}' ({clip.length:0.00}s) from {modelPath}.");
+        return clip;
+    }
+
+    static Avatar BuildPlayerHumanAvatar(GameObject instance)
+    {
+        var human = new List<HumanBone>(PlayerHumanBones.Length);
+        foreach (var pair in PlayerHumanBones)
+        {
+            if (FindDescendant(instance.transform, pair.boneName) == null)
             {
-                t.AddCondition(AnimatorConditionMode.IfNot, 0, "Moving");
-                t.AddCondition(AnimatorConditionMode.Equals, 1, "IdleVariant");
+                Debug.LogWarning($"[BackHome] Player rig is missing '{pair.boneName}' for human bone '{pair.humanName}'. Falling back to bone-name remap.");
+                return null;
+            }
+
+            human.Add(new HumanBone
+            {
+                humanName = pair.humanName,
+                boneName = pair.boneName,
+                limit = new HumanLimit { useDefaultValues = true }
+            });
+        }
+
+        var skeleton = new List<SkeletonBone>();
+        AddSkeletonBones(instance.transform, skeleton);
+        var description = new HumanDescription
+        {
+            human = human.ToArray(),
+            skeleton = skeleton.ToArray(),
+            upperArmTwist = 0.5f,
+            lowerArmTwist = 0.5f,
+            upperLegTwist = 0.5f,
+            lowerLegTwist = 0.5f,
+            armStretch = 0.05f,
+            legStretch = 0.05f,
+            feetSpacing = 0f,
+            hasTranslationDoF = false
+        };
+
+        Avatar avatar = AvatarBuilder.BuildHumanAvatar(instance, description);
+        if (avatar == null || !avatar.isValid || !avatar.isHuman)
+        {
+            Debug.LogWarning("[BackHome] Could not build a humanoid avatar for the player rig. Falling back to bone-name remap.");
+            if (avatar != null)
+                Object.DestroyImmediate(avatar);
+            return null;
+        }
+
+        avatar.name = "LowOxygenRetargetAvatar";
+        return avatar;
+    }
+
+    static void AddSkeletonBones(Transform transform, List<SkeletonBone> skeleton)
+    {
+        skeleton.Add(new SkeletonBone
+        {
+            name = transform.name,
+            position = transform.localPosition,
+            rotation = transform.localRotation,
+            scale = transform.localScale
+        });
+        for (int i = 0; i < transform.childCount; i++)
+            AddSkeletonBones(transform.GetChild(i), skeleton);
+    }
+
+    static AnimationClip SampleHumanoidClipOntoRig(AnimationClip humanClip, Avatar destAvatar, GameObject instance)
+    {
+        const string tempControllerPath = "Assets/Resources/Player/Animator/_LowOxygenRetargetTemp.controller";
+        Transform rig = FindDescendant(instance.transform, IdleTargetRootBoneName);
+        if (rig == null)
+        {
+            Debug.LogWarning("[BackHome] Low-oxygen retarget could not find target_character on the player model.");
+            return null;
+        }
+
+        var animator = instance.GetComponent<Animator>();
+        if (animator == null)
+            animator = instance.AddComponent<Animator>();
+        animator.avatar = destAvatar;
+        animator.applyRootMotion = false;
+        animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        animator.updateMode = AnimatorUpdateMode.Normal;
+        animator.enabled = true;
+
+        if (AssetDatabase.LoadAssetAtPath<AnimatorController>(tempControllerPath) != null)
+            AssetDatabase.DeleteAsset(tempControllerPath);
+
+        AnimatorController controller = AnimatorController.CreateAnimatorControllerAtPath(tempControllerPath);
+        try
+        {
+            AnimatorState state = controller.layers[0].stateMachine.AddState("LowOxygenRun");
+            state.motion = humanClip;
+            controller.layers[0].stateMachine.defaultState = state;
+            animator.runtimeAnimatorController = controller;
+            animator.Rebind();
+            animator.Update(0f);
+
+            float length = Mathf.Max(humanClip.length, 0.01f);
+            float fps = humanClip.frameRate > 1f ? humanClip.frameRate : 30f;
+            int frames = Mathf.Max(1, Mathf.RoundToInt(length * fps));
+            Transform pathRoot = rig.parent != null ? rig.parent : rig;
+
+            var rotation = new Dictionary<string, AnimationCurve[]>();
+            var position = new Dictionary<string, AnimationCurve[]>();
+            var previous = new Dictionary<string, Quaternion>();
+            var firstPose = new Dictionary<string, Quaternion>();
+            float poseSwing = 0f;
+
+            for (int frame = 0; frame <= frames; frame++)
+            {
+                float time = Mathf.Min(length, frame / fps);
+                animator.Play("LowOxygenRun", 0, Mathf.Clamp(time / length, 0f, 0.999f));
+                animator.Update(0f);
+
+                foreach (Transform bone in rig.GetComponentsInChildren<Transform>(true))
+                {
+                    if (bone == rig || !PlayerRigBones.Contains(bone.name))
+                        continue;
+
+                    string path = AnimationUtility.CalculateTransformPath(bone, pathRoot);
+                    int at = path.IndexOf(IdleTargetRootBoneName + "/", System.StringComparison.Ordinal);
+                    if (at > 0)
+                        path = path.Substring(at);
+                    else if (!path.StartsWith(IdleTargetRootBoneName + "/", System.StringComparison.Ordinal))
+                        path = IdleTargetRootBoneName + "/" + path;
+
+                    Quaternion rotationValue = bone.localRotation;
+                    if (previous.TryGetValue(path, out Quaternion prior) && Quaternion.Dot(prior, rotationValue) < 0f)
+                        rotationValue = new Quaternion(-rotationValue.x, -rotationValue.y, -rotationValue.z, -rotationValue.w);
+                    previous[path] = rotationValue;
+
+                    if (!rotation.TryGetValue(path, out AnimationCurve[] curves))
+                    {
+                        curves = new[] { new AnimationCurve(), new AnimationCurve(), new AnimationCurve(), new AnimationCurve() };
+                        rotation[path] = curves;
+                    }
+                    curves[0].AddKey(time, rotationValue.x);
+                    curves[1].AddKey(time, rotationValue.y);
+                    curves[2].AddKey(time, rotationValue.z);
+                    curves[3].AddKey(time, rotationValue.w);
+
+                    if (!firstPose.ContainsKey(path))
+                        firstPose[path] = rotationValue;
+                    else
+                        poseSwing = Mathf.Max(poseSwing, Quaternion.Angle(firstPose[path], rotationValue));
+
+                    if (bone.name != "Hips")
+                        continue;
+
+                    if (!position.TryGetValue(path, out AnimationCurve[] positionCurves))
+                    {
+                        positionCurves = new[] { new AnimationCurve(), new AnimationCurve(), new AnimationCurve() };
+                        position[path] = positionCurves;
+                    }
+                    Vector3 localPosition = bone.localPosition;
+                    positionCurves[0].AddKey(time, localPosition.x);
+                    positionCurves[1].AddKey(time, localPosition.y);
+                    positionCurves[2].AddKey(time, localPosition.z);
+                }
+            }
+
+            if (poseSwing < 8f)
+            {
+                Debug.LogWarning($"[BackHome] Humanoid retarget barely moved the pose ({poseSwing:0.0} deg). Falling back to bone-name remap.");
+                return null;
+            }
+
+            var baked = new AnimationClip { name = humanClip.name, frameRate = fps };
+            var settings = AnimationUtility.GetAnimationClipSettings(humanClip);
+            settings.loopTime = true;
+            settings.loopBlend = true;
+            AnimationUtility.SetAnimationClipSettings(baked, settings);
+
+            foreach (var pair in rotation)
+            {
+                SetTransformCurve(baked, pair.Key, "m_LocalRotation.x", pair.Value[0]);
+                SetTransformCurve(baked, pair.Key, "m_LocalRotation.y", pair.Value[1]);
+                SetTransformCurve(baked, pair.Key, "m_LocalRotation.z", pair.Value[2]);
+                SetTransformCurve(baked, pair.Key, "m_LocalRotation.w", pair.Value[3]);
+            }
+            foreach (var pair in position)
+            {
+                SetTransformCurve(baked, pair.Key, "m_LocalPosition.x", pair.Value[0]);
+                SetTransformCurve(baked, pair.Key, "m_LocalPosition.y", pair.Value[1]);
+                SetTransformCurve(baked, pair.Key, "m_LocalPosition.z", pair.Value[2]);
+            }
+
+            baked.EnsureQuaternionContinuity();
+            Debug.Log($"[BackHome] Retargeted '{baked.name}' onto the player rig ({baked.length:0.00}s, {rotation.Count} bones, pose swing {poseSwing:0.0} deg).");
+            return baked;
+        }
+        finally
+        {
+            if (animator != null)
+                animator.runtimeAnimatorController = null;
+            if (AssetDatabase.LoadAssetAtPath<AnimatorController>(tempControllerPath) != null)
+                AssetDatabase.DeleteAsset(tempControllerPath);
+        }
+    }
+
+    static void SetTransformCurve(AnimationClip clip, string path, string propertyName, AnimationCurve curve)
+    {
+        AnimationUtility.SetEditorCurve(clip, new EditorCurveBinding
+        {
+            path = path,
+            type = typeof(Transform),
+            propertyName = propertyName
+        }, curve);
+    }
+
+    static AnimationClip ExtractMixamoByBoneRemap(string modelPath, string clipName, string outputPath, bool retargetFailed = true)
+    {
+        if (retargetFailed)
+            Debug.LogWarning($"[BackHome] Retarget failed for '{clipName}'. Remapping mixamorig bone paths onto the player skeleton instead.");
+        else
+            Debug.Log($"[BackHome] Baking '{clipName}' from the authored bone rotations so the hands keep the source pose.");
+
+        AnimationClip clip = ConfigureModelAsHumanoidAndExtractLoopingClip(modelPath, clipName, outputPath);
+        if (clip == null)
+            return null;
+        if (!RemapMixamoBonePaths(clip))
+            return null;
+
+        // Mixamo writes bone translations in meters. The player skeleton stores those same
+        // offsets in centimeters under a 0.01 root scale. Leaving them unscaled collapses the
+        // limbs and pulls the hands into the body.
+        float liveRootScale = FindTargetCharacterScale(IdleTargetRootBoneName);
+        if (liveRootScale > 0f && Mathf.Abs(liveRootScale - 1f) > 0.0001f)
+            ScaleAllPositionCurves(clip, 1f / liveRootScale);
+
+        AlignHipsHeightToRun(clip);
+        EditorUtility.SetDirty(clip);
+        AssetDatabase.SaveAssets();
+        return clip;
+    }
+
+    /// <summary>
+    /// The Mixamo retarget writes hips local Y near the avatar origin, while the authored
+    /// Run/Idle clips keep the hips up around the Meshy bind height. That drops Low Oxygen and
+    /// Attack1–3 into the ground. Shift each clip's hips Y so its average matches Run.
+    /// </summary>
+    [MenuItem("BackHome/Player/Raise New Animation Height")]
+    public static void RaiseNewAnimationHeight()
+    {
+        try
+        {
+            if (EditorApplication.isPlaying)
+            {
+                Debug.LogError("[BackHome] Exit Play mode before raising animation height.");
+                return;
+            }
+
+            string[] paths =
+            {
+                LowOxygenRunInPlaceClipPath,
+                AttackInPlacePaths[0],
+                AttackInPlacePaths[1],
+                AttackInPlacePaths[2],
+            };
+
+            int raised = 0;
+            foreach (string path in paths)
+            {
+                AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(path);
+                if (clip == null)
+                {
+                    Debug.LogWarning($"[BackHome] Could not load {path} to raise its hips.");
+                    continue;
+                }
+
+                if (AlignHipsHeightToRun(clip))
+                    raised++;
+            }
+
+            AssetDatabase.SaveAssets();
+            Debug.Log($"[BackHome] Raised hips on {raised} animation(s) to the run height.");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogException(e);
+            Debug.LogError("[BackHome] Raise-new-animation-height aborted due to the exception above.");
+        }
+    }
+
+    static bool AlignHipsHeightToRun(AnimationClip clip)
+    {
+        if (clip == null)
+            return false;
+
+        AnimationClip run = AssetDatabase.LoadAssetAtPath<AnimationClip>(RunInPlaceClipPath);
+        if (run == null || !TryGetHipsYAverage(run, out float targetY))
+        {
+            Debug.LogWarning("[BackHome] Could not read the run hips height to align against.");
+            return false;
+        }
+
+        if (!TryGetHipsYBinding(clip, out EditorCurveBinding binding))
+        {
+            Debug.LogWarning($"[BackHome] '{clip.name}' has no hips position curve to raise.");
+            return false;
+        }
+
+        AnimationCurve curve = AnimationUtility.GetEditorCurve(clip, binding);
+        Keyframe[] keys = curve.keys;
+        if (keys.Length == 0)
+            return false;
+
+        float average = 0f;
+        for (int i = 0; i < keys.Length; i++)
+            average += keys[i].value;
+        average /= keys.Length;
+
+        float delta = targetY - average;
+        if (Mathf.Abs(delta) < 0.05f)
+        {
+            Debug.Log($"[BackHome] '{clip.name}' hips already match the run height ({average:0.00}).");
+            return false;
+        }
+
+        for (int i = 0; i < keys.Length; i++)
+            keys[i].value += delta;
+        curve.keys = keys;
+        AnimationUtility.SetEditorCurve(clip, binding, curve);
+        EditorUtility.SetDirty(clip);
+        Debug.Log($"[BackHome] Raised '{clip.name}' hips by {delta:0.00} (average {average:0.00} -> {targetY:0.00}).");
+        return true;
+    }
+
+    static bool TryGetHipsYAverage(AnimationClip clip, out float average)
+    {
+        average = 0f;
+        if (!TryGetHipsYBinding(clip, out EditorCurveBinding binding))
+            return false;
+
+        AnimationCurve curve = AnimationUtility.GetEditorCurve(clip, binding);
+        if (curve == null || curve.length == 0)
+            return false;
+
+        float sum = 0f;
+        Keyframe[] keys = curve.keys;
+        for (int i = 0; i < keys.Length; i++)
+            sum += keys[i].value;
+        average = sum / keys.Length;
+        return true;
+    }
+
+    static bool TryGetHipsYBinding(AnimationClip clip, out EditorCurveBinding binding)
+    {
+        foreach (EditorCurveBinding candidate in AnimationUtility.GetCurveBindings(clip))
+        {
+            if (candidate.type == typeof(Transform)
+                && candidate.propertyName == "m_LocalPosition.y"
+                && candidate.path.EndsWith("/Hips", System.StringComparison.Ordinal))
+            {
+                binding = candidate;
+                return true;
             }
         }
 
-        // Dying keeps its unconditioned (besides "Dead") priority over everything, Hit included.
-        AnimatorStateTransition toDying = rootStateMachine.AddAnyStateTransition(dyingState);
-        toDying.hasExitTime = false;
-        toDying.hasFixedDuration = true;
-        toDying.duration = 0.1f;
-        toDying.canTransitionToSelf = false;
-        toDying.AddCondition(AnimatorConditionMode.If, 0, "Dead");
+        binding = default;
+        return false;
+    }
 
-        // Hit: fires the instant "Hit" becomes true, unless already dying/dead (which always
-        // wins). Enters the clip already offset to hitStartNormalized (~0.5s in, see above)
-        // instead of the clip's start. No outgoing transition of its own - PlayerHitReaction
-        // clears "Hit" after ~0.15s (see hitDuration there), at which point the (now unblocked)
-        // locomotion transitions above immediately take back over on their own.
-        AnimatorStateTransition toHit = rootStateMachine.AddAnyStateTransition(hitState);
-        toHit.hasExitTime = false;
-        toHit.hasFixedDuration = true;
-        toHit.duration = 0.05f;
-        toHit.offset = hitStartNormalized;
-        toHit.canTransitionToSelf = false;
-        toHit.AddCondition(AnimatorConditionMode.If, 0, "Hit");
-        toHit.AddCondition(AnimatorConditionMode.IfNot, 0, "Dead");
+    static bool RemapMixamoBonePaths(AnimationClip clip)
+    {
+        var bindings = AnimationUtility.GetCurveBindings(clip);
+        bool looksMixamo = bindings.Any(b => b.path.Contains("mixamorig:"));
+        if (!looksMixamo)
+        {
+            bool alreadyPlayer = bindings.Any(b => b.path.StartsWith(IdleTargetRootBoneName + "/Hips", System.StringComparison.Ordinal));
+            if (!alreadyPlayer)
+                Debug.LogError("[BackHome] Low-oxygen clip has neither mixamorig paths nor the player skeleton paths.");
+            return alreadyPlayer;
+        }
 
-        EditorUtility.SetDirty(controller);
-        Debug.Log($"[BackHome] Added/refreshed the 'Hit' state and 'Hit' parameter (now starting {hitWindowStartSeconds:0.0}s into the clip, normalized offset {hitStartNormalized:0.000}), guarded every Run/Idle1/Idle2 Any State transition with 'Hit == false' too, and made 'Dead' always win over 'Hit'.");
-        return true;
+        int remapped = 0;
+        int dropped = 0;
+        foreach (var binding in bindings)
+        {
+            if (!TryMapMixamoPath(binding.path, out string newPath))
+            {
+                AnimationUtility.SetEditorCurve(clip, binding, null);
+                dropped++;
+                continue;
+            }
+            if (newPath == binding.path)
+                continue;
+
+            AnimationCurve curve = AnimationUtility.GetEditorCurve(clip, binding);
+            var next = binding;
+            next.path = newPath;
+            AnimationUtility.SetEditorCurve(clip, binding, null);
+            AnimationUtility.SetEditorCurve(clip, next, curve);
+            remapped++;
+        }
+
+        Debug.Log($"[BackHome] Remapped {remapped} low-oxygen curve(s) onto the player skeleton (dropped {dropped}).");
+        return remapped > 0;
+    }
+
+    static bool TryMapMixamoPath(string path, out string mapped)
+    {
+        mapped = null;
+        if (string.IsNullOrEmpty(path) || path == "target_character" || path == "Armature")
+            return false;
+
+        string[] segments = path.Split('/');
+        for (int i = 0; i < segments.Length; i++)
+        {
+            string bone = MapMixamoSegment(segments[i]);
+            if (bone != IdleTargetRootBoneName && !PlayerRigBones.Contains(bone))
+                return false;
+            segments[i] = bone;
+        }
+
+        mapped = string.Join("/", segments);
+        return mapped.StartsWith(IdleTargetRootBoneName + "/", System.StringComparison.Ordinal);
+    }
+
+    static string MapMixamoSegment(string segment)
+    {
+        if (segment == "Armature")
+            return IdleTargetRootBoneName;
+        if (segment.StartsWith("mixamorig:", System.StringComparison.Ordinal))
+            segment = segment.Substring("mixamorig:".Length);
+
+        switch (segment)
+        {
+            case "Spine": return "Spine02";
+            case "Spine1": return "Spine01";
+            case "Spine2": return "Spine";
+            case "Neck": return "neck";
+            default: return segment;
+        }
     }
 
     /// <summary>

@@ -45,6 +45,8 @@ Material:
     - _ShadeSteps: 3.09
     - _SpecularSize: 0.275
     - _SpecularSoftness: 0.5
+    - _WindDegrees: 6
+    - _WindReach: 0.55
     m_Colors:
     - _AmbientTint: {r: 1, g: 0.96, b: 0.88, a: 1}
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}

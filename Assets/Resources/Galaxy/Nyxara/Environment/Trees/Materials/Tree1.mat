@@ -53,6 +53,8 @@ Material:
     - _SpecularSize: 0.237
     - _SpecularSoftness: 0.191
     - _SrcBlend: 1
+    - _WindDegrees: 8
+    - _WindReach: 1.6
     - _ZWrite: 1
     m_Colors:
     - _AmbientTint: {r: 0.6506877, g: 1, b: 0.23113209, a: 1}

@@ -79,6 +79,7 @@ MonoBehaviour:
   idleSpinDegreesPerSecond: 90
   dropState: Drop
   idleState: Idle
+  lifetimeSeconds: 7
 --- !u!1 &7194874250077001573
 GameObject:
   m_ObjectHideFlags: 0

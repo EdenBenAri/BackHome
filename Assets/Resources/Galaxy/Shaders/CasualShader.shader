@@ -35,6 +35,10 @@ Shader "BackHome/CasualToon"
         [HDR] _EmissionColor("Emission Color", Color) = (0, 0, 0, 1)
         _EmissionMap("Emission", 2D) = "white" {}
 
+        [Header(Wind)]
+        _WindDegrees("Wind Sway", Range(0, 18)) = 0
+        _WindReach("Wind Reach", Range(0.1, 12)) = 1.5
+
         [Enum(UnityEngine.Rendering.CullMode)] _Cull("Cull", Float) = 0
 
         [HideInInspector] _Opacity("Opacity", Range(0, 1)) = 1
@@ -83,32 +87,7 @@ Shader "BackHome/CasualToon"
             TEXTURE2D(_EmissionMap);
             SAMPLER(sampler_EmissionMap);
 
-            CBUFFER_START(UnityPerMaterial)
-                float4 _BaseMap_ST;
-                half4 _BaseColor;
-                half _BumpScale;
-                half _Brightness;
-                half _ShadeSteps;
-                half _ShadeSoftness;
-                half _ShadeFloor;
-                half4 _ShadowTint;
-                half4 _KeyTint;
-                half _Saturation;
-                half _Contrast;
-                half4 _SpecularColor;
-                half _SpecularSize;
-                half _SpecularSoftness;
-                half4 _RimColor;
-                half _RimPower;
-                half _RimLightMask;
-                half _AmbientStrength;
-                half4 _AmbientTint;
-                half4 _EmissionColor;
-                half _Opacity;
-                half _SrcBlend;
-                half _DstBlend;
-                half _ZWrite;
-            CBUFFER_END
+            #include "CasualToonInput.hlsl"
 
             struct Attributes
             {
@@ -212,7 +191,8 @@ Shader "BackHome/CasualToon"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, o);
 
-                VertexPositionInputs posInputs = GetVertexPositionInputs(input.positionOS.xyz);
+                float3 positionOS = input.positionOS.xyz + CasualWindOffsetOS(input.positionOS.xyz);
+                VertexPositionInputs posInputs = GetVertexPositionInputs(positionOS);
                 VertexNormalInputs nrmInputs = GetVertexNormalInputs(input.normalOS, input.tangentOS);
 
                 o.positionCS = posInputs.positionCS;
@@ -277,7 +257,7 @@ Shader "BackHome/CasualToon"
                 // SRP Batcher keeps those properties in UnityPerMaterial.
                 // _ShadeSteps is unused by the flat grade. Touch it so the SRP batcher
                 // keeps the property inside UnityPerMaterial.
-                half opacity = saturate(_Opacity + (_SrcBlend + _DstBlend + _ZWrite + _ShadeSteps) * 0);
+                half opacity = saturate(_Opacity + (_SrcBlend + _DstBlend + _ZWrite + _ShadeSteps + _WindDegrees + _WindReach) * 0);
                 return half4(color, opacity);
             }
             ENDHLSL
@@ -301,6 +281,7 @@ Shader "BackHome/CasualToon"
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "CasualToonInput.hlsl"
 
             struct CasualDepthAttributes
             {
@@ -321,7 +302,9 @@ Shader "BackHome/CasualToon"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float3 bent = input.positionOS.xyz + CasualWindOffsetOS(input.positionOS.xyz);
+                output.positionCS = TransformObjectToHClip(bent);
+                output.positionCS.x += CasualToonKeepMaterialLayout();
                 return output;
             }
 
@@ -351,6 +334,7 @@ Shader "BackHome/CasualToon"
             #include_with_pragmas "Packages/com.unity.render-pipelines.universal/ShaderLibrary/RenderingLayers.hlsl"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "CasualToonInput.hlsl"
 
             struct CasualDepthNormalAttributes
             {
@@ -374,7 +358,9 @@ Shader "BackHome/CasualToon"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float3 bent = input.positionOS.xyz + CasualWindOffsetOS(input.positionOS.xyz);
+                output.positionCS = TransformObjectToHClip(bent);
+                output.positionCS.x += CasualToonKeepMaterialLayout();
                 VertexNormalInputs normalInput = GetVertexNormalInputs(input.normalOS, input.tangentOS);
                 output.normalWS = normalInput.normalWS;
                 return output;
@@ -437,6 +423,7 @@ Shader "BackHome/CasualToon"
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "CasualToonInput.hlsl"
 
             struct OutlineSubjectAttributes
             {
@@ -457,7 +444,9 @@ Shader "BackHome/CasualToon"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float3 bent = input.positionOS.xyz + CasualWindOffsetOS(input.positionOS.xyz);
+                output.positionCS = TransformObjectToHClip(bent);
+                output.positionCS.x += CasualToonKeepMaterialLayout();
                 return output;
             }
 
@@ -500,6 +489,7 @@ Shader "BackHome/CasualToon"
             #pragma multi_compile_instancing
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
+            #include "CasualToonInput.hlsl"
 
             struct OutlineSubjectAttributes
             {
@@ -520,7 +510,9 @@ Shader "BackHome/CasualToon"
                 UNITY_SETUP_INSTANCE_ID(input);
                 UNITY_TRANSFER_INSTANCE_ID(input, output);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(output);
-                output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
+                float3 bent = input.positionOS.xyz + CasualWindOffsetOS(input.positionOS.xyz);
+                output.positionCS = TransformObjectToHClip(bent);
+                output.positionCS.x += CasualToonKeepMaterialLayout();
                 return output;
             }
 

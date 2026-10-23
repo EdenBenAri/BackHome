@@ -61,6 +61,7 @@ public class PlanetWalker : MonoBehaviour
     int _animIDMotionSpeed;
     int _animIDMoving;
     int _animIDIdleVariant;
+    int _animIDLowOxygen;
 
     // Starts true so the very first Update (player not moving yet) rolls the initial idle pick.
     bool _wasMoving = true;
@@ -74,10 +75,33 @@ public class PlanetWalker : MonoBehaviour
     public float WalkSpeed => walkSpeed * MoveSpeedMultiplier;
 
     /// <summary>Multiplies walk/run speed. Comes from <see cref="PlayerStats"/> via <see cref="PlayerVitals"/> (1 = normal).</summary>
-    float MoveSpeedMultiplier => _vitals != null && _vitals.Stats != null ? _vitals.Stats.MoveSpeedMultiplier : 1f;
+    bool OutOfOxygen => _vitals != null && _vitals.HasOxygen && _vitals.CurrentOxygen <= 0f;
+
+    float MoveSpeedMultiplier
+    {
+        get
+        {
+            if (_vitals == null || _vitals.Stats == null)
+                return 1f;
+            float speed = _vitals.Stats.MoveSpeedMultiplier;
+            if (OutOfOxygen)
+                speed *= _vitals.Stats.LowOxygenMoveSpeedMultiplier;
+            return speed;
+        }
+    }
 
     /// <summary>Running animation playback rate. Comes from <see cref="PlayerStats"/> via <see cref="PlayerVitals"/> (1 = normal).</summary>
-    float RunningAnimationSpeed => _vitals != null && _vitals.Stats != null ? _vitals.Stats.RunningAnimationSpeed : 1f;
+    float RunningAnimationSpeed
+    {
+        get
+        {
+            if (_vitals == null || _vitals.Stats == null)
+                return 1f;
+            if (OutOfOxygen)
+                return _vitals.Stats.LowOxygenAnimationSpeed;
+            return _vitals.Stats.RunningAnimationSpeed;
+        }
+    }
 
     /// <summary>Intended tangent velocity (units/sec). Drives motion-aware camera framing.</summary>
     public Vector3 PlanarVelocity { get; private set; }
@@ -107,6 +131,7 @@ public class PlanetWalker : MonoBehaviour
         _animIDMotionSpeed = Animator.StringToHash("MotionSpeed");
         _animIDMoving = Animator.StringToHash("Moving");
         _animIDIdleVariant = Animator.StringToHash("IdleVariant");
+        _animIDLowOxygen = Animator.StringToHash("LowOxygen");
     }
 
     void Start()
@@ -1145,5 +1170,7 @@ public class PlanetWalker : MonoBehaviour
             _animator.SetInteger(_animIDIdleVariant, Random.value < Idle1Chance ? 0 : 1);
         _wasMoving = moving;
         _animator.SetBool(_animIDMoving, moving);
+        // Empty tank only. A missing oxygen stat stays on the normal run.
+        _animator.SetBool(_animIDLowOxygen, OutOfOxygen);
     }
 }
