@@ -87,11 +87,14 @@ public static class PlayerModelSwapTool
     const string LowOxygenParameterName = "LowOxygen";
 
     // One standing attack. Plays only while the player is still and a weapon is firing.
+    // Source file is Starbot_Animation_Attack.fbx (Mixamo take, same mixamorig rig as the
+    // low-oxygen run). The Animator state stays "Attack1".
     const string AttackParameterName = "Attacking";
     const string AttackStateName = "Attack1";
-    const string AttackModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Attack1.fbx";
+    const string AttackModelPath = "Assets/Resources/Player/Models/Starbot_Animation_Attack.fbx";
     const string AttackClipName = "Attack1";
     const string AttackInPlacePath = "Assets/Resources/Player/Animator/Attack1InPlace.anim";
+    const float AttackStateSpeed = 1.25f;
 
     // Material shared by every Meshy AI export in Model/ (they were all authored with a single
     // "Material_1" slot). The shader wired into it isn't actually URP/Lit despite the guid's
@@ -1360,9 +1363,11 @@ public static class PlayerModelSwapTool
     }
 
     /// <summary>
-    /// Wires the single Attack1 clip so it loops while the player is standing still and a weapon
-    /// is firing. Moving, or the weapons stopping, leaves the clip. Removes the old Attack2/Attack3
-    /// states and the AttackVariant roll.
+    /// Rebakes Attack1 from Starbot_Animation_Attack.fbx so a replaced source file actually
+    /// updates the clip. Copies the authored Mixamo rotations (humanoid muscle retarget twists
+    /// the fingerless hands into the forearms), lifts the hips to the run height, and loops the
+    /// result while the player is standing still and a weapon is firing. Moving, or the weapons
+    /// stopping, leaves the clip. Removes the old Attack2/Attack3 states and the AttackVariant roll.
     /// </summary>
     [MenuItem("BackHome/Player/Setup Player Attack Animations")]
     public static void SetupPlayerAttackAnimations()
@@ -1375,9 +1380,7 @@ public static class PlayerModelSwapTool
                 return;
             }
 
-            AnimationClip clip = AssetDatabase.LoadAssetAtPath<AnimationClip>(AttackInPlacePath);
-            if (clip == null)
-                clip = BakeMixamoClipInPlace(AttackModelPath, AttackClipName, AttackInPlacePath);
+            AnimationClip clip = ExtractMixamoByBoneRemap(AttackModelPath, AttackClipName, AttackInPlacePath, retargetFailed: false);
             if (clip == null)
                 return;
 
@@ -1805,12 +1808,12 @@ public static class PlayerModelSwapTool
         AnimatorState state = root.states.Select(s => s.state).FirstOrDefault(s => s.name == AttackStateName)
             ?? root.AddState(AttackStateName, new Vector3(620, -80, 0));
         state.motion = clip;
-        state.speed = 1f;
+        state.speed = AttackStateSpeed;
         state.speedParameterActive = false;
 
         RebuildAnyStateTransitions(controller);
         EditorUtility.SetDirty(controller);
-        Debug.Log("[BackHome] Added/refreshed Attack1. It loops while the player stands still and weapons are firing.");
+        Debug.Log($"[BackHome] Added/refreshed Attack1 ({clip.length:0.00}s at x{AttackStateSpeed:0.00}). It loops while the player stands still and weapons are firing.");
         return true;
     }
 
