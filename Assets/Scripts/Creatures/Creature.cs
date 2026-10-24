@@ -60,6 +60,8 @@ public class Creature : MonoBehaviour, IVitalsReadable
         if (_anim == null)
             _anim = GetComponentInChildren<CreatureAnimator>();
         ResetHealth();
+        if (GetComponent<CreatureBlobShadow>() == null)
+            gameObject.AddComponent<CreatureBlobShadow>();
     }
 
     void OnValidate()
