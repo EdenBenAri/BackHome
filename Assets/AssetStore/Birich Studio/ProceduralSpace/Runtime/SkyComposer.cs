@@ -114,6 +114,19 @@ namespace BirichStudio.ProceduralSpace
         private const int SlotFeaturedSun = 24;
         private const int SlotFeaturedStar = 25;
 
+        // Screen shift = camera travel × parallax. The star layers are scaled down by
+        // parallaxStrength so the distant field stays put. These two are the close bodies,
+        // so they keep a fixed share of the camera motion: the striped planet a little
+        // more than the sun behind it.
+        private const float FeaturedCloseParallax = 0.06f;
+        private const float FeaturedSunParallax = 0.04f;
+
+        // Starting spots for the two featured bodies, in a 17-unit-tall view.
+        // (0, 0) is the middle of the screen. Positive x is right, positive y is up.
+        // Tuned by hand: separation would otherwise shove both of them off the frame.
+        private static readonly Vector2 FeaturedClosePos = new Vector2(-5.5f, -2f);
+        private static readonly Vector2 FeaturedSunPos = new Vector2(6f, 3f);
+
         /// <summary>
         /// A tiny deterministic PRNG (xorshift32), one instance per decision stream.
         ///
@@ -339,6 +352,9 @@ namespace BirichStudio.ProceduralSpace
             // Bodies choose their own spots independently, so they can land on each other; this is
             // where they settle out. Run before the sort, because it works on the whole set.
             Relax(p);
+            // Relax pushes by full radii. The striped planet is drawn smaller than the radius
+            // used for that push, so the pair ends past the screen edge. Put them back.
+            PinFeaturedBodies(p);
 
             // Far-to-near: the shader draws the arrays in order, painting over what came before.
             // Ties broken by slot. parallaxStrength = 0, or a band with both ends equal, gives
@@ -798,21 +814,22 @@ namespace BirichStudio.ProceduralSpace
                 {
                     sun.radius = minSun;
                     sun.atmosphere = Mathf.Max(sun.atmosphere, 1.65f);
-                    Bodies[existingSun] = sun;
                 }
+                // The distant star field is quieted by parallaxStrength. These two stay in
+                // front of it, so walking should still carry them.
+                sun.parallax = FeaturedSunParallax;
+                Bodies[existingSun] = sun;
             }
             if (needed == 0) return;
 
             MakeRoom(needed);
 
             Rng layout = Stream(seed, DomPlace, SlotFeaturedSun);
-            Vector2 ext = Spread(p);
-            float side = layout.Next(2) == 0 ? 1f : -1f;
 
             if (addSun)
             {
                 float radius = Range(layout, 2.6f, 3.5f) * p.planetScale * Fit;
-                Vector2 center = new Vector2(side * ext.x * 0.62f, ext.y * 0.5f) + p.skyOffset;
+                Vector2 center = FeaturedSunPos * Fit + p.skyOffset;
                 Color core = new Color(1f, 0.94f, 0.68f);
                 Bodies.Add(new Body
                 {
@@ -821,7 +838,7 @@ namespace BirichStudio.ProceduralSpace
                     center = center,
                     radius = radius,
                     depth = 0.45f,
-                    parallax = ParallaxFor(p, 0.45f),
+                    parallax = FeaturedSunParallax,
                     spin = SpinFor(layout, p),
                     tilt = Range(layout, p.tiltRange.x, p.tiltRange.y) * Mathf.Deg2Rad,
                     seed = Range(layout, 0f, 100f),
@@ -838,7 +855,7 @@ namespace BirichStudio.ProceduralSpace
             if (!addStar) return;
 
             float starRadius = Range(layout, 5.4f, 7.2f) * p.planetScale * Fit;
-            Vector2 starAt = new Vector2(-side * ext.x * 0.46f, -ext.y * 0.18f) + p.skyOffset;
+            Vector2 starAt = FeaturedClosePos * Fit + p.skyOffset;
             Color star = new Color(1f, 0.84f, 0.36f);
             Bodies.Add(new Body
             {
@@ -847,7 +864,7 @@ namespace BirichStudio.ProceduralSpace
                 center = starAt,
                 radius = starRadius,
                 depth = 0.05f,
-                parallax = ParallaxFor(p, 0.05f),
+                parallax = FeaturedCloseParallax,
                 spin = SpinFor(layout, p),
                 tilt = Range(layout, p.tiltRange.x, p.tiltRange.y) * Mathf.Deg2Rad,
                 seed = Range(layout, 0f, 100f),
@@ -862,6 +879,36 @@ namespace BirichStudio.ProceduralSpace
                 c2 = new Color(0.94f, 0.97f, 1f),
                 c3 = new Color(0.5f, 0.7f, 1f),
             });
+        }
+
+        /// <summary>
+        /// Lock the striped planet and the sun to <see cref="FeaturedClosePos"/> and
+        /// <see cref="FeaturedSunPos"/>. Called after <see cref="Relax"/>, which would
+        /// otherwise walk them out of the frame.
+        /// </summary>
+        private static void PinFeaturedBodies(SpaceBackgroundProfile p)
+        {
+            if (!p.featuredCloseStar && !p.featuredSun) return;
+
+            bool pinnedSun = false;
+            for (int i = 0; i < Bodies.Count; i++)
+            {
+                Body b = Bodies[i];
+                if (b.kind != PlanetKind.Star) continue;
+
+                bool close = b.slot == SlotFeaturedStar || b.cloudAmount < -0.5f;
+                if (close && p.featuredCloseStar)
+                    b.center = FeaturedClosePos * Fit + p.skyOffset;
+                else if (!pinnedSun && p.featuredSun)
+                {
+                    b.center = FeaturedSunPos * Fit + p.skyOffset;
+                    pinnedSun = true;
+                }
+                else
+                    continue;
+
+                Bodies[i] = b;
+            }
         }
 
         /// <summary>Drop the smallest ordinary worlds until the featured bodies fit in the shader's planet cap.</summary>

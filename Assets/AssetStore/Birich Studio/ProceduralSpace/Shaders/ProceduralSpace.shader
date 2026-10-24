@@ -624,7 +624,7 @@ Shader "Birich Studio/ProceduralSpace"
             // Round cartoon planet: a disc, a few flat light bands, simple stripes.
             float4 CasualStar(float2 dv, float radius)
             {
-                float rad = max(radius, 1e-3) * 0.42;
+                float rad = max(radius, 1e-3) * 0.52;
                 float2 p = dv / rad;
                 float r2 = dot(p, p);
                 if (r2 > 1.85) return 0.0;

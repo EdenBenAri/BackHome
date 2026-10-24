@@ -52,9 +52,9 @@ MonoBehaviour:
   parallaxSmall: 0.1
   parallaxLarge: 0.025
   nebulaParallax: 0.03
-  farStarParallax: 0.1
-  midStarParallax: 0.2
-  nearStarParallax: 0.35
+  farStarParallax: 0.03
+  midStarParallax: 0.05
+  nearStarParallax: 0.08
   driftVelocity: {x: 0.12, y: 0.015}
   wrapBodies: 1
   wrapSpacing: 2.6
