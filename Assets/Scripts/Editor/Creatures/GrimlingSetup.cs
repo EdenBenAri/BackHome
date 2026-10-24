@@ -16,12 +16,10 @@ public static class GrimlingSetup
     const string Idle2ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Idle2.fbx";
     const string RunningModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Running.fbx";
     const string MeleeModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Melee_Attack.fbx";
-    const string DeathModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Death.fbx";
     const string Idle1ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Idle1.anim";
     const string Idle2ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Idle2.anim";
     const string RunningClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Running.anim";
     const string MeleeClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/MeleeAttack.anim";
-    const string DeathClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Death.anim";
     const string ControllerPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Grimling.controller";
     const string AlbedoPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Textures/Grimling_texture.png";
     const string NormalPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Textures/Grimling_normal.png";
@@ -37,9 +35,13 @@ public static class GrimlingSetup
     const float TargetHeight = 1.8f;
     const float DisplayScale = 3f;
 
+    const string MobRunningModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Mob/Models/Grimling_Animation_Running.fbx";
+    const string MobRunningClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Mob/Animations/Running.anim";
+
     static readonly string ResultPath = Path.Combine(Application.dataPath, "..", "Temp", "GrimlingSetup.result.txt");
     static readonly string TriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeSetupGrimling.trigger");
     static readonly string PatchTriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomePatchGrimling.trigger");
+    static readonly string RunTriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeRebakeGrimlingRun.trigger");
 
     [InitializeOnLoadMethod]
     static void Boot()
@@ -58,6 +60,12 @@ public static class GrimlingSetup
         if (EditorApplication.isCompiling || EditorApplication.isUpdating || EditorApplication.isPlayingOrWillChangePlaymode)
             return;
 
+        if (File.Exists(RunTriggerPath))
+        {
+            try { File.Delete(RunTriggerPath); } catch { /* ignore */ }
+            RebakeMobRun();
+        }
+
         if (File.Exists(PatchTriggerPath))
         {
             try { File.Delete(PatchTriggerPath); } catch { /* ignore */ }
@@ -69,6 +77,226 @@ public static class GrimlingSetup
 
         try { File.Delete(TriggerPath); } catch { /* ignore */ }
         SetupFromMenu();
+    }
+
+    [MenuItem("BackHome/Creatures/Rebake Grimling Run")]
+    public static void RebakeMobRun()
+    {
+        try
+        {
+            AnimationClip source = ImportMobRunSource();
+            Quaternion pitch = Quaternion.Euler(90f, 0f, 0f);
+            AnimationClip running = BakeMobRunClip(source, pitch);
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.ImportAsset(MobRunningClipPath, ImportAssetOptions.ForceUpdate);
+            WriteResult($"run ok length={running.length:0.00}s pitch=90,0,0");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogException(e);
+            WriteResult("RUN FAILED: " + e);
+        }
+    }
+
+    static AnimationClip ImportMobRunSource()
+    {
+        var importer = AssetImporter.GetAtPath(MobRunningModelPath) as ModelImporter;
+        if (importer == null)
+            throw new System.InvalidOperationException("Missing model at " + MobRunningModelPath);
+
+        importer.animationType = ModelImporterAnimationType.Generic;
+        importer.avatarSetup = ModelImporterAvatarSetup.CreateFromThisModel;
+        importer.optimizeGameObjects = false;
+        importer.animationCompression = ModelImporterAnimationCompression.Off;
+        importer.importAnimation = true;
+        importer.clipAnimations = System.Array.Empty<ModelImporterClipAnimation>();
+        importer.SaveAndReimport();
+
+        importer = AssetImporter.GetAtPath(MobRunningModelPath) as ModelImporter;
+        if (importer.importedTakeInfos == null || importer.importedTakeInfos.Length == 0)
+            throw new System.InvalidOperationException(MobRunningModelPath + " has no animation take.");
+
+        TakeInfo selected = SelectLongestTake(importer.importedTakeInfos);
+        importer.clipAnimations = new[]
+        {
+            new ModelImporterClipAnimation
+            {
+                name = "Running",
+                takeName = selected.name,
+                firstFrame = selected.startTime * selected.sampleRate,
+                lastFrame = selected.stopTime * selected.sampleRate,
+                loopTime = true,
+                loopPose = false,
+                wrapMode = WrapMode.Loop
+            }
+        };
+        importer.SaveAndReimport();
+
+        AnimationClip source = AssetDatabase.LoadAllAssetsAtPath(MobRunningModelPath)
+            .OfType<AnimationClip>()
+            .FirstOrDefault(c => c.name == "Running" && !c.name.StartsWith("__preview"));
+        if (source == null)
+            throw new System.InvalidOperationException("Could not read Running from " + MobRunningModelPath);
+
+        Debug.Log($"[BackHome] Grimling run take '{selected.name}' ({source.length:0.00}s)");
+        return source;
+    }
+
+    /// <summary>
+    /// target_character is rotated -90° on X, so hips local Z is up.
+    /// This run's Z curve is a steady climb, which launches the body. Lock X/Y/Z so it stays in place.
+    /// hipsPitch turns the whole pose 90° on X when the take lies on its side.
+    /// </summary>
+    static AnimationClip BakeMobRunClip(AnimationClip source, Quaternion hipsPitch)
+    {
+        bool turnHips = Quaternion.Angle(hipsPitch, Quaternion.identity) > 0.1f;
+        var clip = new AnimationClip { name = "Running" };
+        AnimationClipSettings settings = AnimationUtility.GetAnimationClipSettings(source);
+        settings.loopTime = true;
+        settings.loopBlend = false;
+        AnimationUtility.SetAnimationClipSettings(clip, settings);
+
+        const string hipsPath = "target_character/mixamorig:Hips";
+        foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(source))
+        {
+            if (binding.type == typeof(Transform) && binding.propertyName.StartsWith("m_LocalScale."))
+                continue;
+
+            string path = RemapBonePath(binding.path);
+            if (path == "target_character")
+                continue;
+
+            bool hipsRotation = turnHips && path == hipsPath && IsRotationProperty(binding.propertyName);
+            if (hipsRotation)
+                continue;
+
+            AnimationCurve curve = AnimationUtility.GetEditorCurve(source, binding);
+            bool lockHips = path == hipsPath
+                && (binding.propertyName == "m_LocalPosition.x"
+                    || binding.propertyName == "m_LocalPosition.y"
+                    || binding.propertyName == "m_LocalPosition.z");
+            if (lockHips && curve.keys.Length > 0)
+            {
+                // Parent Z is up. The take's first frame sits under the ground; Idle1 stands at this height.
+                float locked = binding.propertyName == "m_LocalPosition.z"
+                    ? 0.007170423f
+                    : curve.keys[0].value;
+                curve = AnimationCurve.Constant(curve.keys[0].time, curve.keys[curve.keys.Length - 1].time, locked);
+            }
+
+            var remapped = binding;
+            remapped.path = path;
+            AnimationUtility.SetEditorCurve(clip, remapped, curve);
+        }
+
+        if (turnHips)
+            WriteHipsPitch(source, clip, hipsPath, hipsPitch);
+
+        AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(MobRunningClipPath);
+        if (existing == null)
+        {
+            AssetDatabase.CreateAsset(clip, MobRunningClipPath);
+            return clip;
+        }
+
+        EditorUtility.CopySerialized(clip, existing);
+        existing.name = "Running";
+        EditorUtility.SetDirty(existing);
+        AssetDatabase.SaveAssetIfDirty(existing);
+        Object.DestroyImmediate(clip);
+        return existing;
+    }
+
+    static bool IsRotationProperty(string propertyName)
+    {
+        return propertyName.StartsWith("m_LocalRotation.", System.StringComparison.Ordinal)
+            || propertyName.StartsWith("localEulerAngles", System.StringComparison.Ordinal)
+            || propertyName.StartsWith("m_LocalEuler", System.StringComparison.Ordinal);
+    }
+
+    static void WriteHipsPitch(AnimationClip source, AnimationClip clip, string hipsPath, Quaternion pitch)
+    {
+        AnimationCurve cx = HipsCurve(source, "m_LocalRotation.x");
+        AnimationCurve cy = HipsCurve(source, "m_LocalRotation.y");
+        AnimationCurve cz = HipsCurve(source, "m_LocalRotation.z");
+        AnimationCurve cw = HipsCurve(source, "m_LocalRotation.w");
+        if (cx == null || cy == null || cz == null || cw == null || cx.length == 0)
+            throw new System.InvalidOperationException("Grimling run hips rotation is missing.");
+
+        var rx = new AnimationCurve();
+        var ry = new AnimationCurve();
+        var rz = new AnimationCurve();
+        var rw = new AnimationCurve();
+        Quaternion previous = Quaternion.identity;
+        for (int i = 0; i < cx.length; i++)
+        {
+            float time = cx[i].time;
+            Quaternion rotation = new Quaternion(cx.Evaluate(time), cy.Evaluate(time), cz.Evaluate(time), cw.Evaluate(time));
+            rotation = pitch * rotation;
+            if (i > 0 && Quaternion.Dot(rotation, previous) < 0f)
+                rotation = new Quaternion(-rotation.x, -rotation.y, -rotation.z, -rotation.w);
+            previous = rotation;
+            rx.AddKey(time, rotation.x);
+            ry.AddKey(time, rotation.y);
+            rz.AddKey(time, rotation.z);
+            rw.AddKey(time, rotation.w);
+        }
+
+        SetLinearTangents(rx);
+        SetLinearTangents(ry);
+        SetLinearTangents(rz);
+        SetLinearTangents(rw);
+
+        SetHipsCurve(clip, hipsPath, "m_LocalRotation.x", rx);
+        SetHipsCurve(clip, hipsPath, "m_LocalRotation.y", ry);
+        SetHipsCurve(clip, hipsPath, "m_LocalRotation.z", rz);
+        SetHipsCurve(clip, hipsPath, "m_LocalRotation.w", rw);
+    }
+
+    static AnimationCurve HipsCurve(AnimationClip source, string propertyName)
+    {
+        foreach (EditorCurveBinding binding in AnimationUtility.GetCurveBindings(source))
+        {
+            if (binding.type != typeof(Transform) || binding.propertyName != propertyName)
+                continue;
+            if (RemapBonePath(binding.path) == "target_character/mixamorig:Hips")
+                return AnimationUtility.GetEditorCurve(source, binding);
+        }
+
+        return null;
+    }
+
+    static void SetHipsCurve(AnimationClip clip, string path, string propertyName, AnimationCurve curve)
+    {
+        var binding = new EditorCurveBinding
+        {
+            path = path,
+            type = typeof(Transform),
+            propertyName = propertyName
+        };
+        AnimationUtility.SetEditorCurve(clip, binding, curve);
+    }
+
+    static void SetLinearTangents(AnimationCurve curve)
+    {
+        for (int i = 0; i < curve.length; i++)
+        {
+            Keyframe key = curve[i];
+            float slope;
+            if (curve.length == 1)
+                slope = 0f;
+            else if (i == 0)
+                slope = (curve[1].value - key.value) / (curve[1].time - key.time);
+            else if (i == curve.length - 1)
+                slope = (key.value - curve[i - 1].value) / (key.time - curve[i - 1].time);
+            else
+                slope = (curve[i + 1].value - curve[i - 1].value) / (curve[i + 1].time - curve[i - 1].time);
+
+            key.inTangent = slope;
+            key.outTangent = slope;
+            curve.MoveKey(i, key);
+        }
     }
 
     [MenuItem("BackHome/Creatures/Setup Grimling")]
@@ -95,14 +323,11 @@ public static class GrimlingSetup
             AnimationClip melee = ExtractLoopingClip(MeleeModelPath, "LightAttack", MeleeClipPath, loop: true);
             AddAttackStates(controller, melee);
 
-            AnimationClip death = ExtractLoopingClip(DeathModelPath, "Death", DeathClipPath, loop: false);
-            AddDeathState(controller, death);
-
             AssetDatabase.SaveAssets();
             AssetDatabase.ImportAsset(PrefabPath, ImportAssetOptions.ForceUpdate);
             KeepPrefabGuid();
             AnimatorGraphRepair.Repair();
-            WriteResult($"ok idle1={idle1.length:0.00}s idle2={idle2.length:0.00}s run={running.length:0.00}s melee={melee.length:0.00}s death={death.length:0.00}s");
+            WriteResult($"ok idle1={idle1.length:0.00}s idle2={idle2.length:0.00}s run={running.length:0.00}s melee={melee.length:0.00}s");
         }
         catch (System.Exception e)
         {
@@ -634,28 +859,6 @@ public static class GrimlingSetup
         LinkAttack(run, light, CreatureAttackKind.Basic);
         LinkAttackExit(light, run, moving: true);
         LinkAttackExit(light, idle1, moving: false);
-
-        EditorUtility.SetDirty(controller);
-    }
-
-    static void AddDeathState(AnimatorController controller, AnimationClip death)
-    {
-        EnsureParameter(controller, "Die", AnimatorControllerParameterType.Trigger);
-
-        AnimatorStateMachine machine = controller.layers[0].stateMachine;
-        AnimatorState state = FindState(machine, "Death") ?? machine.AddState("Death", new Vector3(540, 420, 0));
-        state.motion = death;
-        state.speed = 1f;
-        state.speedParameterActive = false;
-
-        AnimatorStateTransition transition = machine.AddAnyStateTransition(state);
-        transition.hasExitTime = false;
-        transition.exitTime = 0f;
-        transition.hasFixedDuration = true;
-        transition.duration = 0.05f;
-        transition.canTransitionToSelf = false;
-        transition.interruptionSource = TransitionInterruptionSource.None;
-        transition.AddCondition(AnimatorConditionMode.If, 0, "Die");
 
         EditorUtility.SetDirty(controller);
     }

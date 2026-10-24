@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 5652306619527522206}
   - component: {fileID: 7934269591985318146}
   m_Layer: 0
-  m_Name: KingslimeDeathVFX
+  m_Name: KingSlimeDeathVFX
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

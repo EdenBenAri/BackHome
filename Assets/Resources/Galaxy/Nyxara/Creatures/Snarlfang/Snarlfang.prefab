@@ -243,6 +243,7 @@ GameObject:
   - component: {fileID: 3088440462157757799}
   - component: {fileID: 3857493109828214567}
   - component: {fileID: 7451745259357345160}
+  - component: {fileID: 4800004454855721200}
   m_Layer: 0
   m_Name: Snarlfang
   m_TagString: Untagged
@@ -350,6 +351,13 @@ MonoBehaviour:
   knockbackDistance: 0.2
   knockbackDuration: 0.16
   knockbackCooldown: 0.5
+  paceWhileIdle: 1
+  paceMinSteps: 3
+  paceMaxSteps: 5
+  paceStepDistance: 0.95
+  paceWaitMin: 5
+  paceWaitMax: 10
+  paceArriveDistance: 0.22
 --- !u!114 &3088440462157757799
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -400,6 +408,20 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::CreatureAnimator
   attackClipName: Attack
+--- !u!114 &4800004454855721200
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1093679255119258297}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c8e4a1b07d2f4e6a9b3c5d7e1f20486a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CreatureDeathVfx
+  deathVfxPrefab: {fileID: 6002873804397069290, guid: fa8795f5ce0a8314eb06111299fdc070, type: 3}
+  bodyRadius: 1.2
 --- !u!1 &1269922349744664127
 GameObject:
   m_ObjectHideFlags: 0

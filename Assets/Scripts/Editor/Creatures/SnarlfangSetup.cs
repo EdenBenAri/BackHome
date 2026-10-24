@@ -20,8 +20,6 @@ public static class SnarlfangSetup
     const string RunningClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Animations/Running.anim";
     const string LightModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Models/Snarlfang_Animation_Attack.fbx";
     const string LightClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Animations/LightAttack.anim";
-    const string DeathModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Models/Snarlfang_Animation_Death.fbx";
-    const string DeathClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Animations/Death.anim";
     const string ControllerPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Animations/Snarlfang.controller";
     const string AlbedoPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Textures/Snarlfang_texture.png";
     const string NormalPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Textures/Snarlfang_normal.png";
@@ -134,7 +132,6 @@ public static class SnarlfangSetup
         Setup(force: false);
         SetupIdles(force: false);
         EnsureAttacks(force: false);
-        EnsureDeath(force: false);
     }
 
     static void Diagnose()
@@ -549,7 +546,6 @@ public static class SnarlfangSetup
             AddAttackStates(controller, light);
             AssetDatabase.SaveAssets();
             WriteResult($"attacks ok light={light.length:0.00}s");
-            EnsureDeath(force);
         }
         catch (System.Exception e)
         {
@@ -568,63 +564,6 @@ public static class SnarlfangSetup
         }
 
         return ExtractLoopingClip(modelPath, clipName, clipPath, loop);
-    }
-
-    static void EnsureDeath(bool force)
-    {
-        try
-        {
-            AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath);
-            if (controller == null || controller.layers == null || controller.layers.Length == 0)
-                return;
-
-            AnimationClip death = LoadOrExtract(force, DeathClipPath, DeathModelPath, "Death", loop: false);
-            if (death == null)
-                return;
-
-            EnsureParameter(controller, "Die", AnimatorControllerParameterType.Trigger);
-
-            AnimatorStateMachine machine = controller.layers[0].stateMachine;
-            AnimatorState state = FindState(machine, "Death") ?? machine.AddState("Death", new Vector3(540, 420, 0));
-            state.motion = death;
-            state.speed = 1f;
-            state.speedParameterActive = false;
-
-            if (!HasAnyStateTransitionTo(machine, state))
-            {
-                AnimatorStateTransition transition = machine.AddAnyStateTransition(state);
-                transition.hasExitTime = false;
-                transition.exitTime = 0f;
-                transition.hasFixedDuration = true;
-                transition.duration = 0.05f;
-                transition.canTransitionToSelf = false;
-                transition.interruptionSource = TransitionInterruptionSource.None;
-                transition.AddCondition(AnimatorConditionMode.If, 0, "Die");
-            }
-
-            EditorUtility.SetDirty(controller);
-            AssetDatabase.SaveAssets();
-            WriteResult($"death ok length={death.length:0.00}s loop=false");
-        }
-        catch (System.Exception e)
-        {
-            Debug.LogException(e);
-            WriteResult("DEATH FAILED: " + e);
-        }
-    }
-
-    static bool HasAnyStateTransitionTo(AnimatorStateMachine machine, AnimatorState to)
-    {
-        if (machine == null || to == null)
-            return true;
-
-        foreach (AnimatorStateTransition transition in machine.anyStateTransitions)
-        {
-            if (transition.destinationState == to)
-                return true;
-        }
-
-        return false;
     }
 
     static AnimatorState FindState(AnimatorStateMachine machine, string stateName)

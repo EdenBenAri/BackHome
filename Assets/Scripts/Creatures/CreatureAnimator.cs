@@ -345,9 +345,9 @@ public class CreatureAnimator : MonoBehaviour
         _moving = false;
         _attacking = false;
 
-        // Slime death is particles only. A generated Death clip squashes the body into a floor puddle,
-        // so stop the Animator before that state can sample even if the clip gets rebuilt.
-        if (GetComponent<SlimeDeathSplash>() != null)
+        // Mob death is particles. Kings keep a Death clip and do not carry this component.
+        // Stop the Animator before a leftover Death state can sample.
+        if (GetComponent<SlimeDeathSplash>() != null || GetComponent<CreatureDeathVfx>() != null)
         {
             if (_animator != null)
                 _animator.enabled = false;

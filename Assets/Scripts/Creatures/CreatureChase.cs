@@ -4,6 +4,7 @@ using UnityEngine;
 /// Chases the player when they enter this creature's vision range.
 /// After <see cref="loseVisionDelay"/> seconds outside vision, loses aggro and returns home.
 /// Stops inside attack range so <see cref="CreatureRangeCombat"/> can deal damage.
+/// While idle, regular mobs pace a few steps out and back. Kings stay put.
 /// Walks on the spherical planet surface (same stick model as spawn / PlanetWalker).
 /// </summary>
 [RequireComponent(typeof(Creature))]
@@ -14,6 +15,15 @@ public class CreatureChase : MonoBehaviour
         Idle,
         Aggroed,
         Returning
+    }
+
+    enum PacePhase
+    {
+        None,
+        WalkOut,
+        WaitOut,
+        WalkBack,
+        WaitHome
     }
 
     [Header("Movement")]
@@ -35,8 +45,26 @@ public class CreatureChase : MonoBehaviour
     [Tooltip("Minimum seconds between knockbacks on this creature.")]
     [SerializeField, Min(0f)] float knockbackCooldown = 0.5f;
 
+    [Header("Idle pace")]
+    [Tooltip("Regular mobs walk a few steps along a random direction, wait, then walk back. Kings stay still.")]
+    [SerializeField] bool paceWhileIdle = true;
+    [SerializeField, Min(1)] int paceMinSteps = 3;
+    [SerializeField, Min(1)] int paceMaxSteps = 5;
+    [Tooltip("World distance of one pace step.")]
+    [SerializeField, Min(0.05f)] float paceStepDistance = 0.95f;
+    [Tooltip("Each stop rolls a new pause in this range. Values under 5 seconds are treated as 5–10.")]
+    [SerializeField, Min(0f)] float paceWaitMin = 5f;
+    [SerializeField, Min(0f)] float paceWaitMax = 10f;
+    [SerializeField, Min(0.05f)] float paceArriveDistance = 0.22f;
+
+    // Fast creatures cover a few steps in a blink. Stretch those walks so they still read as a stroll.
+    const float PaceMinWalkSeconds = 0.9f;
+    const float PaceMinSpeedScale = 0.4f;
+    const float PaceStuckSeconds = 0.45f;
+
     Creature _creature;
     CreatureAnimator _anim;
+    Animator _animator;
     PlayerVitals _player;
     SphericalPlanet _planet;
     PlanetTileMap _tiles;
@@ -56,6 +84,17 @@ public class CreatureChase : MonoBehaviour
     float _nextKnockbackTime;
     Vector3 _velocity;
 
+    bool _isKing;
+    bool _paceReady;
+    PacePhase _pacePhase;
+    Vector3 _paceDir;
+    Vector3 _paceTarget;
+    float _pauseRemaining;
+    float _paceSpeedScale = 1f;
+    float _paceBestDist;
+    float _paceStuck;
+    int _paceSteps;
+
     /// <summary>True while actively chasing / fighting the player.</summary>
     public bool IsAggroed => _state == State.Aggroed;
 
@@ -71,9 +110,16 @@ public class CreatureChase : MonoBehaviour
         _anim = GetComponent<CreatureAnimator>();
         if (_anim == null)
             _anim = GetComponentInChildren<CreatureAnimator>();
+        _animator = GetComponentInChildren<Animator>();
+        _isKing = GetComponent<AreaKing>() != null;
 
         if (groundLayer.value == 0)
             groundLayer = LayerMask.GetMask("Ground");
+    }
+
+    void OnDisable()
+    {
+        SetPacePlayback(1f);
     }
 
     void Start()
@@ -86,6 +132,7 @@ public class CreatureChase : MonoBehaviour
         if (_creature == null)
         {
             _velocity = Vector3.zero;
+            SetPacePlayback(1f);
             _anim?.ResetToIdle();
             return;
         }
@@ -93,12 +140,14 @@ public class CreatureChase : MonoBehaviour
         if (!_creature.IsAlive)
         {
             _velocity = Vector3.zero;
+            SetPacePlayback(1f);
             return;
         }
 
         if (_creature.IsFrozen)
         {
             _velocity = Vector3.zero;
+            SetPacePlayback(1f);
             _anim?.ResetToIdle();
             return;
         }
@@ -109,6 +158,7 @@ public class CreatureChase : MonoBehaviour
         if (!TryResolvePlanet())
         {
             _velocity = Vector3.zero;
+            SetPacePlayback(1f);
             _anim?.SetMoving(false);
             return;
         }
@@ -116,6 +166,7 @@ public class CreatureChase : MonoBehaviour
         if (_knockActive)
         {
             _velocity = Vector3.zero;
+            SetPacePlayback(1f);
             _anim?.SetMoving(false);
             return;
         }
@@ -142,6 +193,7 @@ public class CreatureChase : MonoBehaviour
         if (_creature != null && !_creature.IsAlive)
         {
             _knockActive = false;
+            SetPacePlayback(1f);
             return;
         }
 
@@ -185,17 +237,26 @@ public class CreatureChase : MonoBehaviour
 
     void TickIdle()
     {
-        _anim?.SetMoving(false);
+        if (TryGetLivingPlayer(out PlayerVitals player))
+        {
+            float vision = _creature.VisionRange;
+            if (vision > 0f && GetSurfaceDistanceTo(player.transform.position) <= vision)
+            {
+                SetPacePlayback(1f);
+                SpotPlayer();
+                return;
+            }
+        }
 
-        if (!TryGetLivingPlayer(out PlayerVitals player))
+        if (_isKing || !paceWhileIdle)
+        {
+            _velocity = Vector3.zero;
+            SetPacePlayback(1f);
+            _anim?.SetMoving(false);
             return;
+        }
 
-        float vision = _creature.VisionRange;
-        if (vision <= 0f)
-            return;
-
-        if (GetSurfaceDistanceTo(player.transform.position) <= vision)
-            SpotPlayer();
+        TickPace();
     }
 
     void TickAggroed()
@@ -272,6 +333,7 @@ public class CreatureChase : MonoBehaviour
     {
         _state = State.Aggroed;
         _outOfVisionTime = 0f;
+        SetPacePlayback(1f);
     }
 
     void SpotPlayer()
@@ -283,6 +345,7 @@ public class CreatureChase : MonoBehaviour
     {
         _state = State.Returning;
         _outOfVisionTime = 0f;
+        SetPacePlayback(1f);
         _anim?.SetAttacking(false);
     }
 
@@ -304,6 +367,9 @@ public class CreatureChase : MonoBehaviour
             transform.SetPositionAndRotation(_homePosition, Quaternion.LookRotation(faceDir.normalized, up));
         else
             transform.position = _homePosition;
+
+        _pacePhase = PacePhase.None;
+        SetPacePlayback(1f);
     }
 
     void CaptureHome()
@@ -375,7 +441,271 @@ public class CreatureChase : MonoBehaviour
             _knockActive = false;
     }
 
+    void TickPace()
+    {
+        if (!_homeCaptured)
+            CaptureHome();
+
+        EnsurePaceProfile();
+
+        if (_pacePhase == PacePhase.None)
+            BeginPaceOut();
+
+        switch (_pacePhase)
+        {
+            case PacePhase.WalkOut:
+                TickPaceWalk(_paceTarget, false);
+                break;
+            case PacePhase.WalkBack:
+                TickPaceWalk(_homePosition, true);
+                break;
+            case PacePhase.WaitOut:
+                TickPaceWait(false);
+                break;
+            case PacePhase.WaitHome:
+                TickPaceWait(true);
+                break;
+        }
+    }
+
+    void EnsurePaceProfile()
+    {
+        if (_paceReady)
+            return;
+
+        int minSteps = Mathf.Max(1, Mathf.Min(paceMinSteps, paceMaxSteps));
+        int maxSteps = Mathf.Max(minSteps, Mathf.Max(paceMinSteps, paceMaxSteps));
+        _paceSteps = Random.Range(minSteps, maxSteps + 1);
+        _paceDir = Vector3.zero;
+        _paceReady = true;
+    }
+
+    void BeginPaceOut()
+    {
+        // Same random line for this creature. Each outing flips, so it paces side to side
+        // through home: out, wait, back, wait, then out the other way.
+        bool pickNew = _paceDir.sqrMagnitude <= 0.25f;
+        EnsurePaceDirection();
+        if (!pickNew)
+            _paceDir = -_paceDir;
+
+        float distance = _paceSteps * paceStepDistance;
+        _paceSpeedScale = PaceScaleFor(distance);
+        _paceTarget = OffsetOnSurface(_homePosition, _paceDir, distance);
+        _pacePhase = PacePhase.WalkOut;
+        _paceBestDist = float.MaxValue;
+        _paceStuck = 0f;
+    }
+
+    void BeginPaceBack()
+    {
+        _pacePhase = PacePhase.WalkBack;
+        _paceBestDist = float.MaxValue;
+        _paceStuck = 0f;
+    }
+
+    void BeginPaceWait(PacePhase phase)
+    {
+        _pacePhase = phase;
+        _pauseRemaining = RollPaceWait();
+        _velocity = Vector3.zero;
+        SetPacePlayback(1f);
+        _anim?.SetMoving(false);
+    }
+
+    float RollPaceWait()
+    {
+        // A saved 0–1.6s range from the first version never actually reads as a stop.
+        float min = paceWaitMin;
+        float max = paceWaitMax;
+        if (max < 5f)
+        {
+            min = 5f;
+            max = 10f;
+        }
+
+        min = Mathf.Max(0f, min);
+        max = Mathf.Max(min, max);
+        return Mathf.Lerp(min, max, Random.value);
+    }
+
+    void TickPaceWait(bool atHome)
+    {
+        _velocity = Vector3.zero;
+        SetPacePlayback(1f);
+        _anim?.SetMoving(false);
+        _pauseRemaining -= Time.deltaTime;
+        if (_pauseRemaining > 0f)
+            return;
+
+        if (atHome)
+            BeginPaceOut();
+        else
+            BeginPaceBack();
+    }
+
+    void TickPaceWalk(Vector3 target, bool returning)
+    {
+        float dist = GetSurfaceDistanceTo(target);
+        if (dist <= paceArriveDistance)
+        {
+            if (returning)
+                ArrivePaceHome();
+            else
+                BeginPaceWait(PacePhase.WaitOut);
+            return;
+        }
+
+        if (dist < _paceBestDist - 0.03f)
+        {
+            _paceBestDist = dist;
+            _paceStuck = 0f;
+        }
+        else
+        {
+            _paceStuck += Time.deltaTime;
+            float giveUp = returning ? 1.25f : PaceStuckSeconds;
+            if (_paceStuck >= giveUp)
+            {
+                if (!returning)
+                {
+                    // A wall on this side: pick a new line after the return home.
+                    if (GetSurfaceDistanceTo(_homePosition) < paceStepDistance)
+                        _paceDir = Vector3.zero;
+                    BeginPaceWait(PacePhase.WaitOut);
+                    return;
+                }
+
+                if (dist <= 0.75f)
+                {
+                    ArrivePaceHome();
+                    return;
+                }
+
+                _paceStuck = 0f;
+                _paceBestDist = dist;
+            }
+        }
+
+        float scale = Mathf.Clamp(_paceSpeedScale, PaceMinSpeedScale, 1f);
+        SetPacePlayback(scale);
+        MoveToward(target, scale, dist);
+        _anim?.SetMoving(true);
+    }
+
+    void ArrivePaceHome()
+    {
+        SettleAt(_homePosition);
+        BeginPaceWait(PacePhase.WaitHome);
+    }
+
+    void EnsurePaceDirection()
+    {
+        if (_paceDir.sqrMagnitude > 0.25f && _planet != null)
+        {
+            Vector3 up = _planet.GetUpAt(_homePosition);
+            _paceDir = Vector3.ProjectOnPlane(_paceDir, up);
+        }
+
+        if (_paceDir.sqrMagnitude > 0.25f)
+        {
+            _paceDir.Normalize();
+            return;
+        }
+
+        _paceDir = RandomTangent(_homePosition);
+    }
+
+    Vector3 RandomTangent(Vector3 surfacePoint)
+    {
+        Vector3 up = _planet != null ? _planet.GetUpAt(surfacePoint) : transform.up;
+        Vector3 tangent = Vector3.ProjectOnPlane(Random.onUnitSphere, up);
+        if (tangent.sqrMagnitude < 0.0001f)
+            tangent = Vector3.ProjectOnPlane(transform.forward, up);
+        if (tangent.sqrMagnitude < 0.0001f)
+            tangent = Vector3.Cross(up, Vector3.right);
+        if (tangent.sqrMagnitude < 0.0001f)
+            tangent = Vector3.Cross(up, Vector3.forward);
+        return tangent.sqrMagnitude > 0.0001f ? tangent.normalized : transform.forward;
+    }
+
+    Vector3 OffsetOnSurface(Vector3 origin, Vector3 direction, float distance)
+    {
+        if (_planet == null || distance <= 0f)
+            return origin;
+
+        Vector3 radial = origin - _planet.Center;
+        float radius = radial.magnitude;
+        if (radius < 0.01f)
+            return origin;
+
+        radial /= radius;
+        Vector3 axis = Vector3.Cross(radial, direction);
+        if (axis.sqrMagnitude < 0.0001f)
+            return origin;
+
+        float angle = distance / radius * Mathf.Rad2Deg;
+        Vector3 turned = Quaternion.AngleAxis(angle, axis.normalized) * radial;
+        return _planet.Center + turned * radius;
+    }
+
+    float PaceScaleFor(float distance)
+    {
+        float speed = CurrentMoveSpeed();
+        if (speed <= 0.01f || distance <= 0.01f)
+            return 1f;
+
+        float duration = distance / speed;
+        if (duration >= PaceMinWalkSeconds)
+            return 1f;
+
+        return Mathf.Clamp(duration / PaceMinWalkSeconds, PaceMinSpeedScale, 1f);
+    }
+
+    float CurrentMoveSpeed()
+    {
+        return _creature != null && _creature.HasStats ? _creature.MovementSpeed : 4f;
+    }
+
+    void SetPacePlayback(float scale)
+    {
+        if (_animator == null)
+            return;
+
+        scale = scale >= 0.999f ? 1f : Mathf.Clamp(scale, PaceMinSpeedScale, 1f);
+        if (Mathf.Abs(_animator.speed - scale) < 0.001f)
+            return;
+
+        _animator.speed = scale;
+    }
+
+    void SettleAt(Vector3 position)
+    {
+        if (_planet == null)
+        {
+            transform.position = position;
+            return;
+        }
+
+        Vector3 up = _planet.GetUpAt(position);
+        Vector3 face = Vector3.ProjectOnPlane(transform.forward, up);
+        if (face.sqrMagnitude < 0.001f)
+            face = Vector3.ProjectOnPlane(_paceDir, up);
+        if (face.sqrMagnitude < 0.001f)
+            face = Vector3.ProjectOnPlane(Vector3.forward, up);
+
+        if (face.sqrMagnitude > 0.001f)
+            transform.SetPositionAndRotation(position, Quaternion.LookRotation(face.normalized, up));
+        else
+            transform.position = position;
+    }
+
     void MoveToward(Vector3 targetPosition)
+    {
+        MoveToward(targetPosition, 1f, float.PositiveInfinity);
+    }
+
+    void MoveToward(Vector3 targetPosition, float speedScale, float maxDistance)
     {
         Vector3 up = _planet.GetUpAt(transform.position);
         Vector3 toTarget = Vector3.ProjectOnPlane(targetPosition - transform.position, up);
@@ -383,9 +713,12 @@ public class CreatureChase : MonoBehaviour
             return;
 
         Vector3 moveDir = toTarget.normalized;
-        float speed = _creature != null && _creature.HasStats ? _creature.MovementSpeed : 4f;
+        float speed = CurrentMoveSpeed() * Mathf.Max(0f, speedScale);
+        float step = speed * Time.deltaTime;
+        if (maxDistance < float.PositiveInfinity)
+            step = Mathf.Min(step, Mathf.Max(0f, maxDistance));
         _velocity = moveDir * speed;
-        StepOnSurface(moveDir, speed * Time.deltaTime, out Vector3 next, out up);
+        StepOnSurface(moveDir, step, out Vector3 next, out up);
 
         Vector3 faceDir = Vector3.ProjectOnPlane(moveDir, up);
         if (faceDir.sqrMagnitude < 0.001f)
