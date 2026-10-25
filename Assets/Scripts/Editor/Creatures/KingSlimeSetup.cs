@@ -22,7 +22,7 @@ public static class KingSlimeSetup
     const string LegacyMaterialPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Materials/Slime.mat";
     const string StatsPath = Root + "/King_SlimeStats.asset";
     const string SourceStatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/SlimeStats.asset";
-    const string LootItemPath = "Assets/Resources/Galaxy/Nyxara/Items/Thornhide/Thornhide.asset";
+    const string LootItemPath = "Assets/Resources/Items/Coin/Coin.asset";
     const string PrefabPath = Root + "/King_Slime.prefab";
     const string IdleClipPath = Root + "/Animations/Idle.anim";
     const string JumpClipPath = Root + "/Animations/Jump.anim";

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -10,6 +11,11 @@ public class Creature : MonoBehaviour, IVitalsReadable
     [SerializeField] CreatureStats stats;
     [SerializeField, Min(0f), Tooltip("How long the body stays when this creature has no death animation. A death clip keeps it until that clip has finished.")]
     float destroyDelay = 0.1f;
+
+    static readonly List<Creature> Active = new List<Creature>(32);
+
+    /// <summary>Creatures that are enabled right now. Combat scans this instead of searching the scene.</summary>
+    public static IReadOnlyList<Creature> ActiveCreatures => Active;
 
     float _currentHealth;
     bool _dying;
@@ -62,6 +68,21 @@ public class Creature : MonoBehaviour, IVitalsReadable
         ResetHealth();
         if (GetComponent<CreatureBlobShadow>() == null)
             gameObject.AddComponent<CreatureBlobShadow>();
+
+        Animator animator = GetComponentInChildren<Animator>();
+        if (animator != null)
+            animator.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
+    }
+
+    void OnEnable()
+    {
+        if (!Active.Contains(this))
+            Active.Add(this);
+    }
+
+    void OnDisable()
+    {
+        Active.Remove(this);
     }
 
     void OnValidate()

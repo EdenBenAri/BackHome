@@ -393,6 +393,7 @@ public class CreatureSpawner : MonoBehaviour
 
         EnsureKingCountdown(live, area);
         live.countdown.Hide();
+        PlanetEnvironmentStreamer.Track(instance);
         return true;
     }
 
@@ -595,6 +596,7 @@ public class CreatureSpawner : MonoBehaviour
 
         _tracked.Add(tracked);
         _acceptedDirs.Add(dir.normalized);
+        PlanetEnvironmentStreamer.Track(creature);
         return true;
     }
 
@@ -988,15 +990,14 @@ public class CreatureSpawner : MonoBehaviour
         Vector3 origin = planet.Center + radial * castStart;
         float maxDist = castStart + 2f;
 
-        RaycastHit[] hits = Physics.RaycastAll(
+        int count = PlanetSurfacePose.RaycastGround(
             origin,
             -radial,
             maxDist,
             GroundLayer,
-            QueryTriggerInteraction.Ignore);
+            out RaycastHit[] hits);
 
-        RaycastHit best;
-        if (_tiles != null && _tiles.TryPickWalkSurfaceHit(hits, planet.Center, -radial, out best))
+        if (_tiles != null && _tiles.TryPickWalkSurfaceHit(hits, planet.Center, -radial, count, out RaycastHit best))
         {
             normal = best.normal.sqrMagnitude > 0.001f ? best.normal.normalized : radial;
             if (Vector3.Dot(normal, radial) < 0f)
@@ -1017,8 +1018,8 @@ public class CreatureSpawner : MonoBehaviour
         if (animator == null || animator.runtimeAnimatorController == null)
             return;
 
-        // Grimling starts in "idle". Creatures whose controller uses other state names
-        // (Snarlfang's Idle1/Idle2) keep the state their own Animator picked.
+        // Creatures whose controller uses another idle name (Idle1) keep the state
+        // their own Animator picked.
         if (!animator.HasState(0, Animator.StringToHash(initialAnimatorState)))
             return;
 

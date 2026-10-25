@@ -48,7 +48,7 @@ public class PlanetTileMap : MonoBehaviour
     [Tooltip("Disable the base SphereCollider when the tile collider is active.")]
     [SerializeField] bool disableBaseSphereCollider = true;
     [Tooltip("Cast shadows from the tile mesh.")]
-    [SerializeField] bool castTileShadows = true;
+    [SerializeField] bool castTileShadows = false;
 
     [Header("Block Tiles")]
     [HideInInspector, FormerlySerializedAs("cubeBlocks")]
@@ -195,10 +195,29 @@ public class PlanetTileMap : MonoBehaviour
         Vector3 inwardRayDirection,
         out RaycastHit best)
     {
+        return TryPickWalkSurfaceHit(
+            hits,
+            planetCenter,
+            inwardRayDirection,
+            hits != null ? hits.Length : 0,
+            out best);
+    }
+
+    /// <summary>
+    /// Only the first <paramref name="count"/> entries are live. A NonAlloc buffer keeps older hits past that.
+    /// </summary>
+    public bool TryPickWalkSurfaceHit(
+        RaycastHit[] hits,
+        Vector3 planetCenter,
+        Vector3 inwardRayDirection,
+        int count,
+        out RaycastHit best)
+    {
         best = default;
-        if (hits == null || hits.Length == 0)
+        if (hits == null || count <= 0)
             return false;
 
+        int n = count < hits.Length ? count : hits.Length;
         Vector3 radial = inwardRayDirection.sqrMagnitude > 0.001f
             ? -inwardRayDirection.normalized
             : Vector3.up;
@@ -206,7 +225,7 @@ public class PlanetTileMap : MonoBehaviour
         float bestRadius = -1f;
         bool found = false;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < n; i++)
         {
             Collider col = hits[i].collider;
             if (!IsWalkSurfaceCollider(col))
@@ -1402,7 +1421,7 @@ public class PlanetTileMap : MonoBehaviour
         _tilesRenderer.shadowCastingMode = castTileShadows
             ? UnityEngine.Rendering.ShadowCastingMode.On
             : UnityEngine.Rendering.ShadowCastingMode.Off;
-        _tilesRenderer.receiveShadows = true;
+        _tilesRenderer.receiveShadows = false;
         _tilesRoot.gameObject.layer = gameObject.layer;
 
         _tilesCollider = _tilesRoot.GetComponent<MeshCollider>();

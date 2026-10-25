@@ -13,7 +13,6 @@ public class CreatureAnimator : MonoBehaviour
     static readonly int AttackAnimSpeedHash = Animator.StringToHash("AttackAnimSpeed");
     static readonly int AttackKindHash = Animator.StringToHash("AttackKind");
     static readonly int Idle1Hash = Animator.StringToHash("Idle1");
-    static readonly int Idle2Hash = Animator.StringToHash("Idle2");
     static readonly int RunHash = Animator.StringToHash("Run");
     static readonly int AttackHash = Animator.StringToHash("Attack");
     static readonly int LightAttackHash = Animator.StringToHash("LightAttack");
@@ -57,14 +56,6 @@ public class CreatureAnimator : MonoBehaviour
         FlattenSpawnPose();
         if (_animator != null && HasParameter(AttackAnimSpeedHash))
             _animator.SetFloat(AttackAnimSpeedHash, 1f);
-
-        // Controllers with both idle takes (Snarlfang) start on one of them at random,
-        // then the controller alternates every loop so each pose gets half the time.
-        if (_animator != null && _animator.HasState(0, Idle1Hash) && _animator.HasState(0, Idle2Hash))
-        {
-            bool idle2 = Random.value < 0.5f;
-            _animator.Play(idle2 ? Idle2Hash : Idle1Hash, 0, Random.value);
-        }
     }
 
     /// <summary>True while the one-shot Spawn intro is playing or still waiting for the Animator to wake up.</summary>
@@ -102,8 +93,8 @@ public class CreatureAnimator : MonoBehaviour
             return;
         }
 
-        // The idle states crossfade into each other on exit time. Push the bool again after
-        // that transition is chosen, and enter Run or the attack immediately instead of waiting it out.
+        // Push the bool again after a transition is chosen, and enter Run or the attack
+        // immediately instead of waiting the crossfade out.
         PushMoving();
         if (_attacking)
         {

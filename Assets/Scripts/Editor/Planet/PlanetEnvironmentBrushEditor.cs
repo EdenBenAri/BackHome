@@ -13,8 +13,7 @@ public class PlanetEnvironmentBrushEditor : Editor
     {
         LibraryRoot + "/Grass",
         LibraryRoot + "/Rock",
-        LibraryRoot + "/Trees",
-        LibraryRoot + "/Camp"
+        LibraryRoot + "/Trees"
     };
 
     static bool _paintMode;
@@ -251,7 +250,7 @@ public class PlanetEnvironmentBrushEditor : Editor
     {
         if (!EditorUtility.DisplayDialog(
                 "Environment Brush",
-                "Replace the Grass, Rocks, Trees, and Camp prefab lists with the Nyxara library?",
+                "Replace the Grass, Rocks, and Trees prefab lists with the Nyxara library?",
                 "Load",
                 "Cancel"))
         {
@@ -299,24 +298,26 @@ public class PlanetEnvironmentBrushEditor : Editor
     void EnsureDefaultCategories()
     {
         SerializedProperty categories = serializedObject.FindProperty("categories");
-        if (HasCategory(categories, "Camp") && categories.arraySize >= 3)
+        if (categories.arraySize >= 3
+            && HasCategory(categories, "Grass")
+            && HasCategory(categories, "Rocks")
+            && HasCategory(categories, "Trees"))
             return;
 
-        string[] names = { "Grass", "Rocks", "Trees", "Camp" };
+        string[] names = { "Grass", "Rocks", "Trees" };
         Color[] colors =
         {
             new Color(0.45f, 0.78f, 0.32f, 1f),
             new Color(0.62f, 0.58f, 0.52f, 1f),
-            new Color(0.22f, 0.55f, 0.28f, 1f),
-            new Color(0.72f, 0.58f, 0.42f, 1f)
+            new Color(0.22f, 0.55f, 0.28f, 1f)
         };
-        float[] radii = { 4f, 5f, 7f, 5f };
-        float[] spacings = { 1.2f, 2.8f, 5.5f, 3.2f };
-        int[] amounts = { 4, 1, 1, 1 };
+        float[] radii = { 4f, 5f, 7f };
+        float[] spacings = { 1.2f, 2.8f, 5.5f };
+        int[] amounts = { 4, 1, 1 };
 
         int previous = categories.arraySize;
-        categories.arraySize = 4;
-        for (int i = previous; i < 4; i++)
+        categories.arraySize = 3;
+        for (int i = previous; i < 3; i++)
         {
             SerializedProperty element = categories.GetArrayElementAtIndex(i);
             element.FindPropertyRelative("displayName").stringValue = names[i];

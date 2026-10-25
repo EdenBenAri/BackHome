@@ -7,18 +7,16 @@ using UnityEngine;
 
 /// <summary>
 /// Builds Grimling the same way as Snarlfang: CasualToon material, creature components,
-/// a 50/50 Idle1/Idle2 animator, and a Run state driven by IsMoving.
+/// a single Idle1 animator, and a Run state driven by IsMoving.
 /// Drops the extra Icosphere mesh that ships in the middle of the Meshy export.
 /// </summary>
 public static class GrimlingSetup
 {
-    const string ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Idle1.fbx";
-    const string Idle2ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Idle2.fbx";
-    const string RunningModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Running.fbx";
+    const string ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Mob/Models/Grimling_Animation_Idle.fbx";
+    const string RunningModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Mob/Models/Grimling_Animation_Running.fbx";
     const string MeleeModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Models/Grimling_Animation_Melee_Attack.fbx";
-    const string Idle1ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Idle1.anim";
-    const string Idle2ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Idle2.anim";
-    const string RunningClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Running.anim";
+    const string Idle1ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Mob/Animations/Idle1.anim";
+    const string RunningClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Mob/Animations/Running.anim";
     const string MeleeClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/MeleeAttack.anim";
     const string ControllerPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Animations/Grimling.controller";
     const string AlbedoPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Textures/Grimling_texture.png";
@@ -314,9 +312,8 @@ public static class GrimlingSetup
             KeepPrefabGuid();
 
             AnimationClip idle1 = ExtractLoopingClip(ModelPath, "Idle1", Idle1ClipPath);
-            AnimationClip idle2 = ExtractLoopingClip(Idle2ModelPath, "Idle2", Idle2ClipPath);
             AnimationClip running = ExtractLoopingClip(RunningModelPath, "Running", RunningClipPath);
-            AnimatorController controller = CreateIdleController(idle1, idle2, running);
+            AnimatorController controller = CreateIdleController(idle1, running);
             Avatar avatar = AssetDatabase.LoadAllAssetsAtPath(ModelPath).OfType<Avatar>().FirstOrDefault();
             WireAnimator(controller, avatar);
 
@@ -327,7 +324,7 @@ public static class GrimlingSetup
             AssetDatabase.ImportAsset(PrefabPath, ImportAssetOptions.ForceUpdate);
             KeepPrefabGuid();
             AnimatorGraphRepair.Repair();
-            WriteResult($"ok idle1={idle1.length:0.00}s idle2={idle2.length:0.00}s run={running.length:0.00}s melee={melee.length:0.00}s");
+            WriteResult($"ok idle1={idle1.length:0.00}s run={running.length:0.00}s melee={melee.length:0.00}s");
         }
         catch (System.Exception e)
         {
@@ -772,7 +769,7 @@ public static class GrimlingSetup
         return path;
     }
 
-    static AnimatorController CreateIdleController(AnimationClip idle1, AnimationClip idle2, AnimationClip running)
+    static AnimatorController CreateIdleController(AnimationClip idle1, AnimationClip running)
     {
         AnimatorController controller = AssetDatabase.LoadAssetAtPath<AnimatorController>(ControllerPath)
             ?? AnimatorController.CreateAnimatorControllerAtPath(ControllerPath);
@@ -791,35 +788,13 @@ public static class GrimlingSetup
 
         AnimatorState state1 = machine.AddState("Idle1", new Vector3(280, 0, 0));
         state1.motion = idle1;
-        AnimatorState state2 = machine.AddState("Idle2", new Vector3(280, 140, 0));
-        state2.motion = idle2;
         AnimatorState run = machine.AddState("Run", new Vector3(540, 70, 0));
         run.motion = running;
         machine.defaultState = state1;
 
-        const float idleCrossfade = 0.25f;
         const float moveCrossfade = 0.12f;
         AddMoveTransition(state1, run, moving: true, moveCrossfade);
-        AddMoveTransition(state2, run, moving: true, moveCrossfade);
         AddMoveTransition(run, state1, moving: false, moveCrossfade);
-
-        AnimatorStateTransition to2 = state1.AddTransition(state2);
-        to2.hasExitTime = true;
-        to2.exitTime = 1f;
-        to2.hasFixedDuration = true;
-        to2.duration = idleCrossfade;
-        to2.interruptionSource = TransitionInterruptionSource.Source;
-        to2.orderedInterruption = true;
-        to2.AddCondition(AnimatorConditionMode.IfNot, 0, "IsMoving");
-
-        AnimatorStateTransition to1 = state2.AddTransition(state1);
-        to1.hasExitTime = true;
-        to1.exitTime = 1f;
-        to1.hasFixedDuration = true;
-        to1.duration = idleCrossfade;
-        to1.interruptionSource = TransitionInterruptionSource.Source;
-        to1.orderedInterruption = true;
-        to1.AddCondition(AnimatorConditionMode.IfNot, 0, "IsMoving");
 
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
@@ -851,11 +826,9 @@ public static class GrimlingSetup
         light.speedParameter = "AttackAnimSpeed";
 
         AnimatorState idle1 = FindState(machine, "Idle1");
-        AnimatorState idle2 = FindState(machine, "Idle2");
         AnimatorState run = FindState(machine, "Run");
 
         LinkAttack(idle1, light, CreatureAttackKind.Basic);
-        LinkAttack(idle2, light, CreatureAttackKind.Basic);
         LinkAttack(run, light, CreatureAttackKind.Basic);
         LinkAttackExit(light, run, moving: true);
         LinkAttackExit(light, idle1, moving: false);

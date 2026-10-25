@@ -8,8 +8,7 @@ using UnityEngine;
 /// Per-scene vitals bar sizing lives here because cameras differ per world.
 /// Where the player spawns is resolved by <see cref="TryResolveSpawnPose"/> from, in order:
 /// crash-landing <see cref="PlayerCrashIntro"/> (the crash intro itself spawns the player at
-/// the start of the fall), a <see cref="GalaxyGate"/> transform, or a <see cref="ScenePlayerSpawnPoint"/>
-/// marker.
+/// the start of the fall), or a <see cref="ScenePlayerSpawnPoint"/> marker.
 /// </summary>
 public class SceneBootstrap : MonoBehaviour
 {
@@ -59,8 +58,8 @@ public class SceneBootstrap : MonoBehaviour
         {
             if (!TryResolveSpawnPose(out Vector3 position, out Quaternion rotation))
             {
-                Debug.LogWarning("SceneBootstrap: no spawn pose resolved. Add PlayerCrashIntro, " +
-                    "a GalaxyGate, or ScenePlayerSpawnPoint to this scene.", this);
+                Debug.LogWarning("SceneBootstrap: no spawn pose resolved. Add PlayerCrashIntro " +
+                    "or ScenePlayerSpawnPoint to this scene.", this);
                 return;
             }
 
@@ -85,24 +84,12 @@ public class SceneBootstrap : MonoBehaviour
 
     /// <summary>
     /// 1. Crash-landing <see cref="PlayerCrashIntro"/> (crash site on that component).
-    /// 2. A <see cref="GalaxyGate"/> transform, if one exists in a planet scene.
-    /// 3. <see cref="ScenePlayerSpawnPoint"/> for fixed spawns (e.g. SpaceShip).
+    /// 2. <see cref="ScenePlayerSpawnPoint"/> for a fixed spawn.
     /// </summary>
     bool TryResolveSpawnPose(out Vector3 position, out Quaternion rotation)
     {
         if (_crashIntro != null && _crashIntro.TryComputePlayerSpawnPose(out position, out rotation))
             return true;
-
-        if (SceneRoles.IsPlanetScene())
-        {
-            GalaxyGate gate = FindAnyObjectByType<GalaxyGate>();
-            if (gate != null)
-            {
-                position = gate.transform.position;
-                rotation = gate.transform.rotation;
-                return true;
-            }
-        }
 
         if (ScenePlayerSpawnPoint.TryGetPose(out position, out rotation))
             return true;

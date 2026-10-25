@@ -58,34 +58,6 @@ public static class NyxaraPropPrefabSetup
     [MenuItem("BackHome/Setup Missing Nyxara Prop Prefabs")]
     public static void BuildMissingMenu() => BuildMissing(silent: false);
 
-    [MenuItem("BackHome/Setup Camp Prop Prefabs")]
-    public static void BuildCampMenu() => BuildCamp(silent: false);
-
-    /// <summary>Unity batchmode: -executeMethod NyxaraPropPrefabSetup.BuildCampBatch</summary>
-    public static void BuildCampBatch()
-    {
-        try
-        {
-            BuildCamp(silent: true);
-        }
-        catch (Exception ex)
-        {
-            Debug.LogException(ex);
-            EditorApplication.Exit(1);
-            return;
-        }
-
-        EditorApplication.Exit(0);
-    }
-
-    public static void BuildCamp(bool silent)
-    {
-        var jobs = DiscoverModels()
-            .Where(j => j.PrefabFolder.EndsWith("/Camp", StringComparison.OrdinalIgnoreCase))
-            .ToList();
-        BuildJobs(jobs, silent);
-    }
-
     public static void BuildNames(bool silent, params string[] prefabNames)
     {
         if (prefabNames == null || prefabNames.Length == 0)
@@ -218,7 +190,7 @@ public static class NyxaraPropPrefabSetup
                     ClassifyTextures(allPng.ToList(), out albedo, out normal, out metallic, out roughness, out emission);
                 }
 
-                // Shared pack textures (Camp) live beside Models, not next to each FBX.
+                // Shared pack textures live in the category Textures folder, not next to each FBX.
                 if (string.IsNullOrEmpty(albedo))
                 {
                     string texFolder = category + "/Textures";

@@ -3,8 +3,7 @@ guid: df73a5b6a8127ff40a8c6840516304de
 AssetOrigin:
   serializedVersion: 1
   productId: 187634
-  packageName: "Handpainted Grass & Ground Textures \u2014 Top-Down RPG | Terrain
-    Tool"
+  packageName: "Handpainted Grass & Ground Textures \u2014 Top-Down RPG | Terrain Tool"
   packageVersion: 1.4.1
   assetPath: Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_darked/Grass_darked_up.png
   uploadId: 899394
@@ -61,7 +60,9 @@ TextureImporter:
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
   alphaIsTransparency: 0
+  spriteTessellationMethod: 0
   spriteTessellationDetail: -1
+  spriteGeometrySubdivision: -1
   textureType: 0
   textureShape: 1
   singleChannelComponent: 0
@@ -98,6 +99,19 @@ TextureImporter:
     crunchedCompression: 0
     allowsAlphaSplitting: 0
     overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: WebGL
+    maxTextureSize: 128
+    resizeAlgorithm: 0
+    textureFormat: 4
+    textureCompression: 0
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 1
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0

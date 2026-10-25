@@ -52,8 +52,6 @@ public class PlayerRangeCombat : MonoBehaviour
         _animator = GetComponent<Animator>();
         _animIDMoving = Animator.StringToHash("Moving");
         _animIDAttacking = Animator.StringToHash("Attacking");
-        if (SceneRoles.IsSpaceshipScene())
-            HideRange();
     }
 
     void OnDisable()
@@ -148,10 +146,10 @@ public class PlayerRangeCombat : MonoBehaviour
             ? SphericalPlanet.Instance.Center
             : (Vector3?)null;
 
-        Creature[] creatures = FindObjectsByType<Creature>();
+        IReadOnlyList<Creature> creatures = Creature.ActiveCreatures;
         _currentlyInside.Clear();
 
-        for (int i = 0; i < creatures.Length; i++)
+        for (int i = 0; i < creatures.Count; i++)
         {
             Creature creature = creatures[i];
             if (!CanTarget(creature))

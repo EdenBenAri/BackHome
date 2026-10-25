@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// One wind field for the whole planet. Trees and grass read it in the toon shader
-/// and sway on their own; rocks, camp props, and characters stay still because
+/// and sway on their own; rocks, props, and characters stay still because
 /// their materials keep wind sway at zero.
 /// </summary>
 [DisallowMultipleComponent]

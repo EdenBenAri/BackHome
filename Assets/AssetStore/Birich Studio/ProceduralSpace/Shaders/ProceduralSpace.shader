@@ -127,7 +127,7 @@ Shader "Birich Studio/ProceduralSpace"
             struct Attributes { float4 positionOS : POSITION; };
             struct Varyings   { float4 positionHCS : SV_POSITION; float2 worldPos : TEXCOORD0; };
 
-            float  _PixelArt, _Cartoon, _PPU, _TimeOffset;
+            float  _PixelArt, _Cartoon, _PPU, _TimeOffset, _PhoneQuality;
             float  _DebugNoise;   // dev-only: >0 renders raw noise layers for driver triage
             float4 _DriftVec;   // xy: sky drift in units/s — a virtual camera glide through space
             // xy: camera travel in the view plane, in the same units as the quad.
@@ -721,7 +721,7 @@ Shader "Birich Studio/ProceduralSpace"
                 // frame evenly, which just dims everything. Lanes need edges to read as lanes.
                 float2 dp = LayerPos(world, cam, _NebParallax * 1.4) + _NebSeed.xy * 0.7;
                 float ds = _NebScale * 1.6 * (_PixelArt < 0.5 ? 3.2 : 1.0);
-                float n = ridged(dp * ds + 71.3, 4);
+                float n = _PhoneQuality > 0.5 ? ridged(dp * ds + 71.3, 2) : ridged(dp * ds + 71.3, 4);
                 float lanes = smoothstep(0.40, 0.78, n);
                 return 1.0 - lanes * saturate(_DustAmount);
             }
@@ -1892,7 +1892,7 @@ Shader "Birich Studio/ProceduralSpace"
                 // backdrop — and in 8 bits it bands into visible stripes. Warping the ramp with
                 // a large-scale field turns it into uneven galactic glow instead.
                 float g = dot(normalize(_GradientDir.xy + 1e-5), world) * _GradientScale + 0.5;
-                if (_PixelArt < 0.5)
+                if (_PixelArt < 0.5 && _PhoneQuality < 0.5)
                     g += (fbm(world * 0.012 + 5.3, 3) - 0.5) * 0.55;
                 // The backdrop ramp is deliberately NOT quantized in pixel mode. Its two colours
                 // are both near black, so the ramp between them spans a couple of values and
@@ -1901,8 +1901,20 @@ Shader "Birich Studio/ProceduralSpace"
                 // distracting thing on screen because nothing else is competing with it.
                 float3 col = lerp(_BaseColor.rgb, _BaseColor2.rgb, saturate(g));
 
-                // ── Nebula
-                if (_NebAmount > 0.001)
+                // ── Nebula. Phones skip the domain warp and the 4–5 octave stacks.
+                if (_NebAmount > 0.001 && _PhoneQuality > 0.5)
+                {
+                    float2 phoneLp = LayerPos(world, cam, _NebParallax);
+                    float2 phoneNp = phoneLp + _NebSeed.xy;
+                    float phoneNs = _NebScale * _NebSeed.z * 3.2;
+                    float phoneN = fbm(phoneNp * phoneNs, 2);
+                    float phoneMask = saturate(pow(saturate(phoneN), _NebContrast));
+                    phoneMask *= smoothstep(0.32, 0.66, fbm(phoneNp * (_NebScale * _NebSeed.z * 1.8) + 91.7, 2));
+                    float3 phoneNeb = lerp(_NebColB.rgb, _NebColA.rgb, saturate(phoneN));
+                    phoneNeb = lerp(phoneNeb, _NebColC.rgb, saturate(pow(saturate(phoneN), _NebContrast * 2.2)));
+                    col += phoneNeb * (phoneMask * _NebAmount);
+                }
+                else if (_NebAmount > 0.001)
                 {
                     // Offset the sampling domain by the sky's own seed. Without this the noise
                     // field is IDENTICAL in every sky: the same filaments in the same places,

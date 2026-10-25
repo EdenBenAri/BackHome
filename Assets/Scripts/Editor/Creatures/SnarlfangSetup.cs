@@ -7,16 +7,14 @@ using UnityEngine;
 
 /// <summary>
 /// Builds Snarlfang: CasualToon material, creature components,
-/// a 50/50 Idle1/Idle2 animator, and a Run state driven by IsMoving.
+/// a single Idle1 animator, and a Run state driven by IsMoving.
 /// Does not assign the prefab on CreatureSpawner.
 /// </summary>
 public static class SnarlfangSetup
 {
-    const string ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Models/Snarlfang_Animation_Idle1.fbx";
-    const string Idle2ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Models/Snarlfang_Animation_Idle2.fbx";
+    const string ModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Models/Snarlfang_Animation_Idle.fbx";
     const string RunningModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Models/Snarlfang_Animation_Running.fbx";
     const string Idle1ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Animations/Idle1.anim";
-    const string Idle2ClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Animations/Idle2.anim";
     const string RunningClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Animations/Running.anim";
     const string LightModelPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Models/Snarlfang_Animation_Attack.fbx";
     const string LightClipPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Mob/Animations/LightAttack.anim";
@@ -513,9 +511,8 @@ public static class SnarlfangSetup
             }
 
             AnimationClip idle1 = LoadOrExtract(force, Idle1ClipPath, ModelPath, "Idle1");
-            AnimationClip idle2 = LoadOrExtract(force, Idle2ClipPath, Idle2ModelPath, "Idle2");
             AnimationClip running = ExtractLoopingClip(RunningModelPath, "Running", RunningClipPath);
-            controller = CreateIdleController(idle1, idle2, running);
+            controller = CreateIdleController(idle1, running);
             Avatar avatar = AssetDatabase.LoadAllAssetsAtPath(ModelPath).OfType<Avatar>().FirstOrDefault();
             WireAnimator(controller, avatar);
 
@@ -524,7 +521,7 @@ public static class SnarlfangSetup
             AssetDatabase.ImportAsset(ControllerPath, ImportAssetOptions.ForceUpdate);
             AssetDatabase.ImportAsset(PrefabPath, ImportAssetOptions.ForceUpdate);
             string paths = string.Join(" | ", SamplePaths(running).Take(4));
-            WriteResult($"idle ok. layers={controller.layers.Length} states={controller.layers[0].stateMachine.states.Length} idle1={idle1.length:0.00}s idle2={idle2.length:0.00}s run={running.length:0.00}s paths={paths}");
+            WriteResult($"idle ok. layers={controller.layers.Length} states={controller.layers[0].stateMachine.states.Length} idle1={idle1.length:0.00}s run={running.length:0.00}s paths={paths}");
             EnsureAttacks(force);
         }
         catch (System.Exception e)
@@ -629,11 +626,9 @@ public static class SnarlfangSetup
         light.speedParameter = "AttackAnimSpeed";
 
         AnimatorState idle1 = FindState(machine, "Idle1");
-        AnimatorState idle2 = FindState(machine, "Idle2");
         AnimatorState run = FindState(machine, "Run");
 
         LinkAttack(idle1, light, CreatureAttackKind.Basic);
-        LinkAttack(idle2, light, CreatureAttackKind.Basic);
         LinkAttack(run, light, CreatureAttackKind.Basic);
 
         LinkAttackExit(light, run, moving: true);
@@ -856,7 +851,7 @@ public static class SnarlfangSetup
         return AnimationUtility.GetCurveBindings(clip).Select(b => b.path).Distinct();
     }
 
-    static AnimatorController CreateIdleController(AnimationClip idle1, AnimationClip idle2, AnimationClip running)
+    static AnimatorController CreateIdleController(AnimationClip idle1, AnimationClip running)
     {
         // Rebuild in place: deleting and recreating at the same path leaves the prefab's
         // Animator pointing at the destroyed controller until the editor restarts.
@@ -877,37 +872,13 @@ public static class SnarlfangSetup
 
         AnimatorState state1 = machine.AddState("Idle1", new Vector3(280, 0, 0));
         state1.motion = idle1;
-        AnimatorState state2 = machine.AddState("Idle2", new Vector3(280, 140, 0));
-        state2.motion = idle2;
         AnimatorState run = machine.AddState("Run", new Vector3(540, 70, 0));
         run.motion = running;
         machine.defaultState = state1;
 
-        const float idleCrossfade = 0.25f;
         const float moveCrossfade = 0.12f;
-        // Moving transitions are added first so they win over the idle swap at the loop point,
-        // and so they can interrupt an idle crossfade that already started.
         AddMoveTransition(state1, run, moving: true, moveCrossfade);
-        AddMoveTransition(state2, run, moving: true, moveCrossfade);
         AddMoveTransition(run, state1, moving: false, moveCrossfade);
-
-        AnimatorStateTransition to2 = state1.AddTransition(state2);
-        to2.hasExitTime = true;
-        to2.exitTime = 1f;
-        to2.hasFixedDuration = true;
-        to2.duration = idleCrossfade;
-        to2.interruptionSource = TransitionInterruptionSource.Source;
-        to2.orderedInterruption = true;
-        to2.AddCondition(AnimatorConditionMode.IfNot, 0, "IsMoving");
-
-        AnimatorStateTransition to1 = state2.AddTransition(state1);
-        to1.hasExitTime = true;
-        to1.exitTime = 1f;
-        to1.hasFixedDuration = true;
-        to1.duration = idleCrossfade;
-        to1.interruptionSource = TransitionInterruptionSource.Source;
-        to1.orderedInterruption = true;
-        to1.AddCondition(AnimatorConditionMode.IfNot, 0, "IsMoving");
 
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();

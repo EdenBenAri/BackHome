@@ -163,9 +163,8 @@ public static class PlayerVfxUtility
     /// <summary>Moves <paramref name="root"/> so the lowest solid-mesh point sits on
     /// <paramref name="surfacePoint"/> (plus optional <paramref name="embed"/> sink along
     /// <paramref name="surfaceUp"/>). Uses bounds corners instead of the AABB center so tall or
-    /// offset children (portal sign posts, crater bowls) can't push the whole assembly upward.
-    /// Pass <paramref name="boundsRoot"/> to measure only part of the hierarchy (e.g. the portal
-    /// crater bowl, not the sign post).</summary>
+    /// offset children (portal sign posts) can't push the whole assembly upward.
+    /// Pass <paramref name="boundsRoot"/> to measure only part of the hierarchy.</summary>
     public static void SnapBaseToSurface(
         Transform root,
         Vector3 surfacePoint,

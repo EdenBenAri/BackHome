@@ -20,7 +20,7 @@ MonoBehaviour:
   visionRange: 18
   movementSpeed: 6
   loot:
-  - item: {fileID: 11400000, guid: 5286eb086ba375649a38e9eee22e753d, type: 2}
+  - item: {fileID: 11400000, guid: a7c3e91b4d2f48a6b0e5c8d1f7a3b901, type: 2}
     minAmount: 3
     maxAmount: 6
     chance: 1

@@ -209,17 +209,11 @@ public static class PlanetSurfacePose
         Vector3 origin = planet.Center + radial * castStart;
         float maxDist = castStart + 2f;
 
-        RaycastHit[] hits = Physics.RaycastAll(
-            origin,
-            -radial,
-            maxDist,
-            GroundLayer,
-            QueryTriggerInteraction.Ignore);
-
-        if (hits == null || hits.Length == 0)
+        int count = RaycastGround(origin, -radial, maxDist, GroundLayer, out RaycastHit[] hits);
+        if (count == 0)
             return false;
 
-        if (tiles != null && tiles.TryPickWalkSurfaceHit(hits, planet.Center, -radial, out RaycastHit walkHit))
+        if (tiles != null && tiles.TryPickWalkSurfaceHit(hits, planet.Center, -radial, count, out RaycastHit walkHit))
         {
             ApplyGroundHit(walkHit, radial, hover, out feetPosition, out normal);
             return true;
@@ -231,7 +225,7 @@ public static class PlanetSurfacePose
         bool found = false;
         RaycastHit best = default;
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < count; i++)
         {
             Collider col = hits[i].collider;
             if (!IsPlanetBodyCollider(planet, col))
@@ -326,18 +320,12 @@ public static class PlanetSurfacePose
 
         float probeDistance = Mathf.Max(1f, maxDistance);
         Vector3 origin = nearPoint + normal * 0.5f;
-        RaycastHit[] hits = Physics.RaycastAll(
-            origin,
-            -normal,
-            probeDistance + 0.5f,
-            GroundLayer,
-            QueryTriggerInteraction.Ignore);
-
-        if (hits == null || hits.Length == 0)
+        int count = RaycastGround(origin, -normal, probeDistance + 0.5f, GroundLayer, out RaycastHit[] hits);
+        if (count == 0)
             return false;
 
         SphericalPlanet planet = null;
-        for (int i = 0; i < hits.Length && planet == null; i++)
+        for (int i = 0; i < count && planet == null; i++)
         {
             if (hits[i].collider != null)
                 planet = hits[i].collider.GetComponentInParent<SphericalPlanet>();
@@ -346,7 +334,7 @@ public static class PlanetSurfacePose
         PlanetTileMap tiles = planet != null ? planet.GetComponent<PlanetTileMap>() : null;
         if (planet != null
             && tiles != null
-            && tiles.TryPickWalkSurfaceHit(hits, planet.Center, -normal, out RaycastHit walkHit))
+            && tiles.TryPickWalkSurfaceHit(hits, planet.Center, -normal, count, out RaycastHit walkHit))
         {
             normal = walkHit.normal.sqrMagnitude > 0.001f ? walkHit.normal.normalized : normal;
             position = walkHit.point + normal * hover;
@@ -356,7 +344,7 @@ public static class PlanetSurfacePose
         float bestDist = float.MaxValue;
         bool found = false;
         RaycastHit best = default;
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < count; i++)
         {
             Collider col = hits[i].collider;
             if (col == null || IsDecorationCollider(col))
@@ -379,5 +367,36 @@ public static class PlanetSurfacePose
         normal = best.normal.sqrMagnitude > 0.001f ? best.normal.normalized : normal;
         position = best.point + normal * hover;
         return true;
+    }
+
+    static readonly RaycastHit[] GroundHits = new RaycastHit[32];
+
+    /// <summary>
+    /// Ground ray that does not allocate on the common path.
+    /// The returned buffer is reused, so read it before the next call.
+    /// </summary>
+    public static int RaycastGround(
+        Vector3 origin,
+        Vector3 direction,
+        float maxDistance,
+        int layerMask,
+        out RaycastHit[] hits)
+    {
+        int count = Physics.RaycastNonAlloc(
+            origin,
+            direction,
+            GroundHits,
+            maxDistance,
+            layerMask,
+            QueryTriggerInteraction.Ignore);
+
+        if (count < GroundHits.Length)
+        {
+            hits = GroundHits;
+            return count;
+        }
+
+        hits = Physics.RaycastAll(origin, direction, maxDistance, layerMask, QueryTriggerInteraction.Ignore);
+        return hits != null ? hits.Length : 0;
     }
 }

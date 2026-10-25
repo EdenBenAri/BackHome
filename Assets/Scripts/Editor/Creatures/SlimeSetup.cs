@@ -19,7 +19,7 @@ public static class SlimeSetup
     const string RoughnessPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Textures/Slime_roughness.png";
     const string MaterialPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Materials/Slime.mat";
     const string StatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/SlimeStats.asset";
-    const string LootItemPath = "Assets/Resources/Galaxy/Nyxara/Items/Thornhide/Thornhide.asset";
+    const string LootItemPath = "Assets/Resources/Items/Coin/Coin.asset";
     const string PrefabPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Slime.prefab";
     const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/CreaturesVitalsBars.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";

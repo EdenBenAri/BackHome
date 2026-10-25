@@ -68,12 +68,6 @@ public class FloatingWeapon : MonoBehaviour
         if (_vitals != null)
             _vitals.LoadoutChanged += ApplyLoadout;
 
-        if (SceneRoles.IsSpaceshipScene())
-        {
-            SetVisible(false);
-            return;
-        }
-
         EnsureVisuals();
     }
 
@@ -85,13 +79,6 @@ public class FloatingWeapon : MonoBehaviour
 
     public void ApplyLoadout()
     {
-        if (SceneRoles.IsSpaceshipScene())
-        {
-            SetVisible(false);
-            ClearHovers();
-            return;
-        }
-
         ResolveDefinitions(_resolved);
         if (Matches(_resolved))
             return;

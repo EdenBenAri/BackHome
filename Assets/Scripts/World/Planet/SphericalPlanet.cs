@@ -38,7 +38,7 @@ public class SphericalPlanet : MonoBehaviour
     [SerializeField] float shellNormalStrength = 0f;
     [SerializeField] int shellLatitudeSegments = 24;
     [SerializeField] int shellLongitudeSegments = 32;
-    [SerializeField] bool castShellShadows = true;
+    [SerializeField] bool castShellShadows = false;
 
     [Header("Custom Visual Model")]
     [Tooltip("Optional authored planet mesh (FBX/prefab). Replaces the procedural visual shell.")]
@@ -442,7 +442,7 @@ public class SphericalPlanet : MonoBehaviour
         _shellRenderer.shadowCastingMode = castShellShadows
             ? UnityEngine.Rendering.ShadowCastingMode.On
             : UnityEngine.Rendering.ShadowCastingMode.Off;
-        _shellRenderer.receiveShadows = true;
+        _shellRenderer.receiveShadows = false;
     }
 
     void ClearProceduralShell()
@@ -508,7 +508,7 @@ public class SphericalPlanet : MonoBehaviour
         foreach (var meshRenderer in _customVisualInstance.GetComponentsInChildren<Renderer>(true))
         {
             meshRenderer.shadowCastingMode = shadowMode;
-            meshRenderer.receiveShadows = true;
+            meshRenderer.receiveShadows = false;
         }
 
         if (fitCustomVisualToRadius)

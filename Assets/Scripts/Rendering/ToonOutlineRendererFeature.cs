@@ -26,6 +26,10 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
         if (material == null)
             return;
 
+        // The outline pass needs an extra full-screen target. Phones running the web build skip it.
+        if (Application.platform == RuntimePlatform.WebGLPlayer)
+            return;
+
         CameraType cameraType = renderingData.cameraData.cameraType;
         if (cameraType == CameraType.Preview || cameraType == CameraType.Reflection)
             return;

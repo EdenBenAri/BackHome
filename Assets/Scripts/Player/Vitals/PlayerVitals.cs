@@ -14,7 +14,7 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     [SerializeField] PlayerStats stats;
 
     [Header("Drain Rates")]
-    [Tooltip("Oxygen lost per second outside the spaceship.")]
+    [Tooltip("Oxygen lost per second.")]
     [SerializeField] float oxygenDrainPerSecond = 4f;
     [Tooltip("HP lost per second while oxygen is empty.")]
     [SerializeField] float healthDrainPerSecond = 5f;
@@ -47,7 +47,6 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     public bool IsAlive => _currentHealth > 0f;
     public bool HasStats => stats != null;
     public bool HasOxygen => MaxOxygen > 0f;
-    public bool IsOnSpaceship => SceneRoles.IsSpaceshipScene();
     public bool IsInvulnerable => _invulnerable;
     public bool IsRecovering => _recoveryZones > 0;
 
@@ -91,15 +90,12 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
 
     void Start()
     {
-        if (SceneRoles.IsSpaceshipScene())
-            RefillOxygen();
-        else
-            RaiseChanged();
+        RaiseChanged();
     }
 
     void Update()
     {
-        if (_invulnerable || SceneRoles.IsSpaceshipScene() || _recoveryZones > 0)
+        if (_invulnerable || _recoveryZones > 0)
             return;
 
         if (_currentOxygen > 0f)

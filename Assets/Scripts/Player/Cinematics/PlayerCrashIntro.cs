@@ -10,9 +10,6 @@ using UnityEngine.Serialization;
 /// finishes (or is skipped by move input in its last 1.5s), then locomotion unlocks. The authored
 /// fire trail rides on that cinematic mesh.
 ///
-/// A portal then falls from space toward the crash site and only plants on the ground after the
-/// player has walked clear of that disk.
-///
 /// One reusable prefab: every planet scene drops this in and wires only <see cref="playerCapsule"/>
 /// to its own PlayerDiveDownCapsule instance. Start pose and fall distance are derived from the
 /// planet (via the walk-surface pose, same stick as gameplay).
@@ -29,22 +26,6 @@ public class PlayerCrashIntro : MonoBehaviour
         "to PlayerCrashImpact so the look is edited as a normal prefab instead of generated in code. " +
         "Leave empty to load ImpactVfx from Resources (see PlayerDiveDownCapsulePaths).")]
     [SerializeField] GameObject impactEffectPrefab;
-
-    [Header("Incoming Portal")]
-    [Tooltip("Portal that falls in after the player. Leave empty to load Portal/Portal from Resources.")]
-    [SerializeField] GameObject portalPrefab;
-    [Tooltip("How far to sink the planted portal into the ground, in world units.")]
-    [SerializeField] float portalEmbed = 0.4f;
-    [Tooltip("Seconds for the portal's drop onto the ground, after the player has walked clear.")]
-    [SerializeField, Min(0.05f)] float portalFallDuration = 0.5f;
-    [Tooltip("How far above the plant point the portal starts. Keep this much shorter than the player crash so it plops in from nearby, not from space.")]
-    [SerializeField, Min(1f)] float portalStartDistance = 14f;
-    [Tooltip("How far the player must walk from the crash site before the portal falls in. Keep this just outside the gate trigger.")]
-    [SerializeField, Min(0.5f)] float portalClearRadius = 4f;
-    [Tooltip("Impact burst played the instant the portal plants. Leave empty to load Portal/PortalImpactVfx from Resources.")]
-    [SerializeField] GameObject portalImpactVfxPrefab;
-    [Tooltip("Scene the planted portal teleports to. The Resources portal prefab is shared with the ship.")]
-    [SerializeField] string portalTargetScene = "SpaceShip";
 
     [Header("Timing")]
     [Tooltip("Seconds for the crash fall itself. Keep this short - it's a hard crash, not a slow glide.")]
@@ -87,11 +68,7 @@ public class PlayerCrashIntro : MonoBehaviour
     /// <summary>Raised once locomotion is unlocked (land clip finished or skipped by move).</summary>
     public event Action OnLanded;
 
-    const string DefaultPortalResource = "Portal/Portal";
-    const string DefaultPortalImpactResource = "Portal/PortalImpactVfx";
-
     Transform _landingSite;
-    Transform _incomingPortal;
     Transform _player;
     PlayerLandIntro _actor;
     PlayerDiveAnimation _diveAnimation;
@@ -106,9 +83,6 @@ public class PlayerCrashIntro : MonoBehaviour
 
     void Awake()
     {
-        // The dive capsule used to carry a GalaxyGate. Strip only that leftover so the incoming
-        // ground portal can keep its own gate when it plants later.
-        StripCapsuleGates();
         DisableCapsuleTriggers();
     }
 
@@ -124,22 +98,6 @@ public class PlayerCrashIntro : MonoBehaviour
         }
 
         StartCoroutine(RunSequence());
-    }
-
-    void StripCapsuleGates()
-    {
-        if (playerCapsule == null)
-            return;
-
-        GalaxyGate[] gates = playerCapsule.GetComponentsInChildren<GalaxyGate>(true);
-        for (int i = 0; i < gates.Length; i++)
-        {
-            GalaxyGate gate = gates[i];
-            if (gate == null)
-                continue;
-            gate.enabled = false;
-            Destroy(gate);
-        }
     }
 
     void DisableCapsuleTriggers()
@@ -251,7 +209,6 @@ public class PlayerCrashIntro : MonoBehaviour
         ResolveImpactEffect()?.Trigger();
         cameraFollow?.ImpactShake(impactShakeDuration, impactShakeMagnitude);
         HideCapsuleAfterLanding();
-        StartCoroutine(DropIncomingPortal(up));
 
         // Hold the crash framing through the landing jolt so it doesn't get lost in the
         // handoff back to the gameplay camera.
@@ -330,7 +287,7 @@ public class PlayerCrashIntro : MonoBehaviour
     /// the dive model so it follows Armature/Hips.</summary>
     void ConvertCapsuleToVfx()
     {
-        DisableCapsuleGateAndBeacon();
+        DisableCapsuleBeacon();
 
         _diveAnimation = playerCapsule.GetComponent<PlayerDiveAnimation>();
         if (_diveAnimation == null)
@@ -491,205 +448,6 @@ public class PlayerCrashIntro : MonoBehaviour
         return impact;
     }
 
-    IEnumerator DropIncomingPortal(Vector3 up)
-    {
-        GameObject prefab = portalPrefab != null
-            ? portalPrefab
-            : Resources.Load<GameObject>(DefaultPortalResource);
-        if (prefab == null)
-        {
-            Debug.LogWarning("PlayerCrashIntro: no portal prefab found at Resources/" + DefaultPortalResource + ".", this);
-            yield break;
-        }
-
-        Vector3 groundPosition = _restPosition;
-        Quaternion groundRotation = _restRotation;
-        Vector3 groundUp = up.sqrMagnitude > 0.0001f ? up.normalized : Vector3.up;
-        if (TryComputeGroundPortalPose(_restPosition, _restRotation, out Vector3 snappedPosition, out Quaternion snappedRotation, out Vector3 snappedUp))
-        {
-            groundPosition = snappedPosition;
-            groundRotation = snappedRotation;
-            groundUp = snappedUp;
-        }
-
-        Vector3 spacePosition = groundPosition + groundUp * portalStartDistance;
-
-        GameObject portal = Instantiate(prefab);
-        portal.name = prefab.name;
-        portal.SetActive(false);
-        ConfigureFallingPortal(portal);
-        SetCraterActive(portal, false);
-        SetPortalVisible(portal, false);
-        portal.transform.SetPositionAndRotation(spacePosition, groundRotation);
-        portal.SetActive(true);
-        _incomingPortal = portal.transform;
-
-        Transform parent = PlanetSurfacePose.GetOrCreateObjectsRoot(ResolvePlanet());
-        if (parent != null)
-            portal.transform.SetParent(parent, true);
-
-        SphericalPlanet planet = ResolvePlanet();
-        float clearRadius = portalClearRadius;
-        while (_player != null && !HasWalkedClear(planet, groundPosition, _player.position, clearRadius))
-            yield return null;
-
-        SetPortalVisible(portal, true);
-
-        float fallTimer = 0f;
-        while (fallTimer < portalFallDuration)
-        {
-            fallTimer += Time.deltaTime;
-            float t = fallEase.Evaluate(Mathf.Clamp01(fallTimer / portalFallDuration));
-            Vector3 pose = Vector3.LerpUnclamped(spacePosition, groundPosition, t) + GetFallTrembleOffset(fallTimer);
-            portal.transform.SetPositionAndRotation(pose, groundRotation);
-            yield return null;
-        }
-
-        PlantIncomingPortal(portal, groundPosition, groundRotation, groundUp);
-    }
-
-    static bool HasWalkedClear(SphericalPlanet planet, Vector3 landing, Vector3 playerPosition, float radius)
-    {
-        if (radius <= 0.0001f)
-            return true;
-
-        Vector3 center = planet != null ? planet.Center : Vector3.zero;
-        float distance = planet != null
-            ? PlanetSurfacePose.GetSurfaceDistance(center, landing, playerPosition)
-            : Vector3.Distance(landing, playerPosition);
-        return distance >= radius;
-    }
-
-    void ConfigureFallingPortal(GameObject portal)
-    {
-        GalaxyGate gate = portal.GetComponent<GalaxyGate>();
-        if (gate != null)
-        {
-            gate.enabled = false;
-            if (!string.IsNullOrEmpty(portalTargetScene))
-                gate.TargetSceneName = portalTargetScene;
-        }
-
-        Collider[] colliders = portal.GetComponentsInChildren<Collider>(true);
-        for (int i = 0; i < colliders.Length; i++)
-        {
-            if (colliders[i] != null)
-                colliders[i].enabled = false;
-        }
-    }
-
-    static void SetCraterActive(GameObject portal, bool active)
-    {
-        if (portal == null)
-            return;
-
-        Transform crater = FindDirectChild(portal.transform, "Crater");
-        if (crater != null)
-            crater.gameObject.SetActive(active);
-    }
-
-    static Transform FindDirectChild(Transform root, string name)
-    {
-        if (root == null)
-            return null;
-
-        for (int i = 0; i < root.childCount; i++)
-        {
-            Transform child = root.GetChild(i);
-            if (child != null && child.name == name)
-                return child;
-        }
-
-        return null;
-    }
-
-    static void SetPortalVisible(GameObject portal, bool visible)
-    {
-        if (portal == null)
-            return;
-
-        Renderer[] renderers = portal.GetComponentsInChildren<Renderer>(true);
-        for (int i = 0; i < renderers.Length; i++)
-        {
-            if (renderers[i] != null)
-                renderers[i].enabled = visible;
-        }
-    }
-
-    void PlantIncomingPortal(GameObject portal, Vector3 groundPosition, Quaternion groundRotation, Vector3 groundUp)
-    {
-        SetPortalVisible(portal, true);
-        PortalGroundSnap.Snap(portal.transform, groundPosition, groundUp, portalEmbed);
-        SetCraterActive(portal, true);
-        PlayPortalImpactVfx(portal.transform, groundUp);
-        PortalSignBillboard sign = portal.GetComponentInChildren<PortalSignBillboard>(true);
-        if (sign != null)
-            sign.PlayPlantImpact();
-
-        GalaxyGate gate = portal.GetComponent<GalaxyGate>();
-        if (gate != null)
-        {
-            if (!string.IsNullOrEmpty(portalTargetScene))
-                gate.TargetSceneName = portalTargetScene;
-            if (_player != null)
-                gate.IgnoreUntilOccupantLeaves(_player);
-            gate.enabled = true;
-        }
-
-        Collider[] colliders = portal.GetComponentsInChildren<Collider>(true);
-        for (int i = 0; i < colliders.Length; i++)
-        {
-            if (colliders[i] != null)
-                colliders[i].enabled = true;
-        }
-
-        if (portal.GetComponent<PlayerCapsuleBeacon>() == null)
-            portal.AddComponent<PlayerCapsuleBeacon>();
-
-        if (_landingSite != null)
-        {
-            PlayerCapsuleBeacon siteBeacon = _landingSite.GetComponent<PlayerCapsuleBeacon>();
-            if (siteBeacon != null)
-                siteBeacon.enabled = false;
-        }
-    }
-
-    void PlayPortalImpactVfx(Transform portal, Vector3 groundUp)
-    {
-        if (portal == null)
-            return;
-
-        GameObject prefab = portalImpactVfxPrefab != null
-            ? portalImpactVfxPrefab
-            : Resources.Load<GameObject>(DefaultPortalImpactResource);
-        if (prefab == null)
-        {
-            Debug.LogWarning("PlayerCrashIntro: no portal impact VFX found at Resources/" + DefaultPortalImpactResource + ".", this);
-            return;
-        }
-
-        Quaternion rotation = groundUp.sqrMagnitude > 0.0001f
-            ? Quaternion.FromToRotation(Vector3.up, groundUp.normalized)
-            : portal.rotation;
-        GameObject fx = Instantiate(prefab, portal.position, rotation, portal);
-        fx.name = prefab.name;
-
-        ParticleSystem[] systems = fx.GetComponentsInChildren<ParticleSystem>(true);
-        for (int i = 0; i < systems.Length; i++)
-        {
-            ParticleSystem ps = systems[i];
-            if (ps == null)
-                continue;
-
-            ParticleSystem.MainModule main = ps.main;
-            main.playOnAwake = false;
-            main.loop = false;
-            main.cullingMode = ParticleSystemCullingMode.AlwaysSimulate;
-            ps.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
-            ps.Play(false);
-        }
-    }
-
     static void SnapLandingToWalkSurface(
         SphericalPlanet planet,
         float hover,
@@ -718,47 +476,6 @@ public class PlayerCrashIntro : MonoBehaviour
             up = rayNormal;
             restRotation = PlanetSurfacePose.RotationFromUp(up, yaw);
         }
-    }
-
-    bool TryComputeGroundPortalPose(
-        Vector3 nearWorldPoint,
-        Quaternion yawSource,
-        out Vector3 groundPosition,
-        out Quaternion rotation,
-        out Vector3 groundUp)
-    {
-        groundPosition = nearWorldPoint;
-        rotation = yawSource;
-        groundUp = Vector3.up;
-
-        SphericalPlanet planet = ResolvePlanet();
-        if (planet == null)
-            return false;
-
-        Vector3 radial = nearWorldPoint - planet.Center;
-        if (radial.sqrMagnitude < 0.0001f)
-            radial = planet.transform.up;
-        else
-            radial.Normalize();
-
-        PlanetTileMap tiles = planet.GetComponent<PlanetTileMap>();
-        float yaw = PlanetSurfacePose.ExtractYaw(yawSource, radial);
-        if (!PlanetSurfacePose.TryGetPose(planet, tiles, radial, yaw, 0f, out groundPosition, out rotation, out groundUp))
-        {
-            groundPosition = planet.GetSurfacePoint(radial, 0f);
-            groundUp = planet.GetUpAt(groundPosition);
-            rotation = PlanetSurfacePose.RotationFromUp(groundUp, yaw);
-        }
-
-        if (PlanetSurfacePose.TrySampleGroundBelow(
-                groundPosition + groundUp * 2f, groundUp, 12f, 0f, out Vector3 rayPosition, out Vector3 rayNormal))
-        {
-            groundPosition = rayPosition;
-            groundUp = rayNormal;
-            rotation = PlanetSurfacePose.RotationFromUp(groundUp, yaw);
-        }
-
-        return true;
     }
 
     /// <summary>Invisible marker at the crash site: hosts <see cref="PlayerCapsuleBeacon"/> so
@@ -797,8 +514,8 @@ public class PlayerCrashIntro : MonoBehaviour
         return true;
     }
 
-    /// <summary>Hides the dive capsule's own renderers/colliders and disables its
-    /// GalaxyGate now that the landing site marker has taken over.</summary>
+    /// <summary>Hides the dive capsule's own renderers and colliders once the landing
+    /// site marker has taken over the home arrow.</summary>
     void HideCapsuleAfterLanding()
     {
         if (_capsuleRenderers != null)
@@ -827,14 +544,13 @@ public class PlayerCrashIntro : MonoBehaviour
             }
         }
 
-        DisableCapsuleGateAndBeacon();
+        DisableCapsuleBeacon();
     }
 
-    void DisableCapsuleGateAndBeacon()
+    void DisableCapsuleBeacon()
     {
-        GalaxyGate gate = playerCapsule.GetComponent<GalaxyGate>();
-        if (gate != null)
-            gate.enabled = false;
+        if (playerCapsule == null)
+            return;
 
         PlayerCapsuleBeacon beacon = playerCapsule.GetComponent<PlayerCapsuleBeacon>();
         if (beacon != null)

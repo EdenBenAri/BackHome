@@ -840,15 +840,14 @@ public class CreatureChase : MonoBehaviour
         Vector3 origin = _planet.Center + radial * castStart;
         float maxDist = castStart + 2f;
 
-        RaycastHit[] hits = Physics.RaycastAll(
+        int count = PlanetSurfacePose.RaycastGround(
             origin,
             -radial,
             maxDist,
             groundLayer,
-            QueryTriggerInteraction.Ignore);
+            out RaycastHit[] hits);
 
-        RaycastHit best;
-        if (_tiles != null && _tiles.TryPickWalkSurfaceHit(hits, _planet.Center, -radial, out best))
+        if (_tiles != null && count > 0 && _tiles.TryPickWalkSurfaceHit(hits, _planet.Center, -radial, count, out RaycastHit best))
         {
             normal = best.normal.sqrMagnitude > 0.001f ? best.normal.normalized : radial;
             if (Vector3.Dot(normal, radial) < 0f)

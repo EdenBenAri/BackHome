@@ -991,24 +991,24 @@ public class PlanetWalker : MonoBehaviour
     bool TryRaycastPlanetGround(Vector3 origin, Vector3 direction, float maxDistance, out RaycastHit best)
     {
         best = default;
-        RaycastHit[] hits = Physics.RaycastAll(
+        int count = PlanetSurfacePose.RaycastGround(
             origin,
             direction,
             maxDistance,
             groundLayer,
-            QueryTriggerInteraction.Ignore);
+            out RaycastHit[] hits);
 
-        if (hits == null || hits.Length == 0)
+        if (count == 0)
             return false;
 
         if (_tiles != null && _planet != null)
-            return _tiles.TryPickWalkSurfaceHit(hits, _planet.Center, direction, out best);
+            return _tiles.TryPickWalkSurfaceHit(hits, _planet.Center, direction, count, out best);
 
         Vector3 radial = direction.sqrMagnitude > 0.001f ? -direction.normalized : Vector3.up;
         float minAcceptableRadius = GetFallbackSurfaceRadius(radial) - 0.05f;
         float bestRadius = -1f;
         bool found = false;
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < count; i++)
         {
             Collider col = hits[i].collider;
             if (col == null || _planet == null)

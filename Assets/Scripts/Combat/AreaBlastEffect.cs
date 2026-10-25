@@ -59,10 +59,10 @@ public static class AreaBlastEffect
             new BlastHit { Creature = primaryTarget, KnockFrom = knockFrom, Dir = Vector3.forward, PlayHitVfx = false }
         };
 
-        Creature[] creatures = Object.FindObjectsByType<Creature>(FindObjectsInactive.Exclude);
+        IReadOnlyList<Creature> creatures = Creature.ActiveCreatures;
         Vector3? planetCenter = SphericalPlanet.Instance != null ? SphericalPlanet.Instance.Center : (Vector3?)null;
 
-        for (int i = 0; i < creatures.Length; i++)
+        for (int i = 0; i < creatures.Count; i++)
         {
             Creature candidate = creatures[i];
             if (candidate == null || !candidate.IsAlive || candidate == primaryTarget)

@@ -47,13 +47,13 @@ public static class ChainHitEffect
 
     static Creature FindNearestCreature(Vector3 origin, float radius, HashSet<Creature> excluded)
     {
-        Creature[] creatures = Object.FindObjectsByType<Creature>(FindObjectsInactive.Exclude);
+        IReadOnlyList<Creature> creatures = Creature.ActiveCreatures;
         Vector3? planetCenter = SphericalPlanet.Instance != null ? SphericalPlanet.Instance.Center : (Vector3?)null;
 
         Creature best = null;
         float bestDistance = float.MaxValue;
 
-        for (int i = 0; i < creatures.Length; i++)
+        for (int i = 0; i < creatures.Count; i++)
         {
             Creature candidate = creatures[i];
             if (candidate == null || !candidate.IsAlive || excluded.Contains(candidate))

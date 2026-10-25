@@ -2,9 +2,8 @@ Shader "BackHome/CreatureBlobShadow"
 {
     Properties
     {
-        _BaseMap ("Shadow", 2D) = "white" {}
         _Color ("Color", Color) = (0, 0, 0, 1)
-        _Opacity ("Opacity", Range(0, 1)) = 0.82
+        _Opacity ("Opacity", Range(0, 1)) = 0.5
     }
 
     SubShader
@@ -34,11 +33,7 @@ Shader "BackHome/CreatureBlobShadow"
 
             #include "Packages/com.unity.render-pipelines.universal/ShaderLibrary/Core.hlsl"
 
-            TEXTURE2D(_BaseMap);
-            SAMPLER(sampler_BaseMap);
-
             CBUFFER_START(UnityPerMaterial)
-                float4 _BaseMap_ST;
                 float4 _Color;
                 float _Opacity;
             CBUFFER_END
@@ -59,14 +54,16 @@ Shader "BackHome/CreatureBlobShadow"
             {
                 Varyings output;
                 output.positionCS = TransformObjectToHClip(input.positionOS.xyz);
-                output.uv = TRANSFORM_TEX(input.uv, _BaseMap);
+                output.uv = input.uv;
                 return output;
             }
 
             half4 Frag(Varyings input) : SV_Target
             {
-                half mask = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv).a;
-                return half4(_Color.rgb, mask * _Opacity * _Color.a);
+                // Same hard disc as the old mask, with a two-pixel edge so it doesn't sparkle.
+                float radius = length(input.uv - 0.5);
+                half mask = (half)(1.0 - smoothstep(0.42, 0.47, radius));
+                return half4(_Color.rgb, mask * (half)_Opacity * (half)_Color.a);
             }
             ENDHLSL
         }

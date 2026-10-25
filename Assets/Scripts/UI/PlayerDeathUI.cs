@@ -26,7 +26,8 @@ public class PlayerDeathUI : MonoBehaviour
     static readonly int DeathOverlayVignetteAmountId = Shader.PropertyToID("_VignetteAmount");
 
     [FormerlySerializedAs("shipSceneName")]
-    [SerializeField] string spaceshipSceneName = "SpaceShip";
+    [FormerlySerializedAs("spaceshipSceneName")]
+    [SerializeField] string restartSceneName = "PlanetNyxara";
     [Tooltip("Seconds after death before the camera fully locks, time freezes and stays frozen.")]
     [SerializeField, Min(0f)] float freezeDelay = 2f;
     [Tooltip("DeathPanel prefab (You are dead + Continue). Instantiated under the UI canvas.")]
@@ -315,7 +316,7 @@ public class PlayerDeathUI : MonoBehaviour
         _loading = true;
         Time.timeScale = 1f;
 
-        string scene = string.IsNullOrWhiteSpace(spaceshipSceneName) ? "SpaceShip" : spaceshipSceneName;
+        string scene = string.IsNullOrWhiteSpace(restartSceneName) ? "PlanetNyxara" : restartSceneName;
         SceneManager.LoadScene(scene);
     }
 

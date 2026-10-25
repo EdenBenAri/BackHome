@@ -1,6 +1,7 @@
 using System.Text;
 using UnityEngine;
 using UnityEngine.Rendering;
+using UnityEngine.Rendering.Universal;
 using UnityEngine.UI;
 
 /// <summary>
@@ -217,7 +218,7 @@ public class PlayerLowOxygenWarning : MonoBehaviour
 
     void OnVitalsChanged()
     {
-        if (_forcedHidden || _vitals == null || !_vitals.IsAlive || !_vitals.HasOxygen || _vitals.IsOnSpaceship)
+        if (_forcedHidden || _vitals == null || !_vitals.IsAlive || !_vitals.HasOxygen)
         {
             _wantVisible = false;
             return;
@@ -465,6 +466,20 @@ public class PlayerLowOxygenWarning : MonoBehaviour
     {
         if (panel != null && panel.activeSelf != active)
             panel.SetActive(active);
+        SetOpaqueCopy(active);
+    }
+
+    static void SetOpaqueCopy(bool on)
+    {
+        Camera cam = Camera.main;
+        if (cam == null)
+            return;
+
+        UniversalAdditionalCameraData data = cam.GetUniversalAdditionalCameraData();
+        if (data == null)
+            return;
+
+        data.requiresColorOption = on ? CameraOverrideOption.On : CameraOverrideOption.Off;
     }
 
     void EnsurePanel(bool active)

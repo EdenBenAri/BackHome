@@ -477,7 +477,7 @@ MonoBehaviour:
   shellNormalStrength: 0
   shellLatitudeSegments: 24
   shellLongitudeSegments: 32
-  castShellShadows: 1
+  castShellShadows: 0
   customVisualModel: {fileID: 0}
   fitCustomVisualToRadius: 1
 --- !u!114 &311187142751204784
@@ -503,7 +503,7 @@ MonoBehaviour:
   hideShellWhileShowingTiles: 1
   useTileMeshCollider: 1
   disableBaseSphereCollider: 1
-  castTileShadows: 1
+  castTileShadows: 0
   enableBlocks: 0
   blockHeight: 0.05
   blockGap: 0.001
@@ -3225,7 +3225,6 @@ Transform:
   - {fileID: 8615914680192914087}
   - {fileID: 347215893188384980}
   - {fileID: 5743324844509022494}
-  - {fileID: 7479381231234369092}
   m_Father: {fileID: 2360042101202772783}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!114 &7344556677889900112
@@ -3280,22 +3279,6 @@ MonoBehaviour:
     - {fileID: 6529401389816808732, guid: 44685c5272c7458fbb703abab2c1507a, type: 3}
     - {fileID: 4027186653557920374, guid: 7d2e5a0c6f3b8499e1c2d4a5b6f7e809, type: 3}
     - {fileID: 7579689327346344112, guid: 10f1bde7a897b4b478b2a443fbb1c6ed, type: 3}
-  - displayName: Camp
-    previewColor: {r: 0.72, g: 0.58, b: 0.42, a: 1}
-    brushRadius: 5
-    spacing: 3.2
-    amount: 1
-    scaleMin: 0.9
-    scaleMax: 1.15
-    prefabs:
-    - {fileID: 481200000000000101, guid: c3a91e04b7d24f6a8e5c1d0b9a847263, type: 3}
-    - {fileID: 481200000000000201, guid: d4b02f15c8e3507b9f6d2e1c0b958374, type: 3}
-    - {fileID: 481200000000000301, guid: e5c13026d9f4618c0a7e3f2d1c069485, type: 3}
-    - {fileID: 481200000000000401, guid: f6d24137e0a5729d1b8f403e2d170596, type: 3}
-    - {fileID: 4812000000000005011, guid: b22d1f12a2b05c1d9e3f405b6c7d8e11, type: 3}
-    - {fileID: 4812000000000006011, guid: b22d1f12a2b05c1d9e3f405b6c7d8e12, type: 3}
-    - {fileID: 4812000000000007011, guid: b22d1f12a2b05c1d9e3f405b6c7d8e13, type: 3}
-    - {fileID: 4812000000000008011, guid: b22d1f12a2b05c1d9e3f405b6c7d8e14, type: 3}
   hover: 0.05
   randomYaw: 1
   yaw: 0
@@ -3311,8 +3294,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4d8e2a17b9f4c0e8a6d5f3b1c0e9a72, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlanetEnvironmentStreamer
-  showRadius: 42
-  hideRadius: 52
+  showRadius: 46
+  hideRadius: 54
 --- !u!114 &5901847263019284756
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6137,7 +6120,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5689768559977740495}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -7720,7 +7703,7 @@ MeshRenderer:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7200325776214402491}
-  m_Enabled: 1
+  m_Enabled: 0
   m_CastShadows: 1
   m_ReceiveShadows: 1
   m_DynamicOccludee: 1
@@ -8133,37 +8116,6 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: -4.3368087e-19, y: -0.000000007450581, z: 9.632882e-19}
---- !u!1 &7412802668324250412
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 7479381231234369092}
-  m_Layer: 3
-  m_Name: Camp
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!4 &7479381231234369092
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7412802668324250412}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 8023435295592196779}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &7501256326072275312
 GameObject:
   m_ObjectHideFlags: 0

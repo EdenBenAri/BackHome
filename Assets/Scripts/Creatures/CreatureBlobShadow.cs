@@ -2,15 +2,13 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// One flat circle under a creature, using the shared Shadow texture.
-/// It sits on the ground under the body center, so a mesh whose pivot is not
-/// under the feet (Grimling) still gets the circle in the right place.
+/// One flat circle under a creature. The quad is parented, so it rides the
+/// body with no per-frame work. Diameter and the sideways offset come from
+/// the mesh's local bounds, which do not reskin the character.
 /// </summary>
 [DisallowMultipleComponent]
-[DefaultExecutionOrder(200)]
 public class CreatureBlobShadow : MonoBehaviour
 {
-    const string TexturePath = "Galaxy/Nyxara/Creatures/VFX/Shadow";
     const float WidthFraction = 0.8f;
     const float SlimeScale = 1.25f;
     const float KingScale = 1.45f;
@@ -23,9 +21,6 @@ public class CreatureBlobShadow : MonoBehaviour
     static Material s_material;
     static bool s_loggedMissing;
 
-    Transform _shadow;
-    Renderer[] _bodies = System.Array.Empty<Renderer>();
-
     void Start()
     {
         Material material = SharedMaterial();
@@ -33,17 +28,21 @@ public class CreatureBlobShadow : MonoBehaviour
         if (material == null || quad == null)
             return;
 
-        _bodies = CollectBodies();
-        float diameter = FitDiameter();
+        Renderer[] bodies = CollectBodies();
+        float diameter = FitDiameter(bodies);
         Vector3 lossy = transform.lossyScale;
         float sx = Mathf.Max(0.0001f, Mathf.Abs(lossy.x));
+        float sy = Mathf.Max(0.0001f, Mathf.Abs(lossy.y));
         float sz = Mathf.Max(0.0001f, Mathf.Abs(lossy.z));
 
         var shadow = new GameObject("Shadow");
-        _shadow = shadow.transform;
-        _shadow.SetParent(transform, false);
-        _shadow.localRotation = Quaternion.identity;
-        _shadow.localScale = new Vector3(diameter / sx, 1f, diameter / sz);
+        Transform shadowTransform = shadow.transform;
+        shadowTransform.SetParent(transform, false);
+        shadowTransform.localRotation = Quaternion.identity;
+        shadowTransform.localScale = new Vector3(diameter / sx, 1f, diameter / sz);
+        Vector3 local = LocalCenter(bodies);
+        local.y = Lift / sy;
+        shadowTransform.localPosition = local;
 
         MeshFilter filter = shadow.AddComponent<MeshFilter>();
         filter.sharedMesh = quad;
@@ -54,50 +53,31 @@ public class CreatureBlobShadow : MonoBehaviour
         renderer.receiveShadows = false;
         renderer.lightProbeUsage = LightProbeUsage.Off;
         renderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+        renderer.motionVectorGenerationMode = MotionVectorGenerationMode.ForceNoMotion;
         renderer.renderingLayerMask = 1;
-        Place();
     }
 
-    void LateUpdate()
+    Vector3 LocalCenter(Renderer[] bodies)
     {
-        Place();
-    }
-
-    void Place()
-    {
-        if (_shadow == null)
-            return;
-
-        Vector3 up = transform.up;
-        if (up.sqrMagnitude < 0.0001f)
-            up = Vector3.up;
-        else
-            up.Normalize();
-
-        Vector3 center = transform.position;
-        bool any = false;
-        Bounds bounds = default;
-        for (int i = 0; i < _bodies.Length; i++)
+        Vector3 sum = Vector3.zero;
+        int count = 0;
+        for (int i = 0; i < bodies.Length; i++)
         {
-            Renderer body = _bodies[i];
-            if (body == null || !body.enabled || !body.gameObject.activeInHierarchy)
+            Renderer body = bodies[i];
+            if (body == null)
                 continue;
-            if (!any)
-            {
-                bounds = body.bounds;
-                any = true;
-            }
-            else
-            {
-                bounds.Encapsulate(body.bounds);
-            }
+
+            Vector3 world = body.transform.TransformPoint(body.localBounds.center);
+            sum += transform.InverseTransformPoint(world);
+            count++;
         }
 
-        if (any)
-            center = bounds.center;
+        if (count == 0)
+            return Vector3.zero;
 
-        Vector3 flat = center - up * Vector3.Dot(center - transform.position, up);
-        _shadow.position = flat + up * Lift;
+        Vector3 local = sum / count;
+        local.y = 0f;
+        return local;
     }
 
     Renderer[] CollectBodies()
@@ -123,12 +103,12 @@ public class CreatureBlobShadow : MonoBehaviour
         return bodies;
     }
 
-    float FitDiameter()
+    float FitDiameter(Renderer[] bodies)
     {
         float width = 0f;
-        for (int i = 0; i < _bodies.Length; i++)
+        for (int i = 0; i < bodies.Length; i++)
         {
-            Renderer renderer = _bodies[i];
+            Renderer renderer = bodies[i];
             if (renderer == null)
                 continue;
 
@@ -235,13 +215,12 @@ public class CreatureBlobShadow : MonoBehaviour
             return s_material;
 
         Shader shader = Shader.Find("BackHome/CreatureBlobShadow");
-        Texture2D texture = Resources.Load<Texture2D>(TexturePath);
-        if (shader == null || texture == null)
+        if (shader == null)
         {
             if (!s_loggedMissing)
             {
                 s_loggedMissing = true;
-                Debug.LogWarning("CreatureBlobShadow: missing shader or Shadow texture.");
+                Debug.LogWarning("CreatureBlobShadow: missing shader.");
             }
 
             return null;
@@ -252,7 +231,6 @@ public class CreatureBlobShadow : MonoBehaviour
             name = "Creature Blob Shadow",
             hideFlags = HideFlags.HideAndDontSave
         };
-        s_material.SetTexture("_BaseMap", texture);
         s_material.SetColor("_Color", Color.black);
         s_material.SetFloat("_Opacity", Opacity);
         return s_material;

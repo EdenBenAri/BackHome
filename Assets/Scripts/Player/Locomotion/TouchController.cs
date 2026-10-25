@@ -386,15 +386,15 @@ public class TouchController : MonoBehaviour
             return false;
 
         Ray ray = _camera.ScreenPointToRay(screenPos);
-        RaycastHit[] hits = Physics.RaycastAll(ray, 500f, groundLayer, QueryTriggerInteraction.Ignore);
-        if (hits.Length == 0)
+        int count = PlanetSurfacePose.RaycastGround(ray.origin, ray.direction, 500f, groundLayer, out RaycastHit[] hits);
+        if (count == 0)
             return false;
 
         float playerY = transform.position.y;
         float bestScore = float.MaxValue;
         RaycastHit best = hits[0];
 
-        for (int i = 0; i < hits.Length; i++)
+        for (int i = 0; i < count; i++)
         {
             float heightDelta = Mathf.Abs(hits[i].point.y - playerY);
             float score = heightDelta * 8f + hits[i].distance;
