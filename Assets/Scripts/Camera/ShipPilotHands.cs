@@ -15,9 +15,24 @@ public class ShipPilotHands : MonoBehaviour
     GameObject _pilot;
     Transform _root;
     Transform _head;
+    Transform _leftArm;
+    Transform _rightArm;
     Transform _leftHand;
     Transform _rightHand;
     AnimationClip _clip;
+    Vector3 _leftArmBaseScale = Vector3.one;
+    Vector3 _rightArmBaseScale = Vector3.one;
+    bool _scaleCaptured;
+
+    [Tooltip("How far the forearms swing up from the sit pose, in degrees, so the hands enter the view.")]
+    [SerializeField] float handLiftDegrees = 38f;
+
+    [Tooltip("Ship scene only. Shrinks the arms in place so the gloves stay where they are, just smaller.")]
+    [SerializeField] float handScale = 0.4f;
+
+    [Tooltip("Ship scene only. Slides the hands toward the lens so more of them sits outside the frame.")]
+    [SerializeField] float handCloser = 0.07f;
+
     float _time;
     bool _ready;
 
@@ -51,6 +66,9 @@ public class ShipPilotHands : MonoBehaviour
 
         _clip.SampleAnimation(_pilot, _time);
         AlignHeadToCamera();
+        LiftHands();
+        ShrinkArms();
+        BringHandsCloser();
     }
 
     void Spawn()
@@ -65,7 +83,9 @@ public class ShipPilotHands : MonoBehaviour
                 if (prefab == null)
                     prefab = assets[i] as GameObject;
                 var candidate = assets[i] as AnimationClip;
-                if (candidate != null && candidate.name.IndexOf("__preview__", System.StringComparison.OrdinalIgnoreCase) < 0 && clip == null)
+                if (candidate == null || candidate.name.IndexOf("__preview__", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    continue;
+                if (clip == null || candidate.length > clip.length)
                     clip = candidate;
             }
         }
@@ -115,6 +135,9 @@ public class ShipPilotHands : MonoBehaviour
         _time = 0f;
         _clip.SampleAnimation(_pilot, 0f);
         AlignHeadToCamera();
+        LiftHands();
+        ShrinkArms();
+        BringHandsCloser();
         _ready = true;
     }
 
@@ -139,6 +162,10 @@ public class ShipPilotHands : MonoBehaviour
             string name = bones[i].name;
             if (_head == null && name.EndsWith("Head", System.StringComparison.Ordinal))
                 _head = bones[i];
+            else if (_leftArm == null && name.EndsWith("LeftArm", System.StringComparison.Ordinal))
+                _leftArm = bones[i];
+            else if (_rightArm == null && name.EndsWith("RightArm", System.StringComparison.Ordinal))
+                _rightArm = bones[i];
             else if (_leftHand == null && name.EndsWith("LeftHand", System.StringComparison.Ordinal))
                 _leftHand = bones[i];
             else if (_rightHand == null && name.EndsWith("RightHand", System.StringComparison.Ordinal))
@@ -152,18 +179,94 @@ public class ShipPilotHands : MonoBehaviour
             return;
 
         Vector3 headPos = _head.position;
-        Vector3 hands = (_leftHand.position + _rightHand.position) * 0.5f;
-        Vector3 look = Vector3.ProjectOnPlane(hands - headPos, Vector3.up);
+        // The new sit pose holds the hands out to the sides, so the face
+        // direction is the head bone, not the midpoint of the hands.
+        Vector3 facing = Vector3.ProjectOnPlane(_head.forward, Vector3.up);
+        if (facing.sqrMagnitude < 0.02f)
+            facing = Vector3.ProjectOnPlane(_head.up, Vector3.up);
         Vector3 camFwd = Vector3.ProjectOnPlane(_camera.transform.forward, Vector3.up);
-        if (look.sqrMagnitude > 0.0001f && camFwd.sqrMagnitude > 0.0001f)
+        if (facing.sqrMagnitude > 0.0001f && camFwd.sqrMagnitude > 0.0001f)
         {
-            Quaternion yaw = Quaternion.FromToRotation(look, camFwd);
+            Quaternion yaw = Quaternion.FromToRotation(facing, camFwd);
             Vector3 pivot = headPos;
             _root.position = pivot + yaw * (_root.position - pivot);
             _root.rotation = yaw * _root.rotation;
         }
 
         _root.position += _camera.transform.position - _head.position;
+    }
+
+    void LiftHands()
+    {
+        if (_camera == null || handLiftDegrees <= 0.01f)
+            return;
+
+        float distance = 0.76f;
+        LiftArm(_leftArm, _leftHand, new Vector3(0.40f, 0.38f, distance));
+        LiftArm(_rightArm, _rightHand, new Vector3(0.60f, 0.38f, distance));
+        TipHand(_leftHand, -18f);
+        TipHand(_rightHand, 18f);
+    }
+
+    void TipHand(Transform hand, float inwardDegrees)
+    {
+        if (hand == null || _camera == null)
+            return;
+
+        Transform cam = _camera.transform;
+        Quaternion tilt = Quaternion.AngleAxis(26f, cam.right) * Quaternion.AngleAxis(inwardDegrees, cam.up);
+        hand.rotation = tilt * hand.rotation;
+    }
+
+    void LiftArm(Transform arm, Transform hand, Vector3 viewport)
+    {
+        if (arm == null || hand == null)
+            return;
+
+        Vector3 target = _camera.ViewportToWorldPoint(viewport);
+        Vector3 toHand = hand.position - arm.position;
+        Vector3 toTarget = target - arm.position;
+        if (toHand.sqrMagnitude < 0.0001f || toTarget.sqrMagnitude < 0.0001f)
+            return;
+
+        Quaternion delta = Quaternion.FromToRotation(toHand, toTarget);
+        float weight = Mathf.Clamp01(handLiftDegrees / 42f);
+        arm.rotation = Quaternion.Slerp(Quaternion.identity, delta, weight) * arm.rotation;
+    }
+
+    // Scales the arms around the wrists so the gloves stay in view and read smaller.
+    void ShrinkArms()
+    {
+        if (!_scaleCaptured)
+        {
+            if (_leftArm != null)
+                _leftArmBaseScale = _leftArm.localScale;
+            if (_rightArm != null)
+                _rightArmBaseScale = _rightArm.localScale;
+            _scaleCaptured = true;
+        }
+
+        ShrinkArm(_leftArm, _leftHand, _leftArmBaseScale);
+        ShrinkArm(_rightArm, _rightHand, _rightArmBaseScale);
+    }
+
+    void ShrinkArm(Transform arm, Transform hand, Vector3 baseScale)
+    {
+        if (arm == null || hand == null)
+            return;
+
+        float s = Mathf.Clamp(handScale, 0.35f, 1f);
+        Vector3 handWorld = hand.position;
+        arm.localScale = baseScale * s;
+        arm.position += handWorld - hand.position;
+    }
+
+    void BringHandsCloser()
+    {
+        if (_camera == null || _root == null || handCloser <= 0.001f)
+            return;
+
+        _root.position -= _camera.transform.forward * handCloser;
     }
 
     static void KeepArmsAndHands(SkinnedMeshRenderer skin)

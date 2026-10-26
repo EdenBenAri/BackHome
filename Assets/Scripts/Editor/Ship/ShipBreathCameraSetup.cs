@@ -4,15 +4,13 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 
 /// <summary>
-/// Adds AstronautBreathCamera to the Ship scene's Main Camera.
-/// Menu: BackHome → Ship → Add Astronaut Breath Camera
+/// Wires the sitting astronaut onto the Ship scene camera.
+/// Menu: BackHome → Ship → Add Sitting Pilot Hands
 /// </summary>
 public static class ShipBreathCameraSetup
 {
     const string ScenePath = "Assets/Scenes/Ship.unity";
 
-    static readonly string ResultPath = Path.Combine(Application.dataPath, "..", "Temp", "ShipBreathCamera.result.txt");
-    static readonly string TriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeShipBreathCamera.trigger");
     static readonly string ProbeTriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeProbeSitting.trigger");
     static readonly string ProbeResultPath = Path.Combine(Application.dataPath, "..", "Temp", "ShipSittingProbe.result.txt");
     static readonly string PilotTriggerPath = Path.Combine(Application.dataPath, "..", "Temp", "BackHomeShipPilotHands.trigger");
@@ -42,14 +40,7 @@ public static class ShipBreathCameraSetup
         {
             try { File.Delete(PilotTriggerPath); } catch { /* ignore */ }
             AttachPilot();
-            return;
         }
-
-        if (!File.Exists(TriggerPath))
-            return;
-
-        try { File.Delete(TriggerPath); } catch { /* ignore */ }
-        AttachFromMenu();
     }
 
     // Wires the sitting astronaut onto the Ship camera without moving it.
@@ -109,6 +100,17 @@ public static class ShipBreathCameraSetup
         try
         {
             const string path = "Assets/Resources/Player/Models/Starbot_Animation_Sitting.fbx";
+            var importer = AssetImporter.GetAtPath(path) as ModelImporter;
+            if (importer != null && !importer.isReadable)
+            {
+                importer.isReadable = true;
+                importer.SaveAndReimport();
+            }
+            else
+            {
+                AssetDatabase.ImportAsset(path, ImportAssetOptions.ForceUpdate);
+            }
+
             var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(path);
             if (prefab == null)
                 throw new System.InvalidOperationException("Missing sitting FBX");
@@ -121,17 +123,17 @@ public static class ShipBreathCameraSetup
                 var candidate = assets[i] as AnimationClip;
                 if (candidate == null || candidate.name.Contains("__preview__"))
                     continue;
-                clip = candidate;
-                break;
+                report.AppendLine("found clip " + candidate.name + " length " + candidate.length.ToString("F2"));
+                if (clip == null || candidate.length > clip.length)
+                    clip = candidate;
             }
 
             if (clip == null)
                 throw new System.InvalidOperationException("Missing sitting clip");
 
-            clip.SampleAnimation(instance, clip.length * 0.5f);
-            report.AppendLine("clip " + clip.name + " length " + clip.length.ToString("F2"));
+            report.AppendLine("using clip " + clip.name + " length " + clip.length.ToString("F2"));
 
-            Transform head = null, left = null, right = null;
+            Transform head = null, left = null, right = null, hips = null;
             var bones = instance.GetComponentsInChildren<Transform>(true);
             for (int i = 0; i < bones.Length; i++)
             {
@@ -142,7 +144,27 @@ public static class ShipBreathCameraSetup
                     left = bones[i];
                 else if (n.EndsWith("RightHand") && right == null)
                     right = bones[i];
+                else if (n.EndsWith("Hips") && hips == null)
+                    hips = bones[i];
             }
+
+            float[] samples = { 0f, 0.35f, 0.7f };
+            for (int s = 0; s < samples.Length; s++)
+            {
+                float t = clip.length * samples[s];
+                clip.SampleAnimation(instance, t);
+                Vector3 hands = left != null && right != null ? (left.position + right.position) * 0.5f : head.position;
+                string hipsFwd = hips != null ? hips.forward.ToString("F2") : "none";
+                report.AppendLine("t " + t.ToString("F2")
+                    + " head " + head.position.ToString("F2")
+                    + " hands " + hands.ToString("F2")
+                    + " look " + (hands - head.position).ToString("F2")
+                    + " hipsFwd " + hipsFwd
+                    + " left " + (left != null ? left.position.ToString("F2") : "-")
+                    + " right " + (right != null ? right.position.ToString("F2") : "-"));
+            }
+
+            clip.SampleAnimation(instance, clip.length * 0.35f);
 
             var renderers = instance.GetComponentsInChildren<Renderer>(true);
             report.AppendLine("renderers " + renderers.Length);
@@ -210,46 +232,5 @@ public static class ShipBreathCameraSetup
 
         File.WriteAllText(ProbeResultPath, report.ToString());
         Debug.Log("[BackHome] Sitting probe\n" + report);
-    }
-
-    [MenuItem("BackHome/Ship/Add Astronaut Breath Camera")]
-    public static void AttachFromMenu()
-    {
-        try
-        {
-            var scene = EditorSceneManager.GetActiveScene();
-            if (scene.path != ScenePath)
-            {
-                if (scene.isDirty)
-                    throw new System.InvalidOperationException("Ship scene is not active, and the open scene has unsaved changes.");
-
-                scene = EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
-            }
-
-            Camera camera = null;
-            var roots = scene.GetRootGameObjects();
-            for (int i = 0; i < roots.Length; i++)
-            {
-                camera = roots[i].GetComponentInChildren<Camera>(true);
-                if (camera != null)
-                    break;
-            }
-
-            if (camera == null)
-                throw new System.InvalidOperationException("No camera in the Ship scene.");
-
-            if (camera.GetComponent<AstronautBreathCamera>() == null)
-                camera.gameObject.AddComponent<AstronautBreathCamera>();
-
-            EditorSceneManager.MarkSceneDirty(scene);
-            EditorSceneManager.SaveScene(scene);
-            File.WriteAllText(ResultPath, "ok " + camera.name);
-            Debug.Log("[BackHome] Astronaut breath camera is on " + camera.name + " in the Ship scene.");
-        }
-        catch (System.Exception ex)
-        {
-            Debug.LogException(ex);
-            try { File.WriteAllText(ResultPath, "FAILED: " + ex.Message); } catch { /* ignore */ }
-        }
     }
 }

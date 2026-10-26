@@ -16,7 +16,7 @@ public class PlanetWalker : MonoBehaviour
 
     [Header("Movement")]
     [SerializeField] float walkSpeed = 12f;
-    [SerializeField] float runSpeed = 14f;
+    [SerializeField] float runSpeed = 12.5f;
     [SerializeField] float runInputThreshold = 0.7f;
     [SerializeField] float alignSpeed = 12f;
     [Tooltip("How far above the collider surface to place the character pivot (usually at the feet).")]

@@ -560,7 +560,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::PlanetWalker
   onlyInPlanetScenes: 1
   walkSpeed: 12
-  runSpeed: 14
+  runSpeed: 12.5
   runInputThreshold: 0.7
   alignSpeed: 12
   footOffset: 0.02
