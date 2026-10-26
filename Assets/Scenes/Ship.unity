@@ -270,6 +270,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::ShipPilotHands
   handLiftDegrees: 38
+  handScale: 0.58
+  handCloser: 0.06
 --- !u!1001 &1500676937
 PrefabInstance:
   m_ObjectHideFlags: 0
