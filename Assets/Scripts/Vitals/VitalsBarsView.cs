@@ -36,6 +36,7 @@ public class VitalsBarsView : MonoBehaviour
 
     [Header("References")]
     [SerializeField] Renderer frameRenderer;
+    [SerializeField] Renderer oxygenFrameRenderer;
     [SerializeField] Transform healthFill;
     [SerializeField] Transform oxygenFill;
     [SerializeField] Renderer healthFillRenderer;
@@ -105,6 +106,7 @@ public class VitalsBarsView : MonoBehaviour
     {
         _alpha = Mathf.Clamp01(alpha);
         SetRendererColor(frameRenderer, Color.white);
+        SetRendererColor(oxygenFrameRenderer, Color.white);
         if (_hitFlashTimer > 0f)
             SetRendererColor(healthFillRenderer, healthHitFlashColor);
         else
@@ -163,6 +165,8 @@ public class VitalsBarsView : MonoBehaviour
 
     void ApplyOxygenVisibility()
     {
+        if (oxygenFrameRenderer != null)
+            oxygenFrameRenderer.gameObject.SetActive(showOxygen);
         if (oxygenFill != null)
             oxygenFill.gameObject.SetActive(showOxygen);
         if (oxygenLabel != null)
@@ -321,6 +325,7 @@ public class VitalsBarsView : MonoBehaviour
     void EnsureMaterials()
     {
         AssignSharedMaterial(frameRenderer, barMaterial);
+        AssignSharedMaterial(oxygenFrameRenderer, barMaterial);
         Material fill = fillMaterial != null ? fillMaterial : barMaterial;
         AssignSharedMaterial(healthFillRenderer, fill);
         AssignSharedMaterial(oxygenFillRenderer, fill);

@@ -8143,7 +8143,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::SceneBootstrap
   playerPrefab: {fileID: 7594552319720850513, guid: 8b1c2bbbdbe900b4fbae5395f8ed144e, type: 3}
   uiPrefab: {fileID: 8133869685062393850, guid: 6f5cc733040770e4185166a9281c264a, type: 3}
-  vitalsBarsScale: 4.8
+  vitalsBarsScale: 2.4
   vitalsBarsOffset: {x: 0, y: 4.27, z: 0}
 --- !u!1 &920000001
 GameObject:
