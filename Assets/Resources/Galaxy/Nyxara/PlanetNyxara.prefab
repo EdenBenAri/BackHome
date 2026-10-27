@@ -464,6 +464,7 @@ MonoBehaviour:
   latitudeSegments: 20
   longitudeSegments: 28
   groundLayerName: Ground
+  registerInstance: 1
   albedoTexture: {fileID: 2800000, guid: c0b7d1e0a070e1000000000000000013, type: 3}
   tint: {r: 1, g: 1, b: 1, a: 1}
   textureTiling: 4

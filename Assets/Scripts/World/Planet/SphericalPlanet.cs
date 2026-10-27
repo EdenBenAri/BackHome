@@ -21,6 +21,8 @@ public class SphericalPlanet : MonoBehaviour
     [SerializeField] int latitudeSegments = 20;
     [SerializeField] int longitudeSegments = 28;
     [SerializeField] string groundLayerName = "Ground";
+    [Tooltip("Off for the ship hologram, so this copy does not become the live planet.")]
+    [SerializeField] bool registerInstance = true;
 
     [Header("Look")]
     [SerializeField] Texture2D albedoTexture;
@@ -114,7 +116,7 @@ public class SphericalPlanet : MonoBehaviour
 
     void OnEnable()
     {
-        if (Application.isPlaying)
+        if (Application.isPlaying && registerInstance)
         {
             Instance = this;
             if (GetComponent<PlanetParticleGravity>() == null)

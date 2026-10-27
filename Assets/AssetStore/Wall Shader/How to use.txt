@@ -1,1 +1,0 @@
-Just drop the material with the shader on the object.
