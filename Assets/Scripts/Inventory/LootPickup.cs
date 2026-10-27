@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// World-space loot pickup. Pops up along planet-up, lands, then idles.
 /// Item identity is applied at spawn via <see cref="Configure"/> so one prefab can serve many items.
-/// Sprites billboard to camera; 3D meshes spin in place around planet-up.
+/// Sprites face the camera and turn slowly; 3D meshes spin in place around planet-up.
 /// Uncollected drops return to the pool after <see cref="lifetimeSeconds"/>.
 /// </summary>
 [RequireComponent(typeof(SphereCollider))]
@@ -23,7 +23,7 @@ public class LootPickup : MonoBehaviour
     [SerializeField, Min(0.05f)] float dropDuration = 0.55f;
     [SerializeField, Range(0f, 0.4f)] float bounceHeightRatio = 0.18f;
     [Header("Idle")]
-    [SerializeField] float idleSpinDegreesPerSecond = 90f;
+    [SerializeField] float idleSpinDegreesPerSecond = 20f;
     [SerializeField] string dropState = "Drop";
     [SerializeField] string idleState = "Idle";
     [Header("Lifetime")]
@@ -196,8 +196,13 @@ public class LootPickup : MonoBehaviour
         if (cam == null)
             return;
 
-        Quaternion spin = _visual.localRotation;
-        _visual.rotation = cam.transform.rotation * spin;
+        if (_phase == Phase.Idle && Mathf.Abs(idleSpinDegreesPerSecond) >= 0.01f)
+            _idleSpin += idleSpinDegreesPerSecond * Time.deltaTime;
+
+        // Absolute orientation. Reading localRotation back in would compound every frame
+        // and whip the sprite around.
+        Quaternion spin = Quaternion.AngleAxis(_idleSpin, Vector3.up);
+        _visual.rotation = cam.transform.rotation * _visualRestRotation * spin;
     }
 
     void OnTriggerEnter(Collider other)

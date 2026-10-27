@@ -73,7 +73,7 @@ MonoBehaviour:
   jumpHeight: 1.15
   dropDuration: 0.55
   bounceHeightRatio: 0.18
-  idleSpinDegreesPerSecond: 90
+  idleSpinDegreesPerSecond: 360
   dropState: Drop
   idleState: Idle
   lifetimeSeconds: 7
