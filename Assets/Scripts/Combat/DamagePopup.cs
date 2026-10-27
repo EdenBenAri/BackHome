@@ -25,6 +25,7 @@ public class DamagePopup : MonoBehaviour
     [SerializeField, Min(0f)] float outlineOffset = 0.04f;
     [SerializeField] TextMesh[] outlineMeshes;
 
+    Camera _camera;
     Vector3 _moveDir = Vector3.up;
     float _age;
     Color _baseColor;
@@ -94,9 +95,10 @@ public class DamagePopup : MonoBehaviour
         if (!_setup)
             return;
 
-        Camera cam = Camera.main;
-        if (cam != null)
-            transform.rotation = cam.transform.rotation;
+        if (_camera == null)
+            _camera = Camera.main;
+        if (_camera != null)
+            transform.rotation = _camera.transform.rotation;
 
         _age += Time.deltaTime;
         float t = lifetime > 0f ? Mathf.Clamp01(_age / lifetime) : 1f;

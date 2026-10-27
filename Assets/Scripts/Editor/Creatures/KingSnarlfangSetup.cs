@@ -146,34 +146,12 @@ public static class KingSnarlfangSetup
 
     static void EnsureTextures()
     {
-        EnsureNormalMap(NormalPath);
-        EnsureLinearData(MetallicPath);
-        EnsureLinearData(RoughnessPath);
-    }
-
-    static void EnsureNormalMap(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || importer.textureType == TextureImporterType.NormalMap)
-            return;
-
-        importer.textureType = TextureImporterType.NormalMap;
-        importer.SaveAndReimport();
-    }
-
-    static void EnsureLinearData(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || !importer.sRGBTexture)
-            return;
-
-        importer.sRGBTexture = false;
-        importer.SaveAndReimport();
+        CreatureAssetUtil.EnsurePbrMaps(NormalPath, MetallicPath, RoughnessPath);
     }
 
     static Material CreateMaterial()
     {
-        EnsureFolder(Root, "Materials");
+        CreatureAssetUtil.EnsureFolder(Root, "Materials");
         var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(AlbedoPath);
         var normal = AssetDatabase.LoadAssetAtPath<Texture2D>(NormalPath);
         if (albedo == null)
@@ -215,24 +193,18 @@ public static class KingSnarlfangSetup
         var stats = AssetDatabase.LoadAssetAtPath<CreatureStats>(StatsPath);
         var so = new SerializedObject(stats);
         so.FindProperty("displayName").stringValue = "King Snarlfang";
+        so.FindProperty("level").intValue = 14;
         if (applyNumbers)
         {
-            so.FindProperty("attackDamage").floatValue = 32f;
+            so.FindProperty("attackDamage").floatValue = 100f;
             so.FindProperty("attackSpeed").floatValue = 0.8f;
             so.FindProperty("attackRange").floatValue = 3.5f;
-            so.FindProperty("maxHealth").floatValue = 1600f;
+            so.FindProperty("maxHealth").floatValue = 12500f;
             so.FindProperty("visionRange").floatValue = 18f;
             so.FindProperty("movementSpeed").floatValue = 6f;
-            so.FindProperty("experience").intValue = 260;
+            so.FindProperty("experience").intValue = 1100;
 
-            SerializedProperty loot = so.FindProperty("loot");
-            if (loot != null && loot.arraySize > 0)
-            {
-                SerializedProperty entry = loot.GetArrayElementAtIndex(0);
-                entry.FindPropertyRelative("minAmount").intValue = 3;
-                entry.FindPropertyRelative("maxAmount").intValue = 6;
-                entry.FindPropertyRelative("chance").floatValue = 1f;
-            }
+            CreatureAssetUtil.WriteKingLoot(so);
         }
 
         so.ApplyModifiedPropertiesWithoutUndo();
@@ -675,7 +647,7 @@ public static class KingSnarlfangSetup
 
     static AnimationClip SaveClip(AnimationClip clip, string outputPath)
     {
-        EnsureFolder(Root, "Animations");
+        CreatureAssetUtil.EnsureFolder(Root, "Animations");
         AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(outputPath);
         if (existing == null)
         {
@@ -731,24 +703,8 @@ public static class KingSnarlfangSetup
         return AnimationUtility.GetCurveBindings(clip).Select(b => b.path).Distinct();
     }
 
-    static void EnsureFolder(string parent, string child)
-    {
-        string folder = parent + "/" + child;
-        if (AssetDatabase.IsValidFolder(folder))
-            return;
-
-        AssetDatabase.CreateFolder(parent, child);
-    }
-
     static void WriteResult(string message)
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
-            File.WriteAllText(ResultPath, message);
-        }
-        catch { /* ignore */ }
-
-        Debug.Log("[BackHome] King Snarlfang setup: " + message);
+        CreatureAssetUtil.WriteResult(ResultPath, "King Snarlfang setup", message);
     }
 }

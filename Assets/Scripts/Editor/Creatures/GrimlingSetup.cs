@@ -308,6 +308,13 @@ public static class GrimlingSetup
             if (stats == null)
                 throw new System.InvalidOperationException("GrimlingStats was not found.");
 
+            var statsObject = new SerializedObject(stats);
+            statsObject.FindProperty("level").intValue = 6;
+            statsObject.FindProperty("maxHealth").floatValue = 1300f;
+            statsObject.FindProperty("attackDamage").floatValue = 28f;
+            statsObject.FindProperty("experience").intValue = 40;
+            statsObject.ApplyModifiedPropertiesWithoutUndo();
+
             BuildPrefab(material, stats);
             KeepPrefabGuid();
 
@@ -335,29 +342,7 @@ public static class GrimlingSetup
 
     static void EnsureTextures()
     {
-        EnsureNormalMap(NormalPath);
-        EnsureLinearData(MetallicPath);
-        EnsureLinearData(RoughnessPath);
-    }
-
-    static void EnsureNormalMap(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || importer.textureType == TextureImporterType.NormalMap)
-            return;
-
-        importer.textureType = TextureImporterType.NormalMap;
-        importer.SaveAndReimport();
-    }
-
-    static void EnsureLinearData(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || !importer.sRGBTexture)
-            return;
-
-        importer.sRGBTexture = false;
-        importer.SaveAndReimport();
+        CreatureAssetUtil.EnsurePbrMaps(NormalPath, MetallicPath, RoughnessPath);
     }
 
     static Material CreateMaterial()
@@ -718,7 +703,7 @@ public static class GrimlingSetup
 
     static AnimationClip SaveClipInPlace(AnimationClip clip, string outputPath)
     {
-        EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Grimling", "Animations");
+        CreatureAssetUtil.EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Grimling", "Animations");
         AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(outputPath);
         if (existing == null)
         {
@@ -912,25 +897,9 @@ public static class GrimlingSetup
         }
     }
 
-    static void EnsureFolder(string parent, string child)
-    {
-        string folder = parent + "/" + child;
-        if (AssetDatabase.IsValidFolder(folder))
-            return;
-
-        AssetDatabase.CreateFolder(parent, child);
-    }
-
     static void WriteResult(string message)
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
-            File.WriteAllText(ResultPath, message);
-        }
-        catch { /* ignore */ }
-
-        Debug.Log("[BackHome] Grimling setup: " + message);
+        CreatureAssetUtil.WriteResult(ResultPath, "Grimling setup", message);
     }
 }
 

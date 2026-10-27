@@ -25,10 +25,11 @@ public class Creature : MonoBehaviour, IVitalsReadable
 
     public CreatureStats Stats => stats;
     public string DisplayName => stats != null ? stats.DisplayName : name;
-    public float MaxHealth => stats != null ? stats.MaxHealth : 0f;
+    public int Level => stats != null ? stats.Level : 1;
+    public float MaxHealth => ScaleBody(stats != null ? stats.MaxHealth : 0f);
     public float VisionRange => stats != null ? stats.VisionRange : 0f;
     public float MovementSpeed => stats != null ? stats.MovementSpeed : 0f;
-    public float AttackDamage => stats != null ? stats.AttackDamage : 0f;
+    public float AttackDamage => ScaleBody(stats != null ? stats.AttackDamage : 0f);
     public float AttackSpeed => stats != null ? stats.AttackSpeed : 0f;
     public float AttackRange => stats != null ? stats.AttackRange : 0f;
     public float CurrentHealth => _currentHealth;
@@ -188,6 +189,18 @@ public class Creature : MonoBehaviour, IVitalsReadable
             return;
 
         PlayerLevel.EnsureExists()?.AddExperience(xp);
+    }
+
+    /// <summary>
+    /// Authored health and damage are the level-1 body. Play mode raises them with this creature's level.
+    /// Editor keeps the body so prefabs don't bake the multiplier.
+    /// </summary>
+    float ScaleBody(float body)
+    {
+        if (stats == null || body <= 0f || !Application.isPlaying)
+            return body;
+
+        return LevelTable.ScalePower(body, stats.Level);
     }
 
     void RaiseVitalsChanged()

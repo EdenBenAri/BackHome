@@ -5,7 +5,7 @@ using UnityEngine;
 /// Account level and XP. Survives scene loads the same way inventory does,
 /// because the player object is recreated on planet changes and death.
 /// Killing a creature grants its <see cref="CreatureStats.Experience"/>.
-/// Reaching a new level does not change stats yet — read <see cref="Level"/> when that lands.
+/// <see cref="PlayerVitals"/> reads <see cref="Level"/> and grows health, oxygen, and hit damage from <see cref="LevelTable"/>.
 /// </summary>
 public class PlayerLevel : MonoBehaviour
 {

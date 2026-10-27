@@ -390,15 +390,6 @@ public class CreatureChase : MonoBehaviour
         return true;
     }
 
-    /// <summary>Surface distance from this creature to the living player is within <paramref name="range"/>.</summary>
-    public bool IsPlayerWithin(float range)
-    {
-        if (range <= 0f || !TryGetLivingPlayer(out PlayerVitals player))
-            return false;
-
-        return GetSurfaceDistanceTo(player.transform.position) <= range;
-    }
-
     void TickKnockback()
     {
         if (!TryResolvePlanet())

@@ -48,12 +48,15 @@ public class CreatureStats : ScriptableObject
     [Header("Progression")]
     [Tooltip("XP granted when this creature dies. Scale it with difficulty: a weak mob is a few points, a king is a hunt.")]
     [SerializeField, Min(0)] int experience;
+    [Tooltip("Threat level on the same curve as the player. Health and attack damage on this asset are the level-1 body; play mode multiplies them by this level. A player at this level fights the body as written. Attack speed, range, and move speed are not scaled.")]
+    [SerializeField, Min(1)] int level = 1;
 
     [Header("Loot")]
     [Tooltip("Rolled independently on death. Chance 0 = never, 1 = always.")]
     [SerializeField] LootEntry[] loot = Array.Empty<LootEntry>();
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;
+    public int Level => LevelTable.ClampLevel(level < 1 ? 1 : level);
     public float MaxHealth => maxHealth;
     public float VisionRange => visionRange;
     public float MovementSpeed => movementSpeed;
@@ -93,6 +96,7 @@ public class CreatureStats : ScriptableObject
         attackSpeed = Mathf.Max(0.01f, attackSpeed);
         attackRange = Mathf.Max(0.05f, attackRange);
         experience = Mathf.Max(0, experience);
+        level = LevelTable.ClampLevel(level < 1 ? 1 : level);
 
         if (loot == null)
             return;

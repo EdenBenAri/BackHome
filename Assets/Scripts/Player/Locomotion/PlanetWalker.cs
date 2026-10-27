@@ -326,7 +326,7 @@ public class PlanetWalker : MonoBehaviour
         Vector3 from = transform.position;
         float wallRadius = GetWallRadius();
         moveDelta = PlanetWalkBand.FilterMove(_planet, _tiles, from, moveDelta, hover);
-        moveDelta = ResolveObstacleMove(moveDelta, up, includeBorderWalls: false);
+        moveDelta = ResolveObstacleMove(moveDelta, up);
         Vector3 blocked = PlanetBorders.ResolveAgainstWalls(_planet, from, from + moveDelta, wallRadius);
         moveDelta = blocked - from;
 
@@ -399,7 +399,7 @@ public class PlanetWalker : MonoBehaviour
     /// out along the ground instead of freezing it against an invisible face.
     /// Tile mesh is the floor, not a wall.
     /// </summary>
-    Vector3 ResolveObstacleMove(Vector3 desiredDelta, Vector3 up, bool includeBorderWalls)
+    Vector3 ResolveObstacleMove(Vector3 desiredDelta, Vector3 up)
     {
         float scale = Mathf.Max(transform.lossyScale.x, transform.lossyScale.y, transform.lossyScale.z);
         float radius = (_controller != null ? Mathf.Max(0.2f, _controller.radius * 0.9f) : 0.28f) * scale;
@@ -418,57 +418,10 @@ public class PlanetWalker : MonoBehaviour
         Vector3 dir = desiredDelta / dist;
         float skin = 0.04f;
 
-        if (includeBorderWalls &&
-            TryNearestBlockingWall(bottom, top, radius, dir, dist + skin, out RaycastHit wallHit))
-            return separation + LimitAndSlideAlongWall(desiredDelta, dir, skin, up, bottom, top, radius, wallHit);
-
         if (TryNearestBlockingProp(bottom, top, radius, dir, dist + skin, out RaycastHit propHit))
             return separation + LimitAndSlideAlongWall(desiredDelta, dir, skin, up, bottom, top, radius, propHit);
 
         return separation + desiredDelta;
-    }
-
-    bool TryNearestBlockingWall(
-        Vector3 bottom,
-        Vector3 top,
-        float radius,
-        Vector3 dir,
-        float maxDistance,
-        out RaycastHit best)
-    {
-        best = default;
-        int count = Physics.CapsuleCastNonAlloc(
-            bottom,
-            top,
-            radius,
-            dir,
-            ObstacleHits,
-            maxDistance,
-            groundLayer,
-            QueryTriggerInteraction.Ignore);
-        if (count <= 0)
-            return false;
-
-        float nearest = float.MaxValue;
-        bool found = false;
-        int n = Mathf.Min(count, ObstacleHits.Length);
-        for (int i = 0; i < n; i++)
-        {
-            RaycastHit hit = ObstacleHits[i];
-            if (hit.collider == null || !NyxaraTerrainCollision.IsBlockingWall(hit.collider))
-                continue;
-            if (PlanetWalkBand.ShouldIgnorePhysicsWall(hit.collider, _planet))
-                continue;
-            if (!IsPlanetObstacle(hit.collider))
-                continue;
-            if (hit.distance >= nearest)
-                continue;
-            nearest = hit.distance;
-            best = hit;
-            found = true;
-        }
-
-        return found;
     }
 
     bool TryNearestBlockingProp(
@@ -535,18 +488,6 @@ public class PlanetWalker : MonoBehaviour
 
         float slideDist = slide.magnitude;
         Vector3 slideDir = slide / slideDist;
-        if (TryNearestBlockingWall(
-                bottom + limited,
-                top + limited,
-                radius,
-                slideDir,
-                slideDist + skin,
-                out RaycastHit slideWall))
-        {
-            float slideAllowed = Mathf.Max(0f, slideWall.distance - skin);
-            return limited + slideDir * slideAllowed;
-        }
-
         if (TryNearestBlockingProp(
                 bottom + limited,
                 top + limited,

@@ -51,7 +51,6 @@ public class VitalsBars : MonoBehaviour
     {
         _source = GetComponent<IVitalsReadable>();
         EnsureBars();
-        ApplyHeroStyle();
         ApplyOxygenVisibility();
         if (HideUntilDamaged)
             HideBarsImmediate();
@@ -174,14 +173,6 @@ public class VitalsBars : MonoBehaviour
         // Player oxygen lives on the screen HUD, not above the character.
         bool aboveCharacter = _source != null && _source.HasOxygen && GetComponent<PlayerVitals>() == null;
         bars.SetOxygenVisible(aboveCharacter);
-    }
-
-    void ApplyHeroStyle()
-    {
-        if (bars == null || GetComponent<PlayerVitals>() == null)
-            return;
-
-        bars.UseHeroHealthColors();
     }
 
     void RefreshBars()

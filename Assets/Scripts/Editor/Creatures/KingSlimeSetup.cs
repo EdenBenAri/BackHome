@@ -21,8 +21,6 @@ public static class KingSlimeSetup
     const string SourceMaterialPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Mob/Materials/Slime.mat";
     const string LegacyMaterialPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Materials/Slime.mat";
     const string StatsPath = Root + "/King_SlimeStats.asset";
-    const string SourceStatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/SlimeStats.asset";
-    const string LootItemPath = "Assets/Resources/Items/Coin/Coin.asset";
     const string PrefabPath = Root + "/King_Slime.prefab";
     const string IdleClipPath = Root + "/Animations/Idle.anim";
     const string JumpClipPath = Root + "/Animations/Jump.anim";
@@ -126,34 +124,12 @@ public static class KingSlimeSetup
 
     static void EnsureTextures()
     {
-        EnsureNormalMap(NormalPath);
-        EnsureLinearData(MetallicPath);
-        EnsureLinearData(RoughnessPath);
-    }
-
-    static void EnsureNormalMap(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || importer.textureType == TextureImporterType.NormalMap)
-            return;
-
-        importer.textureType = TextureImporterType.NormalMap;
-        importer.SaveAndReimport();
-    }
-
-    static void EnsureLinearData(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || !importer.sRGBTexture)
-            return;
-
-        importer.sRGBTexture = false;
-        importer.SaveAndReimport();
+        CreatureAssetUtil.EnsurePbrMaps(NormalPath, MetallicPath, RoughnessPath);
     }
 
     static Material CreateMaterial()
     {
-        EnsureFolder(Root, "Materials");
+        CreatureAssetUtil.EnsureFolder(Root, "Materials");
         var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(AlbedoPath);
         var normal = AssetDatabase.LoadAssetAtPath<Texture2D>(NormalPath);
         if (albedo == null)
@@ -205,13 +181,9 @@ public static class KingSlimeSetup
 
         var so = new SerializedObject(stats);
         so.FindProperty("displayName").stringValue = "King Slime";
+        so.FindProperty("level").intValue = 6;
         if (applyNumbers)
         {
-            var source = AssetDatabase.LoadAssetAtPath<CreatureStats>(SourceStatsPath);
-            ItemDefinition lootItem = source != null && source.Loot != null && source.Loot.Length > 0
-                ? source.Loot[0].item
-                : AssetDatabase.LoadAssetAtPath<ItemDefinition>(LootItemPath);
-
             so.FindProperty("attackDamage").floatValue = 26f;
             so.FindProperty("attackSpeed").floatValue = 1.1f;
             so.FindProperty("attackRange").floatValue = 4.5f;
@@ -220,13 +192,7 @@ public static class KingSlimeSetup
             so.FindProperty("movementSpeed").floatValue = 3.2f;
             so.FindProperty("experience").intValue = 160;
 
-            SerializedProperty loot = so.FindProperty("loot");
-            loot.arraySize = 1;
-            SerializedProperty entry = loot.GetArrayElementAtIndex(0);
-            entry.FindPropertyRelative("item").objectReferenceValue = lootItem;
-            entry.FindPropertyRelative("minAmount").intValue = 3;
-            entry.FindPropertyRelative("maxAmount").intValue = 6;
-            entry.FindPropertyRelative("chance").floatValue = 1f;
+            CreatureAssetUtil.WriteKingLoot(so);
         }
 
         so.ApplyModifiedPropertiesWithoutUndo();
@@ -439,24 +405,8 @@ public static class KingSlimeSetup
         flashSo.ApplyModifiedPropertiesWithoutUndo();
     }
 
-    static void EnsureFolder(string parent, string child)
-    {
-        string folder = parent + "/" + child;
-        if (AssetDatabase.IsValidFolder(folder))
-            return;
-
-        AssetDatabase.CreateFolder(parent, child);
-    }
-
     static void WriteResult(string message)
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
-            File.WriteAllText(ResultPath, message);
-        }
-        catch { /* ignore */ }
-
-        Debug.Log("[BackHome] King Slime setup: " + message);
+        CreatureAssetUtil.WriteResult(ResultPath, "King Slime setup", message);
     }
 }

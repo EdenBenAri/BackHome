@@ -230,34 +230,12 @@ public static class SnarlfangSetup
 
     static void EnsureTextures()
     {
-        EnsureNormalMap(NormalPath);
-        EnsureLinearData(MetallicPath);
-        EnsureLinearData(RoughnessPath);
-    }
-
-    static void EnsureNormalMap(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || importer.textureType == TextureImporterType.NormalMap)
-            return;
-
-        importer.textureType = TextureImporterType.NormalMap;
-        importer.SaveAndReimport();
-    }
-
-    static void EnsureLinearData(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || !importer.sRGBTexture)
-            return;
-
-        importer.sRGBTexture = false;
-        importer.SaveAndReimport();
+        CreatureAssetUtil.EnsurePbrMaps(NormalPath, MetallicPath, RoughnessPath);
     }
 
     static Material CreateMaterial()
     {
-        EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang", "Materials");
+        CreatureAssetUtil.EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang", "Materials");
 
         Shader shader = Shader.Find("BackHome/CasualToon");
         if (shader == null)
@@ -299,7 +277,10 @@ public static class SnarlfangSetup
         var stats = AssetDatabase.LoadAssetAtPath<CreatureStats>(StatsPath);
         var so = new SerializedObject(stats);
         so.FindProperty("displayName").stringValue = "Snarlfang";
-        so.FindProperty("experience").intValue = 18;
+        so.FindProperty("maxHealth").floatValue = 1800f;
+        so.FindProperty("attackDamage").floatValue = 24f;
+        so.FindProperty("experience").intValue = 75;
+        so.FindProperty("level").intValue = 10;
         so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(stats);
         return stats;
@@ -796,7 +777,7 @@ public static class SnarlfangSetup
 
     static AnimationClip SaveClipInPlace(AnimationClip clip, string outputPath)
     {
-        EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang", "Animations");
+        CreatureAssetUtil.EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang", "Animations");
         AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(outputPath);
         if (existing == null)
         {
@@ -922,25 +903,9 @@ public static class SnarlfangSetup
         }
     }
 
-    static void EnsureFolder(string parent, string child)
-    {
-        string folder = parent + "/" + child;
-        if (AssetDatabase.IsValidFolder(folder))
-            return;
-
-        AssetDatabase.CreateFolder(parent, child);
-    }
-
     static void WriteResult(string message)
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
-            File.WriteAllText(ResultPath, message);
-        }
-        catch { /* ignore */ }
-
-        Debug.Log("[BackHome] Snarlfang setup: " + message);
+        CreatureAssetUtil.WriteResult(ResultPath, "Snarlfang setup", message);
     }
 }
 

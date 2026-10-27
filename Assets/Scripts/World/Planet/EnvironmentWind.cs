@@ -4,6 +4,8 @@ using UnityEngine;
 /// One wind field for the whole planet. Trees and grass read it in the toon shader
 /// and sway on their own; rocks, props, and characters stay still because
 /// their materials keep wind sway at zero.
+/// Grass also rustles around the player while they walk through it. That bend
+/// is added on top of the wind, and the patch they leave behind settles back.
 /// </summary>
 [DisallowMultipleComponent]
 [ExecuteAlways]
@@ -22,32 +24,54 @@ public class EnvironmentWind : MonoBehaviour
     [Tooltip("How fast the wind direction turns. A full turn takes about three minutes at 0.035.")]
     [SerializeField, Min(0f)] float directionTurnSpeed = 0.035f;
 
-    [Tooltip("How close the player has to walk for grass to flick, in meters.")]
-    [SerializeField, Min(0.2f)] float touchRadius = 1.2f;
+    [Tooltip("How far around the player the grass rustles, in meters.")]
+    [SerializeField, Min(0.2f)] float touchRadius = 2.4f;
 
-    [Tooltip("How long the grass keeps moving after a step, in seconds.")]
-    [SerializeField, Min(0.05f)] float touchDuration = 0.42f;
+    [Tooltip("How long a patch keeps rustling after the player has walked on, in seconds.")]
+    [SerializeField, Min(0.05f)] float touchDuration = 0.9f;
 
-    const int TouchCount = 4;
+    [Tooltip("How fast the blades flutter while the player is in them.")]
+    [SerializeField, Range(4f, 28f)] float rustleSpeed = 14f;
+
+    const int WakeCount = 3;
 
     static readonly int DirId = Shader.PropertyToID("_EnvWindDir");
     static readonly int ParamsId = Shader.PropertyToID("_EnvWindParams");
-    static readonly int TouchPosId = Shader.PropertyToID("_GrassTouchPos");
-    static readonly int TouchDirId = Shader.PropertyToID("_GrassTouchDir");
+    static readonly int BodyPosId = Shader.PropertyToID("_GrassBodyPos");
+    static readonly int BodyDirId = Shader.PropertyToID("_GrassBodyDir");
     static readonly int TouchParamsId = Shader.PropertyToID("_GrassTouchParams");
+    static readonly int[] WakePosIds =
+    {
+        Shader.PropertyToID("_GrassWake0"),
+        Shader.PropertyToID("_GrassWake1"),
+        Shader.PropertyToID("_GrassWake2"),
+    };
+    static readonly int[] WakeDirIds =
+    {
+        Shader.PropertyToID("_GrassWakeDir0"),
+        Shader.PropertyToID("_GrassWakeDir1"),
+        Shader.PropertyToID("_GrassWakeDir2"),
+    };
 
-    readonly Vector4[] _touchPos = new Vector4[TouchCount];
-    readonly Vector4[] _touchDir = new Vector4[TouchCount];
-    readonly float[] _touchBorn = new float[TouchCount];
-    readonly bool[] _touchAlive = new bool[TouchCount];
-    int _touchNext;
+    readonly Vector4[] _wakePos = new Vector4[WakeCount];
+    readonly Vector4[] _wakeDir = new Vector4[WakeCount];
+    readonly float[] _wakeBorn = new float[WakeCount];
+    readonly bool[] _wakeAlive = new bool[WakeCount];
     Vector3 _lastStep;
+    Vector3 _lastWalk = Vector3.forward;
     bool _hasStep;
+    float _bodyStrength;
     PlanetWalker _walker;
 
     void OnEnable()
     {
         Apply();
+    }
+
+    void OnDisable()
+    {
+        ClearTouch();
+        PushTouch();
     }
 
     void Update()
@@ -63,6 +87,7 @@ public class EnvironmentWind : MonoBehaviour
         directionTurnSpeed = Mathf.Max(0f, directionTurnSpeed);
         touchRadius = Mathf.Max(0.2f, touchRadius);
         touchDuration = Mathf.Max(0.05f, touchDuration);
+        rustleSpeed = Mathf.Clamp(rustleSpeed, 4f, 28f);
         Apply();
     }
 
@@ -73,71 +98,109 @@ public class EnvironmentWind : MonoBehaviour
         Vector3 dir = new Vector3(Mathf.Cos(angle), 0f, Mathf.Sin(angle));
         Shader.SetGlobalVector(DirId, new Vector4(dir.x, dir.y, dir.z, 0f));
         Shader.SetGlobalVector(ParamsId, new Vector4(minSpeed, maxSpeed, gustSpacing, 0f));
-        ApplyTouch(now);
-    }
-
-    void ApplyTouch(float now)
-    {
-        if (!Application.isPlaying)
-            ClearTouch();
-        else
+        if (Application.isPlaying)
             TrackPlayer(now);
-
-        for (int i = 0; i < TouchCount; i++)
-        {
-            if (!_touchAlive[i])
-            {
-                _touchPos[i].w = -1f;
-                continue;
-            }
-
-            float age = (now - _touchBorn[i]) / touchDuration;
-            if (age >= 1f)
-            {
-                _touchAlive[i] = false;
-                _touchPos[i].w = -1f;
-                continue;
-            }
-
-            _touchPos[i].w = age;
-        }
-
-        Shader.SetGlobalVectorArray(TouchPosId, _touchPos);
-        Shader.SetGlobalVectorArray(TouchDirId, _touchDir);
-        Shader.SetGlobalVector(TouchParamsId, new Vector4(touchRadius, touchDuration, 0f, 0f));
+        else
+            ClearTouch();
+        PushTouch();
     }
 
     void TrackPlayer(float now)
     {
         if (_walker == null)
             _walker = FindAnyObjectByType<PlanetWalker>();
-        if (_walker == null)
-            return;
 
-        Vector3 velocity = _walker.PlanarVelocity;
-        if (velocity.sqrMagnitude < 0.2f)
-            return;
+        float target = 0f;
+        Vector3 position = _walker != null ? _walker.transform.position : Vector3.zero;
+        if (_walker != null)
+        {
+            Vector3 velocity = _walker.PlanarVelocity;
+            if (velocity.sqrMagnitude > 0.16f)
+            {
+                target = 1f;
+                _lastWalk = velocity.normalized;
+                // Keep the samples near the body. Skip a drop while every wake slot
+                // is still playing, so an old patch fades out instead of popping.
+                float spacing = Mathf.Max(0.5f, touchRadius * 0.65f);
+                bool farEnough = !_hasStep || (position - _lastStep).sqrMagnitude >= spacing * spacing;
+                if (farEnough && TryDropWake(position, _lastWalk, now))
+                {
+                    _lastStep = position;
+                    _hasStep = true;
+                }
+            }
+        }
 
-        Vector3 position = _walker.transform.position;
-        float spacing = Mathf.Max(0.25f, velocity.magnitude * touchDuration / TouchCount);
-        if (_hasStep && (position - _lastStep).sqrMagnitude < spacing * spacing)
-            return;
+        float fadeSpeed = target > 0.5f ? 10f : 2.4f;
+        _bodyStrength = Mathf.MoveTowards(_bodyStrength, target, Time.deltaTime * fadeSpeed);
+        AgeWakes(now);
+    }
 
-        _lastStep = position;
-        _hasStep = true;
-        int slot = _touchNext;
-        _touchNext = (_touchNext + 1) % TouchCount;
-        _touchAlive[slot] = true;
-        _touchBorn[slot] = now;
-        _touchPos[slot] = new Vector4(position.x, position.y, position.z, 0f);
-        Vector3 walk = velocity.normalized;
-        _touchDir[slot] = new Vector4(walk.x, walk.y, walk.z, 0f);
+    bool TryDropWake(Vector3 position, Vector3 walk, float now)
+    {
+        int slot = -1;
+        for (int i = 0; i < WakeCount; i++)
+        {
+            if (_wakeAlive[i])
+                continue;
+            slot = i;
+            break;
+        }
+
+        if (slot < 0)
+            return false;
+
+        _wakeAlive[slot] = true;
+        _wakeBorn[slot] = now;
+        _wakePos[slot] = new Vector4(position.x, position.y, position.z, 0f);
+        _wakeDir[slot] = new Vector4(walk.x, walk.y, walk.z, 0f);
+        return true;
+    }
+
+    void AgeWakes(float now)
+    {
+        for (int i = 0; i < WakeCount; i++)
+        {
+            if (!_wakeAlive[i])
+            {
+                _wakePos[i].w = -1f;
+                continue;
+            }
+
+            float age = (now - _wakeBorn[i]) / touchDuration;
+            if (age >= 1f)
+            {
+                _wakeAlive[i] = false;
+                _wakePos[i].w = -1f;
+                continue;
+            }
+
+            _wakePos[i].w = age;
+        }
     }
 
     void ClearTouch()
     {
-        for (int i = 0; i < TouchCount; i++)
-            _touchAlive[i] = false;
+        _bodyStrength = 0f;
         _hasStep = false;
+        for (int i = 0; i < WakeCount; i++)
+        {
+            _wakeAlive[i] = false;
+            _wakePos[i].w = -1f;
+        }
+    }
+
+    void PushTouch()
+    {
+        Vector3 position = _walker != null ? _walker.transform.position : Vector3.zero;
+        Shader.SetGlobalVector(BodyPosId, new Vector4(position.x, position.y, position.z, _bodyStrength));
+        Shader.SetGlobalVector(BodyDirId, new Vector4(_lastWalk.x, _lastWalk.y, _lastWalk.z, 0f));
+        for (int i = 0; i < WakeCount; i++)
+        {
+            Shader.SetGlobalVector(WakePosIds[i], _wakePos[i]);
+            Shader.SetGlobalVector(WakeDirIds[i], _wakeDir[i]);
+        }
+
+        Shader.SetGlobalVector(TouchParamsId, new Vector4(touchRadius, touchDuration, rustleSpeed, 0f));
     }
 }

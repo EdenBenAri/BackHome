@@ -227,7 +227,7 @@ public class PlayerDeathCameraLock : MonoBehaviour
             var go = new GameObject("DeathDazedOverlay");
             _overlay = go.transform;
             var filter = go.AddComponent<MeshFilter>();
-            filter.sharedMesh = BuildQuad();
+            filter.sharedMesh = CameraOverlayQuad.Create("DeathDazedOverlayQuad");
             _renderer = go.AddComponent<MeshRenderer>();
             _renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             _renderer.receiveShadows = false;
@@ -246,59 +246,16 @@ public class PlayerDeathCameraLock : MonoBehaviour
 
     void FitToCamera(bool force = false)
     {
-        Camera cam = ResolveCamera();
-        if (cam == null || _overlay == null)
-            return;
-
-        float fov = cam.fieldOfView;
-        float aspect = cam.aspect;
-        if (!force && Mathf.Abs(fov - _lastFov) < 0.01f && Mathf.Abs(aspect - _lastAspect) < 0.001f)
-            return;
-
-        _lastFov = fov;
-        _lastAspect = aspect;
-
-        float z = cam.nearClipPlane + 0.02f;
-        float height = 2f * z * Mathf.Tan(fov * 0.5f * Mathf.Deg2Rad);
-        _overlay.localPosition = new Vector3(0f, 0f, z);
-        _overlay.localScale = new Vector3(height * aspect, height, 1f);
+        CameraOverlayQuad.Fit(_overlay, ResolveCamera(), ref _lastFov, ref _lastAspect, 0.02f, force);
     }
 
     Camera ResolveCamera()
     {
-        if (_camera != null)
-            return _camera;
-
-        _camera = Camera.main;
-        if (_camera == null)
-            _camera = FindAnyObjectByType<Camera>();
-        return _camera;
+        return CameraOverlayQuad.Resolve(ref _camera);
     }
 
     static float Smooth(float t)
     {
         return t * t * (3f - 2f * t);
-    }
-
-    static Mesh BuildQuad()
-    {
-        var mesh = new Mesh { name = "DeathDazedOverlayQuad" };
-        mesh.vertices = new[]
-        {
-            new Vector3(-0.5f, -0.5f, 0f),
-            new Vector3(0.5f, -0.5f, 0f),
-            new Vector3(-0.5f, 0.5f, 0f),
-            new Vector3(0.5f, 0.5f, 0f)
-        };
-        mesh.uv = new[]
-        {
-            new Vector2(0f, 0f),
-            new Vector2(1f, 0f),
-            new Vector2(0f, 1f),
-            new Vector2(1f, 1f)
-        };
-        mesh.triangles = new[] { 0, 2, 1, 2, 3, 1 };
-        mesh.RecalculateBounds();
-        return mesh;
     }
 }

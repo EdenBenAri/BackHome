@@ -16,6 +16,7 @@ public class AreaKingCountdown : MonoBehaviour
     const float OpaqueDistance = 32f;
     const float HiddenDistance = 68f;
 
+    Camera _camera;
     TMP_FontAsset _font;
     TMP_Text _title;
     TMP_Text _timer;
@@ -53,13 +54,14 @@ public class AreaKingCountdown : MonoBehaviour
         if (!_shown)
             return;
 
-        Camera cam = Camera.main;
-        if (cam == null)
+        if (_camera == null)
+            _camera = Camera.main;
+        if (_camera == null)
             return;
 
-        Vector3 toCamera = cam.transform.position - transform.position;
+        Vector3 toCamera = _camera.transform.position - transform.position;
         if (toCamera.sqrMagnitude > 0.001f)
-            transform.rotation = Quaternion.LookRotation(-toCamera, cam.transform.up);
+            transform.rotation = Quaternion.LookRotation(-toCamera, _camera.transform.up);
 
         float distance = toCamera.magnitude;
         float alpha = Mathf.Clamp01(Mathf.InverseLerp(HiddenDistance, OpaqueDistance, distance));

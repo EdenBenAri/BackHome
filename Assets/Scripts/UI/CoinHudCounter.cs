@@ -11,8 +11,6 @@ public class CoinHudCounter : MonoBehaviour
     const string BarName = "CoinCounter";
     const string CoinResource = "Items/Coin/Coin";
 
-    static Sprite _pill;
-
     PlayerInventory _inventory;
     ItemDefinition _coin;
     RectTransform _bar;
@@ -107,13 +105,13 @@ public class CoinHudCounter : MonoBehaviour
         root.transform.SetParent(_canvas.transform, false);
         _bar = root.GetComponent<RectTransform>();
 
-        Image track = CreateImage(root.transform, "Track", Pill(), new Color(0.07f, 0.07f, 0.09f, 0.94f));
-        Stretch(track.rectTransform);
+        Image track = HudChrome.CreateImage(root.transform, "Track", HudChrome.Pill(), new Color(0.07f, 0.07f, 0.09f, 0.94f));
+        HudChrome.Stretch(track.rectTransform, 0f);
 
         _icon = CreateIcon(root.transform, _coin != null ? _coin.Icon : null);
-        _label = CreateLabel(root.transform, Font(transform));
+        _label = CreateLabel(root.transform, HudChrome.Font(transform));
         PlaceInCorner();
-        KeepUnderOverlays();
+        HudChrome.KeepUnderDeathOverlay(_bar, _canvas);
     }
 
     void PlaceInCorner()
@@ -138,34 +136,9 @@ public class CoinHudCounter : MonoBehaviour
         _bar.anchoredPosition = new Vector2(-(28f + 280f + 12f + right), -(28f + top));
     }
 
-    void KeepUnderOverlays()
-    {
-        if (_bar == null || _canvas == null)
-            return;
-
-        Transform overlay = _canvas.transform.Find("DeathOverlay");
-        if (overlay != null)
-            _bar.SetSiblingIndex(overlay.GetSiblingIndex());
-        else
-            _bar.SetAsLastSibling();
-    }
-
-    static Image CreateImage(Transform parent, string name, Sprite sprite, Color color)
-    {
-        var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        go.layer = 5;
-        go.transform.SetParent(parent, false);
-        var image = go.GetComponent<Image>();
-        image.sprite = sprite;
-        image.type = Image.Type.Sliced;
-        image.color = color;
-        image.raycastTarget = false;
-        return image;
-    }
-
     static Image CreateIcon(Transform parent, Sprite sprite)
     {
-        Image image = CreateImage(parent, "Icon", sprite, Color.white);
+        Image image = HudChrome.CreateImage(parent, "Icon", sprite, Color.white);
         image.type = Image.Type.Simple;
         image.preserveAspect = true;
         image.enabled = sprite != null;
@@ -203,28 +176,6 @@ public class CoinHudCounter : MonoBehaviour
         return text;
     }
 
-    static void Stretch(RectTransform rect)
-    {
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-        rect.localScale = Vector3.one;
-        rect.localRotation = Quaternion.identity;
-    }
-
-    static TMP_FontAsset Font(Transform searchRoot)
-    {
-        if (searchRoot != null)
-        {
-            TMP_Text sample = searchRoot.GetComponentInChildren<TMP_Text>(true);
-            if (sample != null && sample.font != null)
-                return sample.font;
-        }
-
-        return TMP_Settings.defaultFontAsset;
-    }
-
     static string FormatAmount(int amount)
     {
         amount = Mathf.Max(0, amount);
@@ -233,52 +184,5 @@ public class CoinHudCounter : MonoBehaviour
         if (amount < 1000000)
             return (amount / 1000f).ToString("0.#") + "K";
         return (amount / 1000000f).ToString("0.##") + "M";
-    }
-
-    static Sprite Pill()
-    {
-        if (_pill != null)
-            return _pill;
-
-        const int size = 32;
-        const int radius = 14;
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false);
-        tex.wrapMode = TextureWrapMode.Clamp;
-        tex.filterMode = FilterMode.Bilinear;
-        var pixels = new Color32[size * size];
-        float r = radius;
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float dx = 0f;
-                if (x < r)
-                    dx = r - x;
-                else if (x > size - 1 - r)
-                    dx = x - (size - 1 - r);
-
-                float dy = 0f;
-                if (y < r)
-                    dy = r - y;
-                else if (y > size - 1 - r)
-                    dy = y - (size - 1 - r);
-
-                float alpha = Mathf.Clamp01(r - Mathf.Sqrt(dx * dx + dy * dy) + 0.75f);
-                pixels[y * size + x] = new Color32(255, 255, 255, (byte)Mathf.RoundToInt(alpha * 255f));
-            }
-        }
-
-        tex.SetPixels32(pixels);
-        tex.Apply(false, true);
-        _pill = Sprite.Create(
-            tex,
-            new Rect(0f, 0f, size, size),
-            new Vector2(0.5f, 0.5f),
-            100f,
-            0,
-            SpriteMeshType.FullRect,
-            new Vector4(radius, radius, radius, radius));
-        _pill.name = "CoinCounterPill";
-        return _pill;
     }
 }

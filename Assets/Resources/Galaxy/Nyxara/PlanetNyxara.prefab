@@ -3312,8 +3312,9 @@ MonoBehaviour:
   maxSpeed: 1
   gustSpacing: 0.4
   directionTurnSpeed: 0.035
-  touchRadius: 1.2
-  touchDuration: 0.42
+  touchRadius: 2.4
+  touchDuration: 0.9
+  rustleSpeed: 14
 --- !u!1 &1692879288673288521
 GameObject:
   m_ObjectHideFlags: 0

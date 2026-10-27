@@ -72,34 +72,12 @@ public static class SlimeSetup
 
     static void EnsureTextures()
     {
-        EnsureNormalMap(NormalPath);
-        EnsureLinearData(MetallicPath);
-        EnsureLinearData(RoughnessPath);
-    }
-
-    static void EnsureNormalMap(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || importer.textureType == TextureImporterType.NormalMap)
-            return;
-
-        importer.textureType = TextureImporterType.NormalMap;
-        importer.SaveAndReimport();
-    }
-
-    static void EnsureLinearData(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || !importer.sRGBTexture)
-            return;
-
-        importer.sRGBTexture = false;
-        importer.SaveAndReimport();
+        CreatureAssetUtil.EnsurePbrMaps(NormalPath, MetallicPath, RoughnessPath);
     }
 
     static Material CreateMaterial()
     {
-        EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Slime", "Materials");
+        CreatureAssetUtil.EnsureFolder("Assets/Resources/Galaxy/Nyxara/Creatures/Slime", "Materials");
 
         Shader shader = Shader.Find("BackHome/CasualToon");
         if (shader == null)
@@ -152,6 +130,7 @@ public static class SlimeSetup
         so.FindProperty("visionRange").floatValue = 8f;
         so.FindProperty("movementSpeed").floatValue = 2.5f;
         so.FindProperty("experience").intValue = 8;
+        so.FindProperty("level").intValue = 1;
 
         SerializedProperty loot = so.FindProperty("loot");
         loot.arraySize = 1;
@@ -385,24 +364,8 @@ public static class SlimeSetup
         flashSo.ApplyModifiedPropertiesWithoutUndo();
     }
 
-    static void EnsureFolder(string parent, string child)
-    {
-        string folder = parent + "/" + child;
-        if (AssetDatabase.IsValidFolder(folder))
-            return;
-
-        AssetDatabase.CreateFolder(parent, child);
-    }
-
     static void WriteResult(string message)
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
-            File.WriteAllText(ResultPath, message);
-        }
-        catch { /* ignore */ }
-
-        Debug.Log("[BackHome] Slime setup: " + message);
+        CreatureAssetUtil.WriteResult(ResultPath, "Slime setup", message);
     }
 }

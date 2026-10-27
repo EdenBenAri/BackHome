@@ -13,13 +13,6 @@ public static class PlanetBorders
     static int _cacheFrame = -1;
     static Transform _cachePlanet;
 
-    public static void InvalidateCache()
-    {
-        _cacheFrame = -1;
-        _cachePlanet = null;
-        _boxCache = System.Array.Empty<BoxCollider>();
-    }
-
     public static Transform FindRoot(SphericalPlanet planet)
     {
         return planet != null ? planet.transform.Find(RootName) : null;
@@ -73,20 +66,6 @@ public static class PlanetBorders
     public static float WrapStudyLon(float lon)
     {
         return Mathf.Repeat(lon + 180f, 360f) - 180f;
-    }
-
-    public static bool IsGround(SphericalPlanet planet, Vector3 directionFromCenter)
-    {
-        if (!HasLayout(planet))
-            return true;
-
-        PlanetTileMap.DirectionToStudyLonLat(directionFromCenter, out float lon, out float lat);
-        SampleLips(planet, lon, out bool hasNorth, out float northInner, out bool hasSouth, out float southInner);
-        if (hasNorth && lat > northInner)
-            return false;
-        if (hasSouth && lat < southInner)
-            return false;
-        return true;
     }
 
     public static bool TryGetWalkBand(
@@ -168,16 +147,6 @@ public static class PlanetBorders
             var renderer = boxes[i].GetComponent<MeshRenderer>();
             if (renderer != null)
                 renderer.enabled = enabled;
-        }
-    }
-
-    public static void SetSolidCollidersEnabled(SphericalPlanet planet, bool enabled)
-    {
-        BoxCollider[] boxes = SolidBoxes(planet);
-        for (int i = 0; i < boxes.Length; i++)
-        {
-            if (boxes[i] != null)
-                boxes[i].enabled = enabled;
         }
     }
 

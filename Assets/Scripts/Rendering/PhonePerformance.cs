@@ -79,14 +79,6 @@ public static class PhonePerformance
         if (Has(model, "Android") || Has(model, "iPhone") || Has(model, "iPad"))
             return true;
 
-        // A phone browser often reports a desktop OS, but the short side is only a few inches.
-        if (Application.platform == RuntimePlatform.WebGLPlayer && Input.touchSupported && Screen.dpi > 80f)
-        {
-            float inches = Mathf.Min(Screen.width, Screen.height) / Screen.dpi;
-            if (inches > 0f && inches < 7.2f)
-                return true;
-        }
-
         return false;
     }
 

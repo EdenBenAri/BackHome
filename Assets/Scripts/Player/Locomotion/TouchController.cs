@@ -30,6 +30,7 @@ public class TouchController : MonoBehaviour
     [SerializeField] bool enableClickToMove = false;
 
     CharacterController _controller;
+    PlanetWalker _planetWalker;
     StarterAssetsInputs _input;
     Animator _animator;
     Camera _camera;
@@ -109,6 +110,7 @@ public class TouchController : MonoBehaviour
     void Awake()
     {
         _controller = GetComponent<CharacterController>();
+        _planetWalker = GetComponent<PlanetWalker>();
         _input = GetComponent<StarterAssetsInputs>();
         _hasAnimator = TryGetComponent(out _animator);
         _camera = Camera.main;
@@ -147,15 +149,15 @@ public class TouchController : MonoBehaviour
 
     void Update()
     {
-        PlanetWalker walker = GetComponent<PlanetWalker>();
-        if (walker != null && walker.IsWalkingOnPlanet)
+        if (_planetWalker != null && _planetWalker.IsWalkingOnPlanet)
             return;
         if (LockLocomotion)
             return;
         if (_controller == null || !_controller.enabled)
             return;
 
-        _hasAnimator = TryGetComponent(out _animator);
+        if (!_hasAnimator)
+            _hasAnimator = TryGetComponent(out _animator);
         if (_camera == null)
             _camera = Camera.main;
 

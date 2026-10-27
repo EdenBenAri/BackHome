@@ -146,34 +146,12 @@ public static class KingGrimlingSetup
 
     static void EnsureTextures()
     {
-        EnsureNormalMap(NormalPath);
-        EnsureLinearData(MetallicPath);
-        EnsureLinearData(RoughnessPath);
-    }
-
-    static void EnsureNormalMap(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || importer.textureType == TextureImporterType.NormalMap)
-            return;
-
-        importer.textureType = TextureImporterType.NormalMap;
-        importer.SaveAndReimport();
-    }
-
-    static void EnsureLinearData(string path)
-    {
-        var importer = AssetImporter.GetAtPath(path) as TextureImporter;
-        if (importer == null || !importer.sRGBTexture)
-            return;
-
-        importer.sRGBTexture = false;
-        importer.SaveAndReimport();
+        CreatureAssetUtil.EnsurePbrMaps(NormalPath, MetallicPath, RoughnessPath);
     }
 
     static Material CreateMaterial()
     {
-        EnsureFolder(Root, "Materials");
+        CreatureAssetUtil.EnsureFolder(Root, "Materials");
         var albedo = AssetDatabase.LoadAssetAtPath<Texture2D>(AlbedoPath);
         var normal = AssetDatabase.LoadAssetAtPath<Texture2D>(NormalPath);
         if (albedo == null)
@@ -221,24 +199,18 @@ public static class KingGrimlingSetup
         var stats = AssetDatabase.LoadAssetAtPath<CreatureStats>(StatsPath);
         var so = new SerializedObject(stats);
         so.FindProperty("displayName").stringValue = "King Grimling";
+        so.FindProperty("level").intValue = 9;
         if (applyNumbers)
         {
-            so.FindProperty("attackDamage").floatValue = 40f;
+            so.FindProperty("attackDamage").floatValue = 75f;
             so.FindProperty("attackSpeed").floatValue = 0.8f;
             so.FindProperty("attackRange").floatValue = 4.5f;
-            so.FindProperty("maxHealth").floatValue = 3000f;
+            so.FindProperty("maxHealth").floatValue = 8500f;
             so.FindProperty("visionRange").floatValue = 18f;
             so.FindProperty("movementSpeed").floatValue = 3.5f;
-            so.FindProperty("experience").intValue = 400;
+            so.FindProperty("experience").intValue = 700;
 
-            SerializedProperty loot = so.FindProperty("loot");
-            if (loot != null && loot.arraySize > 0)
-            {
-                SerializedProperty entry = loot.GetArrayElementAtIndex(0);
-                entry.FindPropertyRelative("minAmount").intValue = 3;
-                entry.FindPropertyRelative("maxAmount").intValue = 6;
-                entry.FindPropertyRelative("chance").floatValue = 1f;
-            }
+            CreatureAssetUtil.WriteKingLoot(so);
         }
 
         so.ApplyModifiedPropertiesWithoutUndo();
@@ -681,7 +653,7 @@ public static class KingGrimlingSetup
 
     static AnimationClip SaveClip(AnimationClip clip, string outputPath)
     {
-        EnsureFolder(Root, "Animations");
+        CreatureAssetUtil.EnsureFolder(Root, "Animations");
         AnimationClip existing = AssetDatabase.LoadAssetAtPath<AnimationClip>(outputPath);
         if (existing == null)
         {
@@ -737,24 +709,8 @@ public static class KingGrimlingSetup
         return AnimationUtility.GetCurveBindings(clip).Select(b => b.path).Distinct();
     }
 
-    static void EnsureFolder(string parent, string child)
-    {
-        string folder = parent + "/" + child;
-        if (AssetDatabase.IsValidFolder(folder))
-            return;
-
-        AssetDatabase.CreateFolder(parent, child);
-    }
-
     static void WriteResult(string message)
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
-            File.WriteAllText(ResultPath, message);
-        }
-        catch { /* ignore */ }
-
-        Debug.Log("[BackHome] King Grimling setup: " + message);
+        CreatureAssetUtil.WriteResult(ResultPath, "King Grimling setup", message);
     }
 }

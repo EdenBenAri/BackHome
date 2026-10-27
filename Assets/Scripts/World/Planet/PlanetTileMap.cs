@@ -124,17 +124,6 @@ public class PlanetTileMap : MonoBehaviour
             longitudeDeg += 360f;
     }
 
-    /// <summary>Unit direction in planet-local space from PlanetTileMap lon/lat degrees.</summary>
-    public static Vector3 TileMapLonLatToDirection(float longitudeDeg, float latitudeDeg)
-    {
-        float lat = latitudeDeg * Mathf.Deg2Rad;
-        float lon = longitudeDeg * Mathf.Deg2Rad;
-        return new Vector3(
-            Mathf.Cos(lat) * Mathf.Cos(lon),
-            Mathf.Sin(lat),
-            Mathf.Cos(lat) * Mathf.Sin(lon));
-    }
-
     /// <summary>
     /// Fit-study longitude (0° at local +Z, + toward +X). Latitude matches the tilemap frame.
     /// </summary>

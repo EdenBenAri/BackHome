@@ -3,9 +3,11 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Runtime vitals. HP / oxygen come from <see cref="PlayerStats"/>.
-/// Weapons are copied at spawn (up to <see cref="CombatLoadout.MaxWeapons"/>) so play mode
-/// can swap guns without dirtying the shared asset. Each gun fights with base + itself.
+/// Runtime vitals. Level 1 HP / oxygen / damage come from <see cref="PlayerStats"/>.
+/// <see cref="LevelTable"/> then raises health and hit damage by 4% per account level,
+/// and the oxygen tank by 2%. Weapons are copied at spawn (up to <see cref="CombatLoadout.MaxWeapons"/>)
+/// so play mode can swap guns without dirtying the shared asset. Each gun fights with base + itself,
+/// and that hit damage scales with level. Attack speed, range, and move speed stay as authored.
 /// Drain rates stay here as survival feel.
 /// </summary>
 public class PlayerVitals : MonoBehaviour, IVitalsReadable
@@ -23,21 +25,37 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     bool _loadoutReady;
     float _currentHealth;
     float _currentOxygen;
+    float _scaledHealthMax;
+    float _scaledOxygenMax;
     bool _invulnerable;
     int _recoveryZones;
+    PlayerLevel _boundLevel;
 
     public PlayerStats Stats => stats;
     public string DisplayName => stats != null ? stats.DisplayName : name;
-    public float MaxHealth => stats != null ? stats.MaxHealth : 0f;
-    public float MaxOxygen => stats != null ? stats.OxygenTank : 0f;
-    public CombatStats BaseCombat => stats != null ? stats.BaseCombat : CombatStats.Zero;
+    public float MaxHealth => stats != null ? LevelTable.ScalePower(stats.MaxHealth, AccountLevel) : 0f;
+    public float MaxOxygen => stats != null ? LevelTable.ScaleOxygen(stats.OxygenTank, AccountLevel) : 0f;
+    public CombatStats BaseCombat => ScaleCombat(stats != null ? stats.BaseCombat : CombatStats.Zero);
     public float AttackRange => CombatLoadout.MaxRange(BaseCombat, ActiveWeapons);
     public IReadOnlyList<WeaponDefinition> Weapons => ActiveWeapons;
     public WeaponDefinition PrimaryWeapon => CombatLoadout.Primary(ActiveWeapons);
 
     public CombatStats CombatFor(WeaponDefinition weapon)
     {
-        return CombatLoadout.ForWeapon(BaseCombat, weapon);
+        CombatStats raw = stats != null ? stats.BaseCombat : CombatStats.Zero;
+        return ScaleCombat(CombatLoadout.ForWeapon(raw, weapon));
+    }
+
+    int AccountLevel
+    {
+        get
+        {
+            if (!Application.isPlaying)
+                return 1;
+
+            PlayerLevel level = PlayerLevel.Instance != null ? PlayerLevel.Instance : PlayerLevel.EnsureExists();
+            return level != null ? level.Level : 1;
+        }
     }
 
     public float CurrentHealth => _currentHealth;
@@ -73,7 +91,18 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     {
         ToonOutlineSubjects.Mark(this);
         RebuildLoadout();
+        BindLevel();
         ResetVitals();
+    }
+
+    void OnEnable()
+    {
+        BindLevel();
+    }
+
+    void OnDestroy()
+    {
+        UnbindLevel();
     }
 
     void OnValidate()
@@ -127,7 +156,7 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
         if (refill)
             ResetVitals();
         else
-            RaiseChanged();
+            ApplyLevelCaps(grantGrowth: false);
         LoadoutChanged?.Invoke();
     }
 
@@ -160,6 +189,7 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     {
         _currentHealth = MaxHealth;
         _currentOxygen = MaxOxygen;
+        RememberCaps();
         RaiseChanged();
     }
 
@@ -254,6 +284,77 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
 
         if (changed)
             RaiseChanged();
+    }
+
+    void BindLevel()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        PlayerLevel level = PlayerLevel.EnsureExists();
+        if (level == null || level == _boundLevel)
+            return;
+
+        UnbindLevel();
+        _boundLevel = level;
+        _boundLevel.LevelChanged += OnLevelChanged;
+    }
+
+    void UnbindLevel()
+    {
+        if (_boundLevel == null)
+            return;
+
+        _boundLevel.LevelChanged -= OnLevelChanged;
+        _boundLevel = null;
+    }
+
+    void OnLevelChanged(int _)
+    {
+        ApplyLevelCaps(grantGrowth: IsAlive);
+    }
+
+    /// <summary>
+    /// Keeps the current bars inside the new max. A level-up adds the new health and oxygen
+    /// on top of what you already had, so a full bar stays full and a hurt bar gets the gain.
+    /// </summary>
+    void ApplyLevelCaps(bool grantGrowth)
+    {
+        float nextHealth = MaxHealth;
+        float nextOxygen = MaxOxygen;
+        bool hadCaps = _scaledHealthMax > 0f || _scaledOxygenMax > 0f;
+
+        if (grantGrowth && hadCaps && IsAlive)
+        {
+            float healthGain = nextHealth - _scaledHealthMax;
+            float oxygenGain = nextOxygen - _scaledOxygenMax;
+            if (healthGain > 0f)
+                _currentHealth = Mathf.Min(nextHealth, _currentHealth + healthGain);
+            if (oxygenGain > 0f)
+                _currentOxygen = Mathf.Min(nextOxygen, _currentOxygen + oxygenGain);
+        }
+
+        if (nextHealth > 0f)
+            _currentHealth = Mathf.Min(_currentHealth, nextHealth);
+        if (nextOxygen > 0f)
+            _currentOxygen = Mathf.Min(_currentOxygen, nextOxygen);
+
+        RememberCaps();
+        RaiseChanged();
+    }
+
+    void RememberCaps()
+    {
+        _scaledHealthMax = MaxHealth;
+        _scaledOxygenMax = MaxOxygen;
+    }
+
+    CombatStats ScaleCombat(CombatStats raw)
+    {
+        return new CombatStats(
+            LevelTable.ScalePower(raw.AttackDamage, AccountLevel),
+            raw.AttackSpeed,
+            raw.AttackRange);
     }
 
     void EnsureLoadout()

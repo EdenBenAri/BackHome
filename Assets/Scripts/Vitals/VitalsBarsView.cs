@@ -27,8 +27,7 @@ public class VitalsBarsView : MonoBehaviour
     [SerializeField] bool showValueLabels = true;
     [SerializeField] Color labelColor = new Color(1f, 1f, 1f, 0.95f);
 
-    // Track tint from Slider_Basic03_White. The bg sprite is white and this color makes the casual navy rail.
-    static readonly Color SliderTrackColor = new Color(0.015686275f, 0.1882353f, 0.39215687f, 1f);
+    static readonly Color SliderTrackColor = new Color(0.05f, 0.05f, 0.06f, 1f);
 
     [Header("Colors")]
     [SerializeField] Color frameColor = SliderTrackColor;
@@ -53,6 +52,10 @@ public class VitalsBarsView : MonoBehaviour
 
     MaterialPropertyBlock _block;
     bool _levelLabelReady;
+    bool _colorsCaptured;
+    Color _authoredFrameColor = Color.white;
+    Color _authoredHealthColor = Color.white;
+    Color _authoredOxygenColor = Color.white;
     AuthoredFill _healthAuthored;
     AuthoredFill _oxygenAuthored;
     float _previewHealth = 1f;
@@ -66,6 +69,7 @@ public class VitalsBarsView : MonoBehaviour
 
     void Awake()
     {
+        CaptureAuthoredColors();
         CaptureAuthoredLayout();
     }
 
@@ -84,24 +88,30 @@ public class VitalsBarsView : MonoBehaviour
 
     void OnEnable()
     {
+        CaptureAuthoredColors();
         CaptureAuthoredLayout();
         EnsureValueLabels();
         EnsureMaterials();
         ApplyOxygenVisibility();
-        SetRendererColor(frameRenderer, frameColor);
-        SetRendererColor(oxygenFrameRenderer, frameColor);
         RefreshValueLabels();
     }
 
-    /// <summary>Player bar: casual slider track and the bright green fill. Creatures keep their own fill color.</summary>
-    public void UseHeroHealthColors()
+    void CaptureAuthoredColors()
     {
-        frameColor = SliderTrackColor;
-        healthFillColor = new Color(0.45f, 0.92f, 0.22f, 1f);
-        healthLowColor = new Color(0.92f, 0.2f, 0.16f, 1f);
-        SetRendererColor(frameRenderer, frameColor);
-        if (_hitFlashTimer <= 0f)
-            ApplyHealthFillColor(_previewHealth);
+        if (_colorsCaptured)
+            return;
+
+        _authoredFrameColor = ReadSpriteColor(frameRenderer, frameColor);
+        _authoredHealthColor = ReadSpriteColor(healthFillRenderer, healthFillColor);
+        _authoredOxygenColor = ReadSpriteColor(oxygenFillRenderer, oxygenFillColor);
+        _colorsCaptured = true;
+    }
+
+    static Color ReadSpriteColor(Renderer renderer, Color fallback)
+    {
+        if (renderer is SpriteRenderer spriteRenderer)
+            return spriteRenderer.color;
+        return fallback;
     }
 
     public void SetOxygenVisible(bool visible)
@@ -124,13 +134,13 @@ public class VitalsBarsView : MonoBehaviour
     public void SetAlpha(float alpha)
     {
         _alpha = Mathf.Clamp01(alpha);
-        SetRendererColor(frameRenderer, frameColor);
-        SetRendererColor(oxygenFrameRenderer, frameColor);
+        SetRendererColor(frameRenderer, _authoredFrameColor);
+        SetRendererColor(oxygenFrameRenderer, _authoredFrameColor);
         if (_hitFlashTimer > 0f)
             SetRendererColor(healthFillRenderer, healthHitFlashColor);
         else
             ApplyHealthFillColor(_previewHealth);
-        SetRendererColor(oxygenFillRenderer, oxygenFillColor);
+        SetRendererColor(oxygenFillRenderer, _authoredOxygenColor);
         ApplyLabelAlpha();
     }
 
@@ -142,9 +152,7 @@ public class VitalsBarsView : MonoBehaviour
 
     void ApplyHealthFillColor(float normalized)
     {
-        SetRendererColor(
-            healthFillRenderer,
-            Color.Lerp(healthLowColor, healthFillColor, Mathf.Clamp01(normalized * 1.5f)));
+        SetRendererColor(healthFillRenderer, _authoredHealthColor);
     }
 
     /// <summary>
@@ -187,7 +195,7 @@ public class VitalsBarsView : MonoBehaviour
             return;
 
         ApplyFill(ref _oxygenAuthored, oxygenFill, oxygenFillRenderer, normalized);
-        SetRendererColor(oxygenFillRenderer, oxygenFillColor);
+        SetRendererColor(oxygenFillRenderer, _authoredOxygenColor);
     }
 
     public void SetOxygenValues(float current, float max)
@@ -197,12 +205,6 @@ public class VitalsBarsView : MonoBehaviour
         float normalized = _oxygenMax > 0f ? _oxygenCurrent / _oxygenMax : 0f;
         SetOxygen(normalized);
         RefreshOxygenLabel();
-    }
-
-    public void ApplyLayout()
-    {
-        ApplyOxygenVisibility();
-        EnsureMaterials();
     }
 
     void ApplyOxygenVisibility()
@@ -443,11 +445,17 @@ public class VitalsBarsView : MonoBehaviour
 
             GameObject copy = Instantiate(healthLabel.gameObject, healthLabel.transform.parent);
             copy.name = "LevelValue";
+            // The source label is inactive. TMP only builds its font material in OnEnable,
+            // and SetOutlineThickness null-refs if we touch the outline before that.
+            copy.SetActive(true);
             levelLabel = copy.GetComponent<TMP_Text>();
         }
 
         if (levelLabel == null)
             return;
+
+        if (!levelLabel.gameObject.activeSelf)
+            levelLabel.gameObject.SetActive(true);
 
         EnsureWorldSpaceLabel(levelLabel);
         levelLabel.fontSize = 56f;
@@ -455,18 +463,20 @@ public class VitalsBarsView : MonoBehaviour
         levelLabel.alignment = TextAlignmentOptions.Center;
         levelLabel.textWrappingMode = TextWrappingModes.NoWrap;
         levelLabel.overflowMode = TextOverflowModes.Overflow;
-        // Hard SDF stroke. A scaled copy of the letters reads as a soft blob, not a cartoon rim.
-        levelLabel.outlineWidth = 0.35f;
-        levelLabel.outlineColor = Color.black;
         levelLabel.extraPadding = true;
         levelLabel.raycastTarget = false;
-        Material face = levelLabel.fontMaterial;
-        if (face != null)
+        if (levelLabel.font != null && levelLabel.fontSharedMaterial != null)
         {
-            face.SetFloat("_OutlineSoftness", 0f);
-            face.SetFloat("_FaceDilate", 0.12f);
-            face.SetFloat("_OutlineWidth", 0.35f);
-            face.SetColor("_OutlineColor", Color.black);
+            levelLabel.outlineWidth = 0.35f;
+            levelLabel.outlineColor = Color.black;
+            Material face = levelLabel.fontMaterial;
+            if (face != null)
+            {
+                face.SetFloat("_OutlineSoftness", 0f);
+                face.SetFloat("_FaceDilate", 0.12f);
+                face.SetFloat("_OutlineWidth", 0.35f);
+                face.SetColor("_OutlineColor", Color.black);
+            }
         }
 
         RectTransform rect = levelLabel.rectTransform;

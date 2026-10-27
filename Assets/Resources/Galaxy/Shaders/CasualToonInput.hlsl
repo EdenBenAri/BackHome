@@ -36,61 +36,80 @@ CBUFFER_END
 float4 _EnvWindDir;
 // x = slowest sway speed, y = fastest, z = how fast a gust travels across the ground.
 float4 _EnvWindParams;
-// Recent steps where the player walked through grass. xyz = position, w = age (0 fresh, 1 gone, <0 unused).
-float4 _GrassTouchPos[4];
-// xyz = walk direction at that step. w unused.
-float4 _GrassTouchDir[4];
-// x = touch radius in meters, y = how long the flick lasts in seconds.
+// xyz = player position, w = how hard the grass around them is rustling (0..1).
+float4 _GrassBodyPos;
+// xyz = walk direction. w unused.
+float4 _GrassBodyDir;
+// Grass the player already walked through. xyz = position, w = age (0 fresh, 1 gone, <0 unused).
+float4 _GrassWake0;
+float4 _GrassWake1;
+float4 _GrassWake2;
+float4 _GrassWakeDir0;
+float4 _GrassWakeDir1;
+float4 _GrassWakeDir2;
+// x = touch radius in meters, y = wake length in seconds, z = rustle speed.
 float4 _GrassTouchParams;
 
-// Added on top of the wind. Grass materials opt in; trees stay at zero.
-float3 CasualPlayerTouchWS(float3 positionWS, float3 upWS, float height, float mask)
+// One disturbance, added on top of the wind. Returns a world-space lean.
+float3 CasualTouchSampleWS(float3 positionWS, float3 upWS, float height, float mask, float plant,
+    float4 samplePos, float4 sampleDir, float radius, float rustleSpeed, float strength)
 {
-    float touchDegrees = _PlayerTouch;
-    if (touchDegrees <= 0.001)
+    float age = samplePos.w;
+    if (strength <= 0.001 || age < 0.0 || age > 1.0)
+        return float3(0, 0, 0);
+
+    float3 flat = positionWS - samplePos.xyz;
+    flat -= upWS * dot(flat, upWS);
+    float dist = length(flat);
+    float proximity = saturate(1.0 - dist / radius);
+    proximity *= proximity * strength;
+    if (proximity <= 0.001)
+        return float3(0, 0, 0);
+
+    float fade = 1.0 - age;
+    float flutter = sin(_Time.y * rustleSpeed + plant * 6.2831853 + age * 8.0);
+    // Mostly a back-and-forth, with a bias so the blades stay pushed aside.
+    float kick = fade * (0.25 + 0.75 * flutter);
+
+    float3 walk = sampleDir.xyz - upWS * dot(sampleDir.xyz, upWS);
+    float walkLen2 = dot(walk, walk);
+    float3 away = dist > 0.08 ? flat / dist : float3(1, 0, 0);
+    float3 push = walkLen2 > 1e-6 ? (walk * rsqrt(walkLen2) * 0.6 + away * 0.4) : away;
+    float pushLen2 = dot(push, push);
+    push = pushLen2 > 1e-6 ? push * rsqrt(pushLen2) : away;
+    push *= kick >= 0.0 ? 1.0 : -1.0;
+
+    float touchAngle = radians(_PlayerTouch) * proximity * abs(kick) * mask;
+    return push * (height * sin(touchAngle));
+}
+
+// Grass materials opt in. Trees stay at zero, so their wind is unchanged.
+float3 CasualPlayerTouchWS(float3 positionWS, float3 upWS, float height, float mask, float plant)
+{
+    if (_PlayerTouch <= 0.001)
         return float3(0, 0, 0);
 
     float radius = _GrassTouchParams.x;
     if (radius < 0.05)
-        radius = 1.2;
+        radius = 2.4;
+    float rustleSpeed = _GrassTouchParams.z;
+    if (rustleSpeed < 0.5)
+        rustleSpeed = 14.0;
 
-    float best = 0;
-    float3 bestDir = float3(0, 0, 0);
-    [unroll]
-    for (int i = 0; i < 4; i++)
-    {
-        float4 samplePos = _GrassTouchPos[i];
-        float age = samplePos.w;
-        if (age < 0 || age > 1)
-            continue;
+    float3 offset = CasualTouchSampleWS(positionWS, upWS, height, mask, plant,
+        float4(_GrassBodyPos.xyz, 0.0), _GrassBodyDir, radius, rustleSpeed, saturate(_GrassBodyPos.w));
+    offset += CasualTouchSampleWS(positionWS, upWS, height, mask, plant,
+        _GrassWake0, _GrassWakeDir0, radius, rustleSpeed, 1.0);
+    offset += CasualTouchSampleWS(positionWS, upWS, height, mask, plant,
+        _GrassWake1, _GrassWakeDir1, radius, rustleSpeed, 1.0);
+    offset += CasualTouchSampleWS(positionWS, upWS, height, mask, plant,
+        _GrassWake2, _GrassWakeDir2, radius, rustleSpeed, 1.0);
 
-        float3 flat = positionWS - samplePos.xyz;
-        flat -= upWS * dot(flat, upWS);
-        float dist = length(flat);
-        float proximity = saturate(1.0 - dist / radius);
-        proximity *= proximity;
-
-        // A short flick in the walk direction, then it settles back into the wind.
-        float fade = 1.0 - age;
-        float wobble = sin(age * 10.5) * fade;
-        float kick = fade * 0.72 + wobble * 0.28;
-        float amount = proximity * abs(kick);
-        if (amount <= best)
-            continue;
-
-        float3 dir = _GrassTouchDir[i].xyz;
-        float dirLen2 = dot(dir, dir);
-        dir = dirLen2 > 1e-6 ? dir * rsqrt(dirLen2) : (dist > 0.02 ? flat / max(dist, 1e-4) : float3(1, 0, 0));
-        dir -= upWS * dot(dir, upWS);
-        best = amount;
-        bestDir = dir * (kick >= 0 ? 1.0 : -1.0);
-    }
-
-    if (best <= 0)
-        return float3(0, 0, 0);
-
-    float touchAngle = radians(touchDegrees) * best * mask;
-    return bestDir * (height * sin(touchAngle));
+    float limit = height * sin(radians(_PlayerTouch)) * mask;
+    float len = length(offset);
+    if (limit > 0.0 && len > limit)
+        offset *= limit / len;
+    return offset;
 }
 
 // Foliage meshes are authored Z-up and the prefab turns them -90 degrees on X,
@@ -127,30 +146,35 @@ float3 CasualWindOffsetOS(float3 positionOS)
     float2 seed = originWS.xz + originWS.y;
     float plant = frac(sin(dot(seed, float2(12.9898, 78.233))) * 43758.5453);
 
-    float minSpeed = _EnvWindParams.x;
-    float maxSpeed = _EnvWindParams.y;
-    float freq = _EnvWindParams.z;
-    if (maxSpeed < 0.01)
+    float3 offsetWS = float3(0, 0, 0);
+    if (degrees > 0.001)
     {
-        minSpeed = 0.5;
-        maxSpeed = 1.0;
-        freq = 0.4;
+        float minSpeed = _EnvWindParams.x;
+        float maxSpeed = _EnvWindParams.y;
+        float freq = _EnvWindParams.z;
+        if (maxSpeed < 0.01)
+        {
+            minSpeed = 0.5;
+            maxSpeed = 1.0;
+            freq = 0.4;
+        }
+
+        // Each plant keeps its own tempo, and that tempo drifts inside the range.
+        float wander = 0.5 + 0.5 * sin(_Time.y * 0.085 + plant * 6.2831853);
+        float speed = lerp(minSpeed, maxSpeed, saturate(plant * 0.7 + wander * 0.3));
+
+        // A gust travels along the wind, so neighbors lean a moment apart.
+        float phase = dot(originWS, windDir) * freq + plant * 6.2831853;
+        float wave = sin(_Time.y * speed + phase);
+
+        float angle = wave * radians(degrees) * mask;
+        float lean = height * sin(angle);
+        float settle = height * (cos(angle) - 1.0);
+        offsetWS = side * lean + upWS * settle;
     }
 
-    // Each plant keeps its own tempo, and that tempo drifts inside the range.
-    float wander = 0.5 + 0.5 * sin(_Time.y * 0.085 + plant * 6.2831853);
-    float speed = lerp(minSpeed, maxSpeed, saturate(plant * 0.7 + wander * 0.3));
-
-    // A gust travels along the wind, so neighbors lean a moment apart.
-    float phase = dot(originWS, windDir) * freq + plant * 6.2831853;
-    float wave = sin(_Time.y * speed + phase);
-
-    float angle = wave * radians(degrees) * mask;
-    float lean = height * sin(angle);
-    float settle = height * (cos(angle) - 1.0);
-
-    float3 offsetWS = side * lean + upWS * settle;
-    offsetWS += CasualPlayerTouchWS(positionWS, upWS, height, mask);
+    // Player rustle sits on the wind. It does not replace it.
+    offsetWS += CasualPlayerTouchWS(positionWS, upWS, height, mask, plant);
     return mul((float3x3)GetWorldToObjectMatrix(), offsetWS);
 }
 

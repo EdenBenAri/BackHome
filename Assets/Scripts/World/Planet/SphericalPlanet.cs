@@ -78,16 +78,6 @@ public class SphericalPlanet : MonoBehaviour
     /// <summary>World to planet-local space. Inverse of <see cref="PlanetLocalToWorld"/>.</summary>
     public Matrix4x4 WorldToPlanetLocal => transform.worldToLocalMatrix;
 
-    /// <summary>
-    /// Signed radial offset from the gameplay radius, in planet-local units.
-    /// Positive is away from center; negative is toward center.
-    /// </summary>
-    public float GetRadialHeight(Vector3 worldPosition)
-    {
-        Vector3 local = WorldToPlanetLocal.MultiplyPoint3x4(worldPosition);
-        return local.magnitude - radius;
-    }
-
     public bool HasHeightTerrain =>
         useVisualShell
         && shellHeightMap != null

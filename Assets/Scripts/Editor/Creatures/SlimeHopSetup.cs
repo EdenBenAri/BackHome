@@ -198,7 +198,7 @@ public static class SlimeHopSetup
             string parent = Path.GetDirectoryName(folder)?.Replace('\\', '/');
             string child = Path.GetFileName(folder);
             if (!string.IsNullOrEmpty(parent) && !string.IsNullOrEmpty(child))
-                EnsureFolder(parent, child);
+                CreatureAssetUtil.EnsureFolder(parent, child);
         }
 
         BodyFit fit = Measure(prefabPath, hopHeight);
@@ -797,24 +797,8 @@ public static class SlimeHopSetup
         return false;
     }
 
-    static void EnsureFolder(string parent, string child)
-    {
-        string folder = parent + "/" + child;
-        if (AssetDatabase.IsValidFolder(folder))
-            return;
-
-        AssetDatabase.CreateFolder(parent, child);
-    }
-
     static void WriteResult(string message)
     {
-        try
-        {
-            Directory.CreateDirectory(Path.GetDirectoryName(ResultPath));
-            File.WriteAllText(ResultPath, message);
-        }
-        catch { /* ignore */ }
-
-        Debug.Log("[BackHome] Slime hop: " + message);
+        CreatureAssetUtil.WriteResult(ResultPath, "Slime hop", message);
     }
 }
