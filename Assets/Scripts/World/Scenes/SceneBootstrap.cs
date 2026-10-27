@@ -37,6 +37,7 @@ public class SceneBootstrap : MonoBehaviour
         }
 
         PlayerInventory.EnsureExists();
+        PlayerLevel.EnsureExists();
 
         _crashIntro = FindAnyObjectByType<PlayerCrashIntro>();
         if (_crashIntro != null)

@@ -45,6 +45,10 @@ public class CreatureStats : ScriptableObject
     [Tooltip("Surface speed while chasing the player or walking home.")]
     [SerializeField, Min(0.1f)] float movementSpeed = 4f;
 
+    [Header("Progression")]
+    [Tooltip("XP granted when this creature dies. Scale it with difficulty: a weak mob is a few points, a king is a hunt.")]
+    [SerializeField, Min(0)] int experience;
+
     [Header("Loot")]
     [Tooltip("Rolled independently on death. Chance 0 = never, 1 = always.")]
     [SerializeField] LootEntry[] loot = Array.Empty<LootEntry>();
@@ -56,6 +60,7 @@ public class CreatureStats : ScriptableObject
     public float AttackDamage => attackDamage;
     public float AttackSpeed => attackSpeed;
     public float AttackRange => attackRange;
+    public int Experience => experience;
     public LootEntry[] Loot => loot;
 
     public bool TryRollLoot(int index, out ItemDefinition item, out int amount)
@@ -87,6 +92,7 @@ public class CreatureStats : ScriptableObject
         attackDamage = Mathf.Max(0f, attackDamage);
         attackSpeed = Mathf.Max(0.01f, attackSpeed);
         attackRange = Mathf.Max(0.05f, attackRange);
+        experience = Mathf.Max(0, experience);
 
         if (loot == null)
             return;

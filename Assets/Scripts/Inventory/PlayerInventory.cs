@@ -25,6 +25,21 @@ public class PlayerInventory : MonoBehaviour
 
     public event Action Changed;
 
+    public int Count(ItemDefinition item)
+    {
+        if (item == null)
+            return 0;
+
+        int total = 0;
+        for (int i = 0; i < _slots.Count; i++)
+        {
+            if (_slots[i].item == item)
+                total += _slots[i].count;
+        }
+
+        return total;
+    }
+
     public static PlayerInventory EnsureExists()
     {
         if (_instance != null)

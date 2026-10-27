@@ -339,7 +339,7 @@ public class InventoryUI : MonoBehaviour
         if (_inventory == null)
             _inventory = PlayerInventory.Instance;
 
-        int filled = _inventory != null ? _inventory.Slots.Count : 0;
+        int filled = CountBagSlots();
         int shown = Mathf.Max(InventoryGridCapacity, filled);
 
         while (CountSpawnedSlots() < shown)
@@ -364,16 +364,57 @@ public class InventoryUI : MonoBehaviour
                 continue;
             }
 
-            if (_inventory != null && slotIndex < _inventory.Slots.Count)
-            {
-                PlayerInventory.Slot packed = _inventory.Slots[slotIndex];
+            if (TryBagSlot(slotIndex, out PlayerInventory.Slot packed))
                 view.Bind(packed.item, packed.count, fallbackResourceIcon);
-            }
             else
                 view.Bind(null, 0, fallbackResourceIcon);
 
             slotIndex++;
         }
+    }
+
+    int CountBagSlots()
+    {
+        if (_inventory == null)
+            return 0;
+
+        int count = 0;
+        var slots = _inventory.Slots;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            ItemDefinition item = slots[i].item;
+            if (item != null && item.Category == ItemCategory.Currency)
+                continue;
+            count++;
+        }
+
+        return count;
+    }
+
+    bool TryBagSlot(int visibleIndex, out PlayerInventory.Slot slot)
+    {
+        slot = default;
+        if (_inventory == null || visibleIndex < 0)
+            return false;
+
+        int seen = 0;
+        var slots = _inventory.Slots;
+        for (int i = 0; i < slots.Count; i++)
+        {
+            ItemDefinition item = slots[i].item;
+            if (item != null && item.Category == ItemCategory.Currency)
+                continue;
+
+            if (seen == visibleIndex)
+            {
+                slot = slots[i];
+                return true;
+            }
+
+            seen++;
+        }
+
+        return false;
     }
 
     int CountSpawnedSlots()

@@ -21,7 +21,7 @@ public static class SlimeSetup
     const string StatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/SlimeStats.asset";
     const string LootItemPath = "Assets/Resources/Items/Coin/Coin.asset";
     const string PrefabPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Slime.prefab";
-    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/CreaturesVitalsBars.prefab";
+    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/VitalsBars.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 1.8f;
@@ -151,6 +151,7 @@ public static class SlimeSetup
         so.FindProperty("maxHealth").floatValue = 80f;
         so.FindProperty("visionRange").floatValue = 8f;
         so.FindProperty("movementSpeed").floatValue = 2.5f;
+        so.FindProperty("experience").intValue = 8;
 
         SerializedProperty loot = so.FindProperty("loot");
         loot.arraySize = 1;

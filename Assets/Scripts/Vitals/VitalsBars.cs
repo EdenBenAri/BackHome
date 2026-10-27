@@ -19,6 +19,7 @@ public class VitalsBars : MonoBehaviour
     [SerializeField, Min(0f)] float fadeDuration = 0.2f;
 
     IVitalsReadable _source;
+    PlayerLevel _level;
     Camera _camera;
     float _revealTimer;
     float _alpha = 1f;
@@ -50,6 +51,7 @@ public class VitalsBars : MonoBehaviour
     {
         _source = GetComponent<IVitalsReadable>();
         EnsureBars();
+        ApplyHeroStyle();
         ApplyOxygenVisibility();
         if (HideUntilDamaged)
             HideBarsImmediate();
@@ -67,6 +69,7 @@ public class VitalsBars : MonoBehaviour
             _source.Died += RefreshBars;
         }
 
+        BindLevel();
         RefreshBars();
     }
 
@@ -77,12 +80,41 @@ public class VitalsBars : MonoBehaviour
 
     void OnDisable()
     {
-        if (_source == null)
+        if (_source != null)
+        {
+            _source.VitalsChanged -= RefreshBars;
+            _source.Damaged -= OnDamaged;
+            _source.Died -= RefreshBars;
+        }
+
+        UnbindLevel();
+    }
+
+    void BindLevel()
+    {
+        UnbindLevel();
+        if (GetComponent<PlayerVitals>() == null)
             return;
 
-        _source.VitalsChanged -= RefreshBars;
-        _source.Damaged -= OnDamaged;
-        _source.Died -= RefreshBars;
+        _level = PlayerLevel.EnsureExists();
+        if (_level == null)
+            return;
+
+        _level.LevelChanged += OnLevelChanged;
+    }
+
+    void UnbindLevel()
+    {
+        if (_level == null)
+            return;
+
+        _level.LevelChanged -= OnLevelChanged;
+        _level = null;
+    }
+
+    void OnLevelChanged(int _)
+    {
+        RefreshLevelLabel();
     }
 
     void LateUpdate()
@@ -139,7 +171,17 @@ public class VitalsBars : MonoBehaviour
         if (bars == null)
             return;
 
-        bars.SetOxygenVisible(_source != null && _source.HasOxygen);
+        // Player oxygen lives on the screen HUD, not above the character.
+        bool aboveCharacter = _source != null && _source.HasOxygen && GetComponent<PlayerVitals>() == null;
+        bars.SetOxygenVisible(aboveCharacter);
+    }
+
+    void ApplyHeroStyle()
+    {
+        if (bars == null || GetComponent<PlayerVitals>() == null)
+            return;
+
+        bars.UseHeroHealthColors();
     }
 
     void RefreshBars()
@@ -155,6 +197,7 @@ public class VitalsBars : MonoBehaviour
 
         ApplyOxygenVisibility();
         bars.SetHealthValues(_source.CurrentHealth, _source.MaxHealth);
+        RefreshLevelLabel();
 
         if (_source.HasOxygen)
             bars.SetOxygenValues(_source.CurrentOxygen, _source.MaxOxygen);
@@ -170,6 +213,14 @@ public class VitalsBars : MonoBehaviour
             return;
 
         ShowBarsImmediate();
+    }
+
+    void RefreshLevelLabel()
+    {
+        if (bars == null || _level == null)
+            return;
+
+        bars.SetLevel(_level.Level);
     }
 
     void OnDamaged(float _)

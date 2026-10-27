@@ -32,7 +32,7 @@ public static class KingSnarlfangSetup
     const string StatsPath = Root + "/King_SnarlfangStats.asset";
     const string SourceStatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/SnarlfangStats.asset";
     const string PrefabPath = Root + "/King_Snarlfang.prefab";
-    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/CreaturesVitalsBars.prefab";
+    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/VitalsBars.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 4.2f;
@@ -223,6 +223,7 @@ public static class KingSnarlfangSetup
             so.FindProperty("maxHealth").floatValue = 1600f;
             so.FindProperty("visionRange").floatValue = 18f;
             so.FindProperty("movementSpeed").floatValue = 6f;
+            so.FindProperty("experience").intValue = 260;
 
             SerializedProperty loot = so.FindProperty("loot");
             if (loot != null && loot.arraySize > 0)

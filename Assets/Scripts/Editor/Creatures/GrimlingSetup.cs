@@ -27,7 +27,7 @@ public static class GrimlingSetup
     const string StatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/GrimlingStats.asset";
     const string PrefabPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/Grimling.prefab";
     const string PrefabGuid = "999c9df1ae9ff0641a8369f4be6b7ed5";
-    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/CreaturesVitalsBars.prefab";
+    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/VitalsBars.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 1.8f;

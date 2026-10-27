@@ -4,7 +4,7 @@ TextureImporter:
   internalIDToNameTable:
   - first:
       213: -9142855577387464877
-    second: CreaturesVitalsBars_0
+    second: VitalsBars_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -115,7 +115,7 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: CreaturesVitalsBars_0
+      name: VitalsBars_0
       rect:
         serializedVersion: 2
         x: 0

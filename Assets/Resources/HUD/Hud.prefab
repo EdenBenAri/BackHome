@@ -403,6 +403,9 @@ GameObject:
   - component: {fileID: 8686078795705392706}
   - component: {fileID: 8686078795705392707}
   - component: {fileID: 8686078795705392708}
+  - component: {fileID: 8686078795705392709}
+  - component: {fileID: 8686078795705392710}
+  - component: {fileID: 8686078795705392711}
   m_Layer: 0
   m_Name: Hud
   m_TagString: Untagged
@@ -569,6 +572,42 @@ MonoBehaviour:
   fallTiltDegrees: 3.5
   fadeIn: 0.9
   overlayMaterial: {fileID: 0}
+--- !u!114 &8686078795705392709
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8133869685062393850}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d1e4f7a82b3c4d5e6f708192a3b4c5d6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::XpHudBar
+--- !u!114 &8686078795705392710
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8133869685062393850}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e3a7c91b4d2f4a6e8c0b1d3f5a7e9c02, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::CoinHudCounter
+--- !u!114 &8686078795705392711
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8133869685062393850}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f4b8d02c5e3a4f7b9c1d2e6a8b0c3d15, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::OxygenHudBar
 --- !u!1 &8601041975751530378
 GameObject:
   m_ObjectHideFlags: 0

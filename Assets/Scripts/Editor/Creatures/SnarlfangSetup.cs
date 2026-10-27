@@ -27,7 +27,7 @@ public static class SnarlfangSetup
     const string StatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/SnarlfangStats.asset";
     const string GrimlingStatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/GrimlingStats.asset";
     const string PrefabPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Snarlfang/Snarlfang.prefab";
-    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/CreaturesVitalsBars.prefab";
+    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/VitalsBars.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 1.8f;
@@ -299,6 +299,7 @@ public static class SnarlfangSetup
         var stats = AssetDatabase.LoadAssetAtPath<CreatureStats>(StatsPath);
         var so = new SerializedObject(stats);
         so.FindProperty("displayName").stringValue = "Snarlfang";
+        so.FindProperty("experience").intValue = 18;
         so.ApplyModifiedPropertiesWithoutUndo();
         EditorUtility.SetDirty(stats);
         return stats;

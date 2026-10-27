@@ -27,8 +27,12 @@ public class VitalsBarsView : MonoBehaviour
     [SerializeField] bool showValueLabels = true;
     [SerializeField] Color labelColor = new Color(1f, 1f, 1f, 0.95f);
 
+    // Track tint from Slider_Basic03_White. The bg sprite is white and this color makes the casual navy rail.
+    static readonly Color SliderTrackColor = new Color(0.015686275f, 0.1882353f, 0.39215687f, 1f);
+
     [Header("Colors")]
-    [SerializeField] Color healthFillColor = new Color(0.25f, 0.85f, 0.35f, 1f);
+    [SerializeField] Color frameColor = SliderTrackColor;
+    [SerializeField] Color healthFillColor = new Color(0.45f, 0.92f, 0.22f, 1f);
     [SerializeField] Color healthLowColor = new Color(0.9f, 0.2f, 0.2f, 1f);
     [SerializeField] Color healthHitFlashColor = new Color(1f, 1f, 1f, 1f);
     [SerializeField] Color oxygenFillColor = new Color(0.25f, 0.65f, 1f, 1f);
@@ -45,8 +49,10 @@ public class VitalsBarsView : MonoBehaviour
     [SerializeField] Material fillMaterial;
     [SerializeField] TMP_Text healthLabel;
     [SerializeField] TMP_Text oxygenLabel;
+    [SerializeField] TMP_Text levelLabel;
 
     MaterialPropertyBlock _block;
+    bool _levelLabelReady;
     AuthoredFill _healthAuthored;
     AuthoredFill _oxygenAuthored;
     float _previewHealth = 1f;
@@ -82,7 +88,20 @@ public class VitalsBarsView : MonoBehaviour
         EnsureValueLabels();
         EnsureMaterials();
         ApplyOxygenVisibility();
+        SetRendererColor(frameRenderer, frameColor);
+        SetRendererColor(oxygenFrameRenderer, frameColor);
         RefreshValueLabels();
+    }
+
+    /// <summary>Player bar: casual slider track and the bright green fill. Creatures keep their own fill color.</summary>
+    public void UseHeroHealthColors()
+    {
+        frameColor = SliderTrackColor;
+        healthFillColor = new Color(0.45f, 0.92f, 0.22f, 1f);
+        healthLowColor = new Color(0.92f, 0.2f, 0.16f, 1f);
+        SetRendererColor(frameRenderer, frameColor);
+        if (_hitFlashTimer <= 0f)
+            ApplyHealthFillColor(_previewHealth);
     }
 
     public void SetOxygenVisible(bool visible)
@@ -105,8 +124,8 @@ public class VitalsBarsView : MonoBehaviour
     public void SetAlpha(float alpha)
     {
         _alpha = Mathf.Clamp01(alpha);
-        SetRendererColor(frameRenderer, Color.white);
-        SetRendererColor(oxygenFrameRenderer, Color.white);
+        SetRendererColor(frameRenderer, frameColor);
+        SetRendererColor(oxygenFrameRenderer, frameColor);
         if (_hitFlashTimer > 0f)
             SetRendererColor(healthFillRenderer, healthHitFlashColor);
         else
@@ -126,6 +145,29 @@ public class VitalsBarsView : MonoBehaviour
         SetRendererColor(
             healthFillRenderer,
             Color.Lerp(healthLowColor, healthFillColor, Mathf.Clamp01(normalized * 1.5f)));
+    }
+
+    /// <summary>
+    /// Level centered above the health bar, XP Hero style: "Lv8", white with a dark outline.
+    /// Creatures never call this, so only the player grows the label.
+    /// </summary>
+    public void SetLevel(int level)
+    {
+        EnsureLevelLabel();
+        if (levelLabel == null)
+            return;
+
+        if (!levelLabel.gameObject.activeSelf)
+            levelLabel.gameObject.SetActive(true);
+
+        string text = "Lv" + Mathf.Max(1, level);
+        if (levelLabel.text != text)
+        {
+            levelLabel.text = text;
+            levelLabel.ForceMeshUpdate();
+        }
+
+        ApplyLabelColor(levelLabel);
     }
 
     public void SetHealthValues(float current, float max)
@@ -213,6 +255,8 @@ public class VitalsBarsView : MonoBehaviour
 
         EnsureWorldSpaceLabel(healthLabel);
         EnsureWorldSpaceLabel(oxygenLabel);
+        if (levelLabel != null)
+            EnsureWorldSpaceLabel(levelLabel);
     }
 
     static void EnsureWorldSpaceLabel(TMP_Text label)
@@ -382,10 +426,81 @@ public class VitalsBarsView : MonoBehaviour
         renderer.SetPropertyBlock(_block);
     }
 
+    void EnsureLevelLabel()
+    {
+        if (_levelLabelReady && levelLabel != null)
+            return;
+
+        if (levelLabel == null)
+            levelLabel = FindLabel("LevelValue");
+
+        if (levelLabel == null)
+        {
+            if (healthLabel == null)
+                healthLabel = FindLabel("HealthValue");
+            if (healthLabel == null)
+                return;
+
+            GameObject copy = Instantiate(healthLabel.gameObject, healthLabel.transform.parent);
+            copy.name = "LevelValue";
+            levelLabel = copy.GetComponent<TMP_Text>();
+        }
+
+        if (levelLabel == null)
+            return;
+
+        EnsureWorldSpaceLabel(levelLabel);
+        levelLabel.fontSize = 56f;
+        levelLabel.fontStyle = FontStyles.Normal;
+        levelLabel.alignment = TextAlignmentOptions.Center;
+        levelLabel.textWrappingMode = TextWrappingModes.NoWrap;
+        levelLabel.overflowMode = TextOverflowModes.Overflow;
+        // Hard SDF stroke. A scaled copy of the letters reads as a soft blob, not a cartoon rim.
+        levelLabel.outlineWidth = 0.35f;
+        levelLabel.outlineColor = Color.black;
+        levelLabel.extraPadding = true;
+        levelLabel.raycastTarget = false;
+        Material face = levelLabel.fontMaterial;
+        if (face != null)
+        {
+            face.SetFloat("_OutlineSoftness", 0f);
+            face.SetFloat("_FaceDilate", 0.12f);
+            face.SetFloat("_OutlineWidth", 0.35f);
+            face.SetColor("_OutlineColor", Color.black);
+        }
+
+        RectTransform rect = levelLabel.rectTransform;
+        rect.sizeDelta = new Vector2(220f, 90f);
+        PlaceLevelAboveHealth(rect);
+        _levelLabelReady = true;
+    }
+
+    void PlaceLevelAboveHealth(RectTransform rect)
+    {
+        CaptureFill(ref _healthAuthored, healthFill, healthFillRenderer);
+
+        float barTop = 0.16f;
+        float centerX = 0f;
+        if (_healthAuthored.valid && healthFill != null)
+        {
+            float height = _healthAuthored.spriteSize.y * Mathf.Abs(_healthAuthored.localScale.y);
+            barTop = _healthAuthored.localPosition.y + height * 0.5f;
+            centerX = healthLabel != null ? healthLabel.rectTransform.localPosition.x : _healthAuthored.localPosition.x;
+        }
+
+        float glyph = levelLabel.fontSize * Mathf.Abs(rect.localScale.y);
+        Vector3 local = rect.localPosition;
+        local.x = centerX;
+        local.y = barTop + glyph * 0.5f + 0.06f;
+        local.z = -0.05f;
+        rect.localPosition = local;
+    }
+
     void ApplyLabelAlpha()
     {
         ApplyLabelColor(healthLabel);
         ApplyLabelColor(oxygenLabel);
+        ApplyLabelColor(levelLabel);
     }
 
     void ApplyLabelColor(TMP_Text label)

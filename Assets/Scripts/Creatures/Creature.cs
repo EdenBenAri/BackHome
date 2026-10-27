@@ -167,6 +167,7 @@ public class Creature : MonoBehaviour, IVitalsReadable
             return;
 
         _dying = true;
+        GrantExperience();
         _diedNoArg?.Invoke();
         Died?.Invoke(this);
 
@@ -178,6 +179,15 @@ public class Creature : MonoBehaviour, IVitalsReadable
             Destroy(gameObject);
         else
             Destroy(gameObject, delay);
+    }
+
+    void GrantExperience()
+    {
+        int xp = stats != null ? stats.Experience : 0;
+        if (xp <= 0)
+            return;
+
+        PlayerLevel.EnsureExists()?.AddExperience(xp);
     }
 
     void RaiseVitalsChanged()

@@ -27,7 +27,7 @@ public static class KingSlimeSetup
     const string IdleClipPath = Root + "/Animations/Idle.anim";
     const string JumpClipPath = Root + "/Animations/Jump.anim";
     const string ControllerPath = Root + "/Animations/King_Slime.controller";
-    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/CreaturesVitalsBars.prefab";
+    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/VitalsBars.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 1.8f;
@@ -218,6 +218,7 @@ public static class KingSlimeSetup
             so.FindProperty("maxHealth").floatValue = 1200f;
             so.FindProperty("visionRange").floatValue = 18f;
             so.FindProperty("movementSpeed").floatValue = 3.2f;
+            so.FindProperty("experience").intValue = 160;
 
             SerializedProperty loot = so.FindProperty("loot");
             loot.arraySize = 1;
