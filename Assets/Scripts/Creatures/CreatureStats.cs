@@ -14,6 +14,7 @@ public enum CreatureAttackKind
 public struct LootEntry
 {
     public ItemDefinition item;
+    [Tooltip("Separate world pickups. Each one is worth 1.")]
     [Min(1)] public int minAmount;
     [Min(1)] public int maxAmount;
     [Tooltip("0 = never, 1 = always.")]
@@ -52,7 +53,7 @@ public class CreatureStats : ScriptableObject
     [SerializeField, Min(1)] int level = 1;
 
     [Header("Loot")]
-    [Tooltip("Rolled independently on death. Chance 0 = never, 1 = always.")]
+    [Tooltip("Rolled independently on death. Amount is how many pickups spawn, each worth 1. Chance 0 = never, 1 = always.")]
     [SerializeField] LootEntry[] loot = Array.Empty<LootEntry>();
 
     public string DisplayName => string.IsNullOrWhiteSpace(displayName) ? name : displayName;

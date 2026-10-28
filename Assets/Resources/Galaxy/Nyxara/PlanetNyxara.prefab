@@ -8660,6 +8660,7 @@ GameObject:
   - component: {fileID: 6939285680222271828}
   - component: {fileID: 7826766272529139609}
   - component: {fileID: 8935348258359684587}
+  - component: {fileID: 8378758328384380991}
   m_Layer: 3
   m_Name: H
   m_TagString: Untagged
@@ -8760,6 +8761,21 @@ BoxCollider:
   serializedVersion: 3
   m_Size: {x: 1, y: 1, z: 1}
   m_Center: {x: 0, y: 0, z: 0}
+--- !u!114 &8378758328384380991
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8378758328384380215}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a9c3e7b14d2f48a6b0e5c8d1f7a3b624, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::VitalsRecoveryZone
+  oxygenPerSecond: 5
+  healthPerSecond: 40
+  instant: 1
 --- !u!1 &8381487186308822302
 GameObject:
   m_ObjectHideFlags: 0

@@ -4,7 +4,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// Shared pieces of the screen HUD: the dark pill sprite, sliced images, and font lookup.
-/// XP and coins place their own bar. The oxygen gauge is authored on the HUD prefab.
+/// The oxygen gauge, XP bar, and coin chip are authored on the HUD prefab.
 /// </summary>
 public static class HudChrome
 {

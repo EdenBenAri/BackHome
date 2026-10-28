@@ -1,16 +1,18 @@
 using UnityEngine;
 
 /// <summary>
-/// Safe volume. While the player stands inside this trigger, oxygen and health drain stop
-/// and both refill slowly.
+/// Safe volume. While the player stands inside this trigger, oxygen and health drain stop.
+/// A normal zone refills both slowly. An instant zone fills both to full the moment they step in.
 /// </summary>
 [RequireComponent(typeof(Collider))]
 public class VitalsRecoveryZone : MonoBehaviour
 {
-    [Tooltip("Oxygen restored per second while the player is inside. A 90 tank fills in about 18 seconds.")]
+    [Tooltip("Oxygen restored per second while the player is inside. Ignored when Instant is on.")]
     [SerializeField, Min(0f)] float oxygenPerSecond = 5f;
-    [Tooltip("Health restored per second while the player is inside. 800 health fills in about 20 seconds.")]
+    [Tooltip("Health restored per second while the player is inside. Ignored when Instant is on.")]
     [SerializeField, Min(0f)] float healthPerSecond = 40f;
+    [Tooltip("Fill health and oxygen to full the moment the player enters, instead of over time.")]
+    [SerializeField] bool instant;
 
     PlayerVitals _occupant;
     int _overlapCount;
@@ -40,6 +42,9 @@ public class VitalsRecoveryZone : MonoBehaviour
             Release();
             return;
         }
+
+        if (instant)
+            return;
 
         _occupant.Recover(healthPerSecond * Time.deltaTime, oxygenPerSecond * Time.deltaTime);
     }
@@ -89,6 +94,8 @@ public class VitalsRecoveryZone : MonoBehaviour
 
         _occupant = vitals;
         _occupant.SetInRecoveryZone(true);
+        if (instant)
+            _occupant.Refill();
     }
 
     void Release()

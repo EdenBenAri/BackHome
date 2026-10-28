@@ -652,16 +652,35 @@ public class CreatureSpawner : MonoBehaviour
 
         EnsureLootPool();
         Vector3 right = DropRight(dropPos);
+        Vector3 up = SphericalPlanet.Instance != null
+            ? SphericalPlanet.Instance.GetUpAt(dropPos)
+            : Vector3.up;
+        Vector3 tangent = Vector3.Cross(up, right);
+        if (tangent.sqrMagnitude < 0.0001f)
+            tangent = Vector3.Cross(up, Vector3.right);
+        tangent.Normalize();
+
         int spawned = 0;
         for (int i = 0; i < table.Length; i++)
         {
             if (!stats.TryRollLoot(i, out ItemDefinition item, out int amount))
                 continue;
 
-            Vector3 at = spawned == 0 ? dropPos : dropPos + right * (0.75f * spawned);
-            _lootPool.Spawn(item, amount, at);
-            spawned++;
+            for (int n = 0; n < amount; n++)
+            {
+                bool scatter = amount > 1 || spawned > 0;
+                Vector3 at = scatter ? dropPos + Scatter(right, tangent, spawned) : dropPos;
+                _lootPool.Spawn(item, 1, at);
+                spawned++;
+            }
         }
+    }
+
+    static Vector3 Scatter(Vector3 right, Vector3 tangent, int index)
+    {
+        const float radius = 0.8f;
+        float angle = index * (Mathf.PI * 2f / 6f);
+        return (right * Mathf.Cos(angle) + tangent * Mathf.Sin(angle)) * radius;
     }
 
     static Vector3 DropRight(Vector3 worldPosition)

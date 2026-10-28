@@ -25,8 +25,6 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     bool _loadoutReady;
     float _currentHealth;
     float _currentOxygen;
-    float _scaledHealthMax;
-    float _scaledOxygenMax;
     bool _invulnerable;
     int _recoveryZones;
     PlayerLevel _boundLevel;
@@ -155,7 +153,7 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
         if (refill)
             ResetVitals();
         else
-            ApplyLevelCaps(grantGrowth: false);
+            ApplyLevelCaps();
         LoadoutChanged?.Invoke();
     }
 
@@ -188,7 +186,6 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     {
         _currentHealth = MaxHealth;
         _currentOxygen = MaxOxygen;
-        RememberCaps();
         RaiseChanged();
     }
 
@@ -233,6 +230,32 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     {
         _currentOxygen = MaxOxygen;
         RaiseChanged();
+    }
+
+    /// <summary>Sets health and oxygen to their current maximum in one step.</summary>
+    public void Refill()
+    {
+        if (!IsAlive)
+            return;
+
+        float nextHealth = MaxHealth;
+        float nextOxygen = MaxOxygen;
+        bool changed = false;
+
+        if (nextHealth > 0f && _currentHealth < nextHealth)
+        {
+            _currentHealth = nextHealth;
+            changed = true;
+        }
+
+        if (nextOxygen > 0f && _currentOxygen < nextOxygen)
+        {
+            _currentOxygen = nextOxygen;
+            changed = true;
+        }
+
+        if (changed)
+            RaiseChanged();
     }
 
     public void AddOxygen(float amount)
@@ -310,42 +333,24 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
 
     void OnLevelChanged(int _)
     {
-        ApplyLevelCaps(grantGrowth: IsAlive);
+        ApplyLevelCaps();
     }
 
     /// <summary>
-    /// Keeps the current bars inside the new max. A level-up adds the new health and oxygen
-    /// on top of what you already had, so a full bar stays full and a hurt bar gets the gain.
+    /// The new level raises the health and oxygen ceilings only.
+    /// Whatever you had stays as it was, so a level-up does not heal or refill the tank.
     /// </summary>
-    void ApplyLevelCaps(bool grantGrowth)
+    void ApplyLevelCaps()
     {
         float nextHealth = MaxHealth;
         float nextOxygen = MaxOxygen;
-        bool hadCaps = _scaledHealthMax > 0f || _scaledOxygenMax > 0f;
-
-        if (grantGrowth && hadCaps && IsAlive)
-        {
-            float healthGain = nextHealth - _scaledHealthMax;
-            float oxygenGain = nextOxygen - _scaledOxygenMax;
-            if (healthGain > 0f)
-                _currentHealth = Mathf.Min(nextHealth, _currentHealth + healthGain);
-            if (oxygenGain > 0f)
-                _currentOxygen = Mathf.Min(nextOxygen, _currentOxygen + oxygenGain);
-        }
 
         if (nextHealth > 0f)
             _currentHealth = Mathf.Min(_currentHealth, nextHealth);
         if (nextOxygen > 0f)
             _currentOxygen = Mathf.Min(_currentOxygen, nextOxygen);
 
-        RememberCaps();
         RaiseChanged();
-    }
-
-    void RememberCaps()
-    {
-        _scaledHealthMax = MaxHealth;
-        _scaledOxygenMax = MaxOxygen;
     }
 
     CombatStats ScaleCombat(CombatStats raw)

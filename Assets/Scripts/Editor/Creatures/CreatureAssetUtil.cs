@@ -47,8 +47,8 @@ static class CreatureAssetUtil
     {
         ItemDefinition coin = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
             "Assets/Resources/Items/Coin/Coin.asset");
-        ItemDefinition material = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
-            "Assets/Resources/Items/Thornhide/Thornhide.asset");
+        ItemDefinition gem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
+            "Assets/Resources/Items/BlueGem/BlueGem.asset");
 
         SerializedProperty loot = stats.FindProperty("loot");
         loot.arraySize = 2;
@@ -59,11 +59,11 @@ static class CreatureAssetUtil
         coins.FindPropertyRelative("maxAmount").intValue = 5;
         coins.FindPropertyRelative("chance").floatValue = 1f;
 
-        SerializedProperty hide = loot.GetArrayElementAtIndex(1);
-        hide.FindPropertyRelative("item").objectReferenceValue = material;
-        hide.FindPropertyRelative("minAmount").intValue = 1;
-        hide.FindPropertyRelative("maxAmount").intValue = 1;
-        hide.FindPropertyRelative("chance").floatValue = 1f;
+        SerializedProperty gemDrop = loot.GetArrayElementAtIndex(1);
+        gemDrop.FindPropertyRelative("item").objectReferenceValue = gem;
+        gemDrop.FindPropertyRelative("minAmount").intValue = 1;
+        gemDrop.FindPropertyRelative("maxAmount").intValue = 1;
+        gemDrop.FindPropertyRelative("chance").floatValue = 1f;
     }
 
     public static void WriteResult(string resultPath, string label, string message)
