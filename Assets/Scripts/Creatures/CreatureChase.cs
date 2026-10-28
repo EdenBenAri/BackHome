@@ -3,6 +3,10 @@ using UnityEngine;
 /// <summary>
 /// Chases the player when they enter this creature's vision range.
 /// After <see cref="loseVisionDelay"/> seconds outside vision, loses aggro and returns home.
+/// Leaving the den radius (the spawn area, e.g. A3) starts a 3s leash timer. When it
+/// ends, the creature stops chasing and walks back to where it spawned. A hit from
+/// either side restarts that timer. A player hit while it is already walking home
+/// pulls it back into the fight. Health refills only once it reaches its start point.
 /// Stops inside attack range so <see cref="CreatureRangeCombat"/> can deal damage.
 /// While idle, regular mobs pace a few steps out and back. Kings stay put.
 /// Walks on the spherical planet surface (same stick model as spawn / PlanetWalker).
@@ -36,6 +40,12 @@ public class CreatureChase : MonoBehaviour
     [Tooltip("Seconds the player must stay outside vision range before this creature loses aggro and returns home.")]
     [SerializeField, Min(0f)] float loseVisionDelay = 3f;
     [SerializeField, Min(0.05f)] float homeArriveDistance = 0.35f;
+
+    [Header("Leash")]
+    [Tooltip("Seconds outside the den radius, with no hit from either side, before this creature gives up and walks back to its start point.")]
+    [SerializeField, Min(0f)] float leashReturnDelay = 3f;
+    [Tooltip("Speed multiplier while walking back to the start point.")]
+    [SerializeField, Min(1f)] float returnHomeSpeedScale = 2.5f;
 
     [Header("Hit reaction")]
     [Tooltip("Surface distance shoved away from the attacker. Keep small — a punch, not a launch.")]
@@ -75,6 +85,11 @@ public class CreatureChase : MonoBehaviour
     float _outOfVisionTime;
     bool _homeCaptured;
 
+    Transform _leashAnchor;
+    float _leashRadius;
+    bool _hasLeash;
+    float _outsideLeashTime;
+
     bool _knockActive;
     float _knockElapsed;
     float _knockDuration;
@@ -97,6 +112,41 @@ public class CreatureChase : MonoBehaviour
 
     /// <summary>True while actively chasing / fighting the player.</summary>
     public bool IsAggroed => _state == State.Aggroed;
+
+    /// <summary>True while walking back to the spawn point after the leash (or vision) timer.</summary>
+    public bool IsReturning => _state == State.Returning;
+
+    /// <summary>
+    /// Den this creature belongs to. <paramref name="anchor"/> is the area marker (A1–A5);
+    /// <paramref name="radius"/> is that den's spawn radius. Leaving it starts the leash timer.
+    /// </summary>
+    public void SetLeash(Transform anchor, float radius)
+    {
+        _leashAnchor = anchor;
+        _leashRadius = Mathf.Max(0f, radius);
+        _hasLeash = anchor != null && _leashRadius > 0f;
+        _outsideLeashTime = 0f;
+    }
+
+    /// <summary>
+    /// Either side landed a hit. Restarts the leash timer so an active fight outside the den
+    /// does not send the creature home.
+    /// </summary>
+    public void ResetLeashTimer()
+    {
+        _outsideLeashTime = 0f;
+    }
+
+    /// <summary>
+    /// The player hit this creature. Restarts the leash timer, and if it was walking home
+    /// it turns around and chases again.
+    /// </summary>
+    public void NotifyDamagedByPlayer()
+    {
+        ResetLeashTimer();
+        if (_state == State.Returning)
+            EnterAggro();
+    }
 
     /// <summary>True during the short hit-shove after taking damage.</summary>
     public bool IsKnockedBack => _knockActive;
@@ -173,6 +223,8 @@ public class CreatureChase : MonoBehaviour
 
         // Default to stationary; MoveToward() re-sets this below on the frames it actually runs.
         _velocity = Vector3.zero;
+
+        TickLeash();
 
         switch (_state)
         {
@@ -305,19 +357,36 @@ public class CreatureChase : MonoBehaviour
         _anim?.SetMoving(true);
     }
 
-    void TickReturning()
+    void TickLeash()
     {
-        // Re-acquire if the player walks back into vision while heading home.
-        if (TryGetLivingPlayer(out PlayerVitals player))
+        if (!_hasLeash || _state == State.Returning)
+            return;
+
+        if (!IsOutsideLeash())
         {
-            float vision = _creature.VisionRange;
-            if (vision > 0f && GetSurfaceDistanceTo(player.transform.position) <= vision)
-            {
-                SpotPlayer();
-                return;
-            }
+            _outsideLeashTime = 0f;
+            return;
         }
 
+        _outsideLeashTime += Time.deltaTime;
+        if (_outsideLeashTime < leashReturnDelay)
+            return;
+
+        BeginReturnHome();
+    }
+
+    bool IsOutsideLeash()
+    {
+        if (!_hasLeash || _leashAnchor == null)
+            return false;
+
+        return GetSurfaceDistanceTo(_leashAnchor.position) > _leashRadius;
+    }
+
+    void TickReturning()
+    {
+        // Stay on the walk home until the player actually hits this creature.
+        // Seeing the player is not enough — that is what the leash is for.
         float homeDist = GetSurfaceDistanceTo(_homePosition);
         if (homeDist <= homeArriveDistance)
         {
@@ -325,7 +394,8 @@ public class CreatureChase : MonoBehaviour
             return;
         }
 
-        MoveToward(_homePosition);
+        MoveToward(_homePosition, returnHomeSpeedScale, homeDist);
+        SetPacePlayback(returnHomeSpeedScale);
         _anim?.SetMoving(true);
     }
 
@@ -353,7 +423,9 @@ public class CreatureChase : MonoBehaviour
     {
         _state = State.Idle;
         _outOfVisionTime = 0f;
+        _outsideLeashTime = 0f;
         _anim?.SetMoving(false);
+        _creature?.Heal(_creature.MaxHealth);
 
         Vector3 up = _planet != null
             ? _planet.GetUpAt(_homePosition)
@@ -663,7 +735,9 @@ public class CreatureChase : MonoBehaviour
         if (_animator == null)
             return;
 
-        scale = scale >= 0.999f ? 1f : Mathf.Clamp(scale, PaceMinSpeedScale, 1f);
+        // Pace only slows the clip. The walk home passes a scale above 1 so the cycle matches the faster step.
+        if (scale <= 1f)
+            scale = scale >= 0.999f ? 1f : Mathf.Clamp(scale, PaceMinSpeedScale, 1f);
         if (Mathf.Abs(_animator.speed - scale) < 0.001f)
             return;
 

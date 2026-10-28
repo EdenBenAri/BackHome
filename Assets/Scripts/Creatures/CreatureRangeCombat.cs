@@ -75,6 +75,7 @@ public class CreatureRangeCombat : MonoBehaviour
             {
                 player.TakeDamage(damage);
                 _hitPlayerThisFrame = true;
+                _chase?.ResetLeashTimer();
             }
 
             _playerInside = true;
@@ -96,7 +97,10 @@ public class CreatureRangeCombat : MonoBehaviour
         _tickCooldown = interval;
 
         if (_playerInside && !_hitPlayerThisFrame && player.IsAlive)
+        {
             player.TakeDamage(damage);
+            _chase?.ResetLeashTimer();
+        }
     }
 
     bool TryResolvePlayer(out PlayerVitals player)

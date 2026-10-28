@@ -128,6 +128,7 @@ public class Creature : MonoBehaviour, IVitalsReadable
         if (!IsAlive)
             return;
 
+        _chase?.NotifyDamagedByPlayer();
         _chase?.ApplyKnockback(sourcePosition);
     }
 

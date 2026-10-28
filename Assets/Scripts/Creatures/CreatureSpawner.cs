@@ -391,6 +391,7 @@ public class CreatureSpawner : MonoBehaviour
         if (creature != null)
             creature.Died += OnKingDied;
 
+        ApplyLeash(instance, live.spawnPointIndex);
         EnsureKingCountdown(live, area);
         live.countdown.Hide();
         PlanetEnvironmentStreamer.Track(instance);
@@ -594,6 +595,7 @@ public class CreatureSpawner : MonoBehaviour
         if (creatureComp != null)
             creatureComp.Died += OnCreatureDied;
 
+        ApplyLeash(creature, resolved.spawnPointIndex);
         _tracked.Add(tracked);
         _acceptedDirs.Add(dir.normalized);
         PlanetEnvironmentStreamer.Track(creature);
@@ -798,6 +800,25 @@ public class CreatureSpawner : MonoBehaviour
         var root = new GameObject("Creatures");
         root.transform.SetParent(transform, false);
         spawnRoot = root.transform;
+    }
+
+    /// <summary>
+    /// Ties a spawned creature to its den so leaving that area's radius starts the leash.
+    /// </summary>
+    void ApplyLeash(GameObject instance, int spawnPointIndex)
+    {
+        if (instance == null || spawnPointIndex < 0 || spawnPoints == null || spawnPointIndex >= spawnPoints.Length)
+            return;
+
+        SpawnPoint point = spawnPoints[spawnPointIndex];
+        Transform area = FindPlanetArea(point.areaId);
+        if (area == null)
+            return;
+
+        CreatureChase chase = instance.GetComponent<CreatureChase>();
+        if (chase == null)
+            chase = instance.GetComponentInChildren<CreatureChase>();
+        chase?.SetLeash(area, point.radius);
     }
 
     /// <summary>
