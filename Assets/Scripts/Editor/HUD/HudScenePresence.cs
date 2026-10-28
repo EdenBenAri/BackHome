@@ -29,18 +29,14 @@ public static class HudScenePresence
     [MenuItem("BackHome/Rebuild Casual HUD")]
     public static void RebuildCasualHud()
     {
-        EquipmentPanelSetup.Build(force: true);
-        DeathPanelSetup.Build(force: true);
         RunSafe();
         if (!Application.isBatchMode)
-            EditorUtility.DisplayDialog("Casual HUD", "Rebuilt HUD panels from GUI Pro-CasualGame.", "OK");
+            EditorUtility.DisplayDialog("Casual HUD", "Placed the existing HUD in open scenes.", "OK");
     }
 
     /// <summary>Unity batchmode: -executeMethod HudScenePresence.BuildBatch</summary>
     public static void BuildBatch()
     {
-        EquipmentPanelSetup.Build(force: true);
-        DeathPanelSetup.Build(force: true);
         RunSafe();
     }
 
@@ -54,8 +50,6 @@ public static class HudScenePresence
             return;
         }
 
-        EquipmentPanelSetup.EnsureBuilt();
-        DeathPanelSetup.EnsureBuilt();
         SetupHudPrefab();
         PlaceHudInLoadedScenes();
     }

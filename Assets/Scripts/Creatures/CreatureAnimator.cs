@@ -20,7 +20,7 @@ public class CreatureAnimator : MonoBehaviour
     static readonly int DieHash = Animator.StringToHash("Die");
     static readonly int SpawnHash = Animator.StringToHash("Spawn");
 
-    // First frame of the king slime Spawn clip (SlimeHopSetup.CreateSpawnClip).
+    // First frame of the king slime Spawn clip.
     // Applied before the Animator is ready so the body is already a puddle on the first draw.
     const float SpawnFlatY = 0.045f;
     const float SpawnFlatXZ = 2.3f;

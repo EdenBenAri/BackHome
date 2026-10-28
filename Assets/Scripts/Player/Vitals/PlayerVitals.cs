@@ -333,12 +333,12 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
 
     void OnLevelChanged(int _)
     {
-        ApplyLevelCaps();
+        Refill();
     }
 
     /// <summary>
-    /// The new level raises the health and oxygen ceilings only.
-    /// Whatever you had stays as it was, so a level-up does not heal or refill the tank.
+    /// Keeps the current bars inside the new max when stats change without a refill.
+    /// A level-up does not use this. It calls <see cref="Refill"/> so both bars snap to full.
     /// </summary>
     void ApplyLevelCaps()
     {

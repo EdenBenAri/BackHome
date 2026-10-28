@@ -19,6 +19,10 @@ public class HpBar : MonoBehaviour
     [SerializeField] bool hideUntilDamaged;
     [SerializeField, Min(0.05f)] float visibleAfterDamage = 2.5f;
     [SerializeField, Min(0f)] float fadeDuration = 0.2f;
+    [Tooltip("How long the player bar stays fully visible after health fills to max.")]
+    [SerializeField, Min(0f)] float fullHealthHold = 1.5f;
+    [Tooltip("Seconds the player bar takes to fade out after that hold.")]
+    [SerializeField, Min(0.05f)] float fullHealthFade = 0.5f;
 
     IVitalsReadable _source;
     PlayerLevel _level;
@@ -26,6 +30,13 @@ public class HpBar : MonoBehaviour
     float _revealTimer;
     float _alpha = 1f;
     bool _forcedHidden;
+    bool _hasHealthSample;
+    bool _lastHealthFull;
+    float _lastHealth;
+    float _lastMax;
+    bool _fullHoldActive;
+    bool _fullFading;
+    float _fullHoldTimer;
 
     public void SetWorldScale(float scale)
     {
@@ -150,6 +161,7 @@ public class HpBar : MonoBehaviour
             root.rotation = cam.transform.rotation;
 
         UpdateDamageReveal();
+        UpdatePlayerFullDismiss();
     }
 
     void EnsureBars()
@@ -219,14 +231,11 @@ public class HpBar : MonoBehaviour
             return;
         }
 
-        // The player bar stays up for the whole time health is missing, and hides again at full.
-        // Creatures only flash the bar for a few seconds after a hit.
+        // The player bar stays up while health is missing. Filling to max (home or a level)
+        // holds the full bar, then fades it out. Creatures only flash the bar after a hit.
         if (IsPlayer)
         {
-            if (HealthIsFull)
-                HideBarsImmediate();
-            else
-                ShowBarsImmediate();
+            PresentPlayerBar();
             return;
         }
 
@@ -274,6 +283,95 @@ public class HpBar : MonoBehaviour
 
         bool barShowing = _alpha > 0.001f || _revealTimer > 0f;
         bars.SetHealthBarVisible(barShowing);
+    }
+
+    void PresentPlayerBar()
+    {
+        bool full = HealthIsFull;
+        float current = _source.CurrentHealth;
+        float max = _source.MaxHealth;
+        bool justFilled = _hasHealthSample
+            && full
+            && (!_lastHealthFull || current > _lastHealth + 0.01f || max > _lastMax + 0.01f);
+
+        _hasHealthSample = true;
+        _lastHealthFull = full;
+        _lastHealth = current;
+        _lastMax = max;
+
+        if (!full)
+        {
+            ShowBarsImmediate();
+            return;
+        }
+
+        if (justFilled)
+        {
+            BeginFullDismiss();
+            return;
+        }
+
+        if (_fullHoldActive || _fullFading)
+            return;
+
+        HideBarsImmediate();
+    }
+
+    void BeginFullDismiss()
+    {
+        _fullHoldActive = true;
+        _fullFading = false;
+        _fullHoldTimer = Mathf.Max(0f, fullHealthHold);
+        _alpha = 1f;
+        if (bars == null)
+            return;
+
+        if (!bars.gameObject.activeSelf)
+            bars.gameObject.SetActive(true);
+        bars.SetHealthBarVisible(true);
+        bars.SetAlpha(1f);
+        EnsureBarRenderersEnabled();
+    }
+
+    void UpdatePlayerFullDismiss()
+    {
+        if (!IsPlayer || bars == null || _forcedHidden)
+            return;
+        if (!_fullHoldActive && !_fullFading)
+            return;
+
+        if (_source == null || !HealthIsFull || (hideWhenDead && !_source.IsAlive))
+        {
+            if (_source != null && _source.IsAlive && !HealthIsFull)
+                ShowBarsImmediate();
+            else
+                HideBarsImmediate();
+            return;
+        }
+
+        if (_fullHoldActive)
+        {
+            _fullHoldTimer -= Time.deltaTime;
+            if (_fullHoldTimer > 0f)
+                return;
+
+            _fullHoldActive = false;
+            _fullFading = true;
+            _alpha = 1f;
+        }
+
+        float duration = Mathf.Max(0.05f, fullHealthFade);
+        _alpha = Mathf.MoveTowards(_alpha, 0f, Time.deltaTime / duration);
+        if (!bars.gameObject.activeSelf)
+            bars.gameObject.SetActive(true);
+        bars.SetHealthBarVisible(true);
+        bars.SetAlpha(_alpha);
+
+        if (_alpha > 0.001f)
+            return;
+
+        _fullFading = false;
+        HideBarsImmediate();
     }
 
     void OnDamaged(float _)
@@ -337,6 +435,8 @@ public class HpBar : MonoBehaviour
     void ShowBarsImmediate()
     {
         _revealTimer = 0f;
+        _fullHoldActive = false;
+        _fullFading = false;
         _alpha = 1f;
         if (bars == null)
             return;
@@ -352,6 +452,8 @@ public class HpBar : MonoBehaviour
     void HideBarsImmediate()
     {
         _revealTimer = 0f;
+        _fullHoldActive = false;
+        _fullFading = false;
         _alpha = 0f;
         if (bars == null)
             return;
