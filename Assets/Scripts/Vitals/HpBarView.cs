@@ -5,7 +5,7 @@ using UnityEngine;
 /// Billboard HP / oxygen art. Frame, fills, and labels are authored on the prefab;
 /// runtime only changes fill width and label text.
 /// </summary>
-public class VitalsBarsView : MonoBehaviour
+public class HpBarView : MonoBehaviour
 {
     static readonly int ColorId = Shader.PropertyToID("_Color");
     static readonly int MainTexId = Shader.PropertyToID("_MainTex");
@@ -33,9 +33,14 @@ public class VitalsBarsView : MonoBehaviour
     [SerializeField] Color frameColor = SliderTrackColor;
     [SerializeField] Color healthFillColor = new Color(0.45f, 0.92f, 0.22f, 1f);
     [SerializeField] Color healthLowColor = new Color(0.9f, 0.2f, 0.2f, 1f);
-    [SerializeField] Color healthHitFlashColor = new Color(1f, 1f, 1f, 1f);
     [SerializeField] Color oxygenFillColor = new Color(0.25f, 0.65f, 1f, 1f);
-    [SerializeField, Min(0.01f)] float hitFlashDuration = 0.12f;
+
+    [Header("Damage Trail")]
+    [SerializeField] Color damageTrailColor = Color.white;
+    [Tooltip("How long the white bar waits before it starts catching the colored bar.")]
+    [SerializeField, Min(0f)] float damageTrailDelay = 0.2f;
+    [Tooltip("Seconds the white bar takes to finish catching up after the delay. Scaled a little by how much health was lost.")]
+    [SerializeField, Min(0.05f)] float damageTrailDuration = 0.34f;
 
     [Header("References")]
     [SerializeField] Renderer frameRenderer;
@@ -44,6 +49,8 @@ public class VitalsBarsView : MonoBehaviour
     [SerializeField] Transform oxygenFill;
     [SerializeField] Renderer healthFillRenderer;
     [SerializeField] Renderer oxygenFillRenderer;
+    [SerializeField] Transform healthTrailFill;
+    [SerializeField] Renderer healthTrailRenderer;
     [SerializeField] Material barMaterial;
     [SerializeField] Material fillMaterial;
     [SerializeField] TMP_Text healthLabel;
@@ -53,44 +60,74 @@ public class VitalsBarsView : MonoBehaviour
     MaterialPropertyBlock _block;
     bool _levelLabelReady;
     bool _colorsCaptured;
+    bool _healthColorLocked;
     Color _authoredFrameColor = Color.white;
     Color _authoredHealthColor = Color.white;
     Color _authoredOxygenColor = Color.white;
     AuthoredFill _healthAuthored;
     AuthoredFill _oxygenAuthored;
+    AuthoredFill _trailAuthored;
     float _previewHealth = 1f;
     float _previewOxygen = 1f;
     float _healthCurrent = 1f;
     float _healthMax = 1f;
     float _oxygenCurrent = 1f;
     float _oxygenMax = 1f;
-    float _hitFlashTimer;
     float _alpha = 1f;
+    float _trailHealth = 1f;
+    float _trailDelay;
+    float _trailFrom;
+    float _trailTween;
+    float _trailTweenDuration;
+    bool _trailInitialized;
+    bool _trailAnimating;
 
     void Awake()
     {
         CaptureAuthoredColors();
         CaptureAuthoredLayout();
+        EnsureTrailFill();
     }
 
     void Update()
     {
-        if (_hitFlashTimer <= 0f)
+        if (!_trailInitialized || _trailHealth <= _previewHealth + 0.0001f)
             return;
 
-        _hitFlashTimer -= Time.deltaTime;
-        if (_hitFlashTimer <= 0f)
+        if (_trailDelay > 0f)
         {
-            _hitFlashTimer = 0f;
-            ApplyHealthFillColor(_previewHealth);
+            _trailDelay -= Time.deltaTime;
+            return;
         }
+
+        if (!_trailAnimating)
+        {
+            _trailAnimating = true;
+            _trailFrom = _trailHealth;
+            _trailTween = 0f;
+            float gap = Mathf.Clamp01(_trailFrom - _previewHealth);
+            _trailTweenDuration = Mathf.Clamp(damageTrailDuration * Mathf.Lerp(0.55f, 1f, gap), 0.16f, damageTrailDuration);
+        }
+
+        _trailTween += Time.deltaTime / Mathf.Max(0.05f, _trailTweenDuration);
+        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_trailTween));
+        _trailHealth = Mathf.Lerp(_trailFrom, _previewHealth, t);
+        if (_trailTween >= 1f)
+        {
+            _trailHealth = _previewHealth;
+            _trailAnimating = false;
+        }
+
+        ApplyTrail(_trailHealth);
     }
 
     void OnEnable()
     {
         CaptureAuthoredColors();
         CaptureAuthoredLayout();
+        EnsureTrailFill();
         EnsureValueLabels();
+        EnsureLevelLabel();
         EnsureMaterials();
         ApplyOxygenVisibility();
         RefreshValueLabels();
@@ -102,9 +139,20 @@ public class VitalsBarsView : MonoBehaviour
             return;
 
         _authoredFrameColor = ReadSpriteColor(frameRenderer, frameColor);
-        _authoredHealthColor = ReadSpriteColor(healthFillRenderer, healthFillColor);
+        if (!_healthColorLocked)
+            _authoredHealthColor = ReadSpriteColor(healthFillRenderer, healthFillColor);
         _authoredOxygenColor = ReadSpriteColor(oxygenFillRenderer, oxygenFillColor);
         _colorsCaptured = true;
+    }
+
+    /// <summary>
+    /// Replaces the health fill color. Used so creatures and kings stay red while the player stays green.
+    /// </summary>
+    public void SetHealthFillColor(Color color)
+    {
+        _authoredHealthColor = color;
+        _healthColorLocked = true;
+        ApplyHealthFillColor(_previewHealth);
     }
 
     static Color ReadSpriteColor(Renderer renderer, Color fallback)
@@ -124,11 +172,40 @@ public class VitalsBarsView : MonoBehaviour
     public void SetHealth(float normalized)
     {
         normalized = Mathf.Clamp01(normalized);
+        EnsureTrailFill();
+
+        if (!_trailInitialized)
+        {
+            _trailInitialized = true;
+            _previewHealth = normalized;
+            _trailHealth = normalized;
+            _trailDelay = 0f;
+            _trailAnimating = false;
+            ApplyFill(ref _healthAuthored, healthFill, healthFillRenderer, normalized);
+            ApplyTrail(normalized);
+            ApplyHealthFillColor(normalized);
+            return;
+        }
+
+        bool damaged = normalized < _previewHealth - 0.0001f;
         _previewHealth = normalized;
         ApplyFill(ref _healthAuthored, healthFill, healthFillRenderer, normalized);
+        ApplyHealthFillColor(normalized);
 
-        if (_hitFlashTimer <= 0f)
-            ApplyHealthFillColor(normalized);
+        if (normalized >= _trailHealth - 0.0001f)
+        {
+            _trailHealth = normalized;
+            _trailDelay = 0f;
+            _trailAnimating = false;
+            ApplyTrail(normalized);
+            return;
+        }
+
+        if (damaged)
+        {
+            _trailDelay = damageTrailDelay;
+            _trailAnimating = false;
+        }
     }
 
     public void SetAlpha(float alpha)
@@ -136,18 +213,10 @@ public class VitalsBarsView : MonoBehaviour
         _alpha = Mathf.Clamp01(alpha);
         SetRendererColor(frameRenderer, _authoredFrameColor);
         SetRendererColor(oxygenFrameRenderer, _authoredFrameColor);
-        if (_hitFlashTimer > 0f)
-            SetRendererColor(healthFillRenderer, healthHitFlashColor);
-        else
-            ApplyHealthFillColor(_previewHealth);
+        ApplyHealthFillColor(_previewHealth);
+        SetRendererColor(healthTrailRenderer, damageTrailColor);
         SetRendererColor(oxygenFillRenderer, _authoredOxygenColor);
         ApplyLabelAlpha();
-    }
-
-    public void FlashHealthHit()
-    {
-        _hitFlashTimer = hitFlashDuration;
-        SetRendererColor(healthFillRenderer, healthHitFlashColor);
     }
 
     void ApplyHealthFillColor(float normalized)
@@ -156,8 +225,8 @@ public class VitalsBarsView : MonoBehaviour
     }
 
     /// <summary>
-    /// Level centered above the health bar, XP Hero style: "Lv8", white with a dark outline.
-    /// Creatures never call this, so only the player grows the label.
+    /// Level centered above the health bar: "Lv8", white with a dark outline.
+    /// Only the player and area kings show this. Regular mobs call <see cref="HideLevel"/>.
     /// </summary>
     public void SetLevel(int level)
     {
@@ -176,6 +245,14 @@ public class VitalsBarsView : MonoBehaviour
         }
 
         ApplyLabelColor(levelLabel);
+    }
+
+    public void HideLevel()
+    {
+        if (levelLabel == null)
+            levelLabel = FindLabel("LevelValue");
+        if (levelLabel != null && levelLabel.gameObject.activeSelf)
+            levelLabel.gameObject.SetActive(false);
     }
 
     public void SetHealthValues(float current, float max)
@@ -368,12 +445,44 @@ public class VitalsBarsView : MonoBehaviour
             scale.z);
     }
 
+    void EnsureTrailFill()
+    {
+        if (healthTrailFill != null || healthFill == null)
+            return;
+
+        GameObject copy = Instantiate(healthFill.gameObject, healthFill.parent);
+        copy.name = "HealthTrail";
+        copy.transform.SetSiblingIndex(healthFill.GetSiblingIndex());
+
+        Vector3 position = copy.transform.localPosition;
+        position.z += 0.01f;
+        copy.transform.localPosition = position;
+
+        healthTrailFill = copy.transform;
+        healthTrailRenderer = copy.GetComponent<Renderer>();
+        if (healthTrailRenderer is SpriteRenderer trailSprite && healthFillRenderer is SpriteRenderer healthSprite)
+            trailSprite.sortingOrder = healthSprite.sortingOrder - 1;
+
+        CaptureFill(ref _trailAuthored, healthTrailFill, healthTrailRenderer);
+        SetRendererColor(healthTrailRenderer, damageTrailColor);
+    }
+
+    void ApplyTrail(float normalized)
+    {
+        if (healthTrailFill == null)
+            return;
+
+        ApplyFill(ref _trailAuthored, healthTrailFill, healthTrailRenderer, normalized);
+        SetRendererColor(healthTrailRenderer, damageTrailColor);
+    }
+
     void EnsureMaterials()
     {
         AssignSharedMaterial(frameRenderer, barMaterial);
         AssignSharedMaterial(oxygenFrameRenderer, barMaterial);
         Material fill = fillMaterial != null ? fillMaterial : barMaterial;
         AssignSharedMaterial(healthFillRenderer, fill);
+        AssignSharedMaterial(healthTrailRenderer, fill);
         AssignSharedMaterial(oxygenFillRenderer, fill);
     }
 
@@ -437,21 +546,6 @@ public class VitalsBarsView : MonoBehaviour
             levelLabel = FindLabel("LevelValue");
 
         if (levelLabel == null)
-        {
-            if (healthLabel == null)
-                healthLabel = FindLabel("HealthValue");
-            if (healthLabel == null)
-                return;
-
-            GameObject copy = Instantiate(healthLabel.gameObject, healthLabel.transform.parent);
-            copy.name = "LevelValue";
-            // The source label is inactive. TMP only builds its font material in OnEnable,
-            // and SetOutlineThickness null-refs if we touch the outline before that.
-            copy.SetActive(true);
-            levelLabel = copy.GetComponent<TMP_Text>();
-        }
-
-        if (levelLabel == null)
             return;
 
         if (!levelLabel.gameObject.activeSelf)
@@ -481,6 +575,9 @@ public class VitalsBarsView : MonoBehaviour
 
         RectTransform rect = levelLabel.rectTransform;
         rect.sizeDelta = new Vector2(220f, 90f);
+        // fontSize 56 is in canvas pixels. 0.01 keeps "Lv12" about as tall as the bar.
+        if (rect.localScale.y > 0.05f || rect.localScale.sqrMagnitude < 0.0000001f)
+            rect.localScale = new Vector3(0.01f, 0.01f, 0.01f);
         PlaceLevelAboveHealth(rect);
         _levelLabelReady = true;
     }

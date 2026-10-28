@@ -1,10 +1,8 @@
-using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Top-right account XP bar. Dark pill with "Lv8" on it, filling left to right
-/// the way the XP Hero corner bar does. Level raises health, oxygen, and hit damage.
+/// Top-right account XP bar. Fills left to right. The level number is only on the world HP bar.
 /// </summary>
 public class XpHudBar : MonoBehaviour
 {
@@ -13,7 +11,6 @@ public class XpHudBar : MonoBehaviour
     PlayerLevel _level;
     RectTransform _bar;
     RectTransform _fill;
-    TMP_Text _label;
     Image _fillImage;
     Canvas _canvas;
     int _screenW = -1;
@@ -62,14 +59,10 @@ public class XpHudBar : MonoBehaviour
 
     void Refresh()
     {
-        if (_label == null || _fill == null)
+        if (_fill == null)
             return;
 
-        int level = _level != null ? _level.Level : 1;
         float amount = _level != null ? _level.XpNormalized : 0f;
-        string text = "Lv" + Mathf.Max(1, level);
-        if (_label.text != text)
-            _label.text = text;
 
         bool showFill = amount > 0.001f;
         if (_fillImage != null && _fillImage.enabled != showFill)
@@ -96,7 +89,9 @@ public class XpHudBar : MonoBehaviour
             _bar = existing as RectTransform;
             _fill = existing.Find("FillMask/Fill") as RectTransform;
             _fillImage = _fill != null ? _fill.GetComponent<Image>() : null;
-            _label = existing.Find("Label")?.GetComponent<TMP_Text>();
+            Transform oldLabel = existing.Find("Label");
+            if (oldLabel != null)
+                Destroy(oldLabel.gameObject);
             PlaceInCorner();
             return;
         }
@@ -120,7 +115,6 @@ public class XpHudBar : MonoBehaviour
         _fill = _fillImage.rectTransform;
         _fill.pivot = new Vector2(0f, 0.5f);
 
-        _label = CreateLabel(root.transform, HudChrome.Font(transform));
         PlaceInCorner();
         HudChrome.KeepUnderDeathOverlay(_bar, _canvas);
     }
@@ -144,26 +138,5 @@ public class XpHudBar : MonoBehaviour
         float right = (Screen.width - safe.xMax) / scale;
         float top = (Screen.height - safe.yMax) / scale;
         _bar.anchoredPosition = new Vector2(-(28f + right), -(28f + top));
-    }
-
-    static TMP_Text CreateLabel(Transform parent, TMP_FontAsset font)
-    {
-        var go = new GameObject("Label", typeof(RectTransform), typeof(CanvasRenderer), typeof(TextMeshProUGUI));
-        go.layer = 5;
-        go.transform.SetParent(parent, false);
-        var text = go.GetComponent<TextMeshProUGUI>();
-        if (font != null)
-            text.font = font;
-        text.text = "Lv1";
-        text.fontSize = 30f;
-        text.color = Color.white;
-        text.alignment = TextAlignmentOptions.Center;
-        text.textWrappingMode = TextWrappingModes.NoWrap;
-        text.overflowMode = TextOverflowModes.Overflow;
-        text.raycastTarget = false;
-        text.outlineWidth = 0.18f;
-        text.outlineColor = new Color32(20, 16, 28, 255);
-        HudChrome.Stretch(text.rectTransform, 0f);
-        return text;
     }
 }

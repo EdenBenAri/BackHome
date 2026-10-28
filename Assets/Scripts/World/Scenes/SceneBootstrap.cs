@@ -18,9 +18,9 @@ public class SceneBootstrap : MonoBehaviour
 
     [Header("Vitals Bars")]
     [Tooltip("World size of HP/Oxygen bars for this scene. Raise on distant/high cameras (planets).")]
-    [SerializeField, Min(0.1f)] float vitalsBarsScale = 1f;
+    [SerializeField, Min(0.1f)] float hpBarScale = 1f;
     [Tooltip("Local offset of the bars relative to the player (XYZ).")]
-    [SerializeField] Vector3 vitalsBarsOffset = new Vector3(0f, 2.15f, 0f);
+    [SerializeField] Vector3 hpBarOffset = new Vector3(0f, 2.15f, 0f);
 
     PlayerCrashIntro _crashIntro;
 
@@ -79,7 +79,7 @@ public class SceneBootstrap : MonoBehaviour
             return;
 
         BindCameraTarget(player);
-        ApplyVitalsBarsSettings(player);
+        ApplyHpBarSettings(player);
         BindMobileInput(player);
     }
 
@@ -129,14 +129,14 @@ public class SceneBootstrap : MonoBehaviour
         return tagged != null ? tagged.transform : null;
     }
 
-    void ApplyVitalsBarsSettings(Transform player)
+    void ApplyHpBarSettings(Transform player)
     {
-        VitalsBars vitals = player.GetComponent<VitalsBars>();
+        HpBar vitals = player.GetComponent<HpBar>();
         if (vitals == null)
             return;
 
-        vitals.SetWorldScale(vitalsBarsScale);
-        vitals.SetLocalOffset(vitalsBarsOffset);
+        vitals.SetWorldScale(hpBarScale);
+        vitals.SetLocalOffset(hpBarOffset);
     }
 
     static void BindCameraTarget(Transform player)

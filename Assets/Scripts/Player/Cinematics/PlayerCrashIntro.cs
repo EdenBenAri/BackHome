@@ -334,7 +334,7 @@ public class PlayerCrashIntro : MonoBehaviour
 
         Renderer[] renderers = _player.GetComponentsInChildren<Renderer>(true);
         var hidden = new System.Collections.Generic.List<Renderer>(renderers.Length);
-        VitalsBarsView vitalsView = _player.GetComponentInChildren<VitalsBarsView>(true);
+        HpBarView vitalsView = _player.GetComponentInChildren<HpBarView>(true);
         for (int i = 0; i < renderers.Length; i++)
         {
             Renderer renderer = renderers[i];

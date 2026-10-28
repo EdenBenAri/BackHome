@@ -5,14 +5,16 @@ using UnityEngine;
 /// (player, creature, …).
 /// </summary>
 [DefaultExecutionOrder(1000)]
-public class VitalsBars : MonoBehaviour
+public class HpBar : MonoBehaviour
 {
-    [SerializeField] VitalsBarsView vitalsBarsPrefab;
-    [SerializeField] VitalsBarsView bars;
+    [SerializeField] HpBarView hpBarPrefab;
+    [SerializeField] HpBarView bars;
     [SerializeField] Vector3 localOffset = new Vector3(0f, 2.15f, 0f);
     [Tooltip("Extra world size multiplier. SceneBootstrap can override this per scene.")]
     [SerializeField, Min(0.1f)] float worldScale = 1f;
     [SerializeField] bool hideWhenDead;
+    [Tooltip("Health fill for creatures and kings. The player keeps the green color authored on the bar.")]
+    [SerializeField] Color hostileHealthColor = new Color(0.92f, 0.18f, 0.16f, 1f);
     [Tooltip("Keep bars hidden until the host takes a hit. Always on for creatures.")]
     [SerializeField] bool hideUntilDamaged;
     [SerializeField, Min(0.05f)] float visibleAfterDamage = 2.5f;
@@ -145,24 +147,33 @@ public class VitalsBars : MonoBehaviour
 
     void EnsureBars()
     {
-        if (bars != null)
-            return;
+        if (bars == null)
+            bars = GetComponentInChildren<HpBarView>(true);
 
-        bars = GetComponentInChildren<VitalsBarsView>(true);
-        if (bars != null)
-            return;
-
-        if (vitalsBarsPrefab == null)
+        if (bars == null)
         {
-            Debug.LogWarning($"{name}: assign VitalsBars prefab on VitalsBars.", this);
-            return;
+            if (hpBarPrefab == null)
+            {
+                Debug.LogWarning($"{name}: assign HpBar prefab on HpBar.", this);
+                return;
+            }
+
+            bars = Instantiate(hpBarPrefab, transform);
+            bars.name = hpBarPrefab.name;
+            bars.transform.localPosition = localOffset;
+            bars.transform.localRotation = Quaternion.identity;
+            bars.transform.localScale = Vector3.one;
         }
 
-        bars = Instantiate(vitalsBarsPrefab, transform);
-        bars.name = vitalsBarsPrefab.name;
-        bars.transform.localPosition = localOffset;
-        bars.transform.localRotation = Quaternion.identity;
-        bars.transform.localScale = Vector3.one;
+        ApplyHealthColor();
+    }
+
+    void ApplyHealthColor()
+    {
+        if (bars == null || _source is not Creature)
+            return;
+
+        bars.SetHealthFillColor(hostileHealthColor);
     }
 
     void ApplyOxygenVisibility()
@@ -187,6 +198,7 @@ public class VitalsBars : MonoBehaviour
         }
 
         ApplyOxygenVisibility();
+        ApplyHealthColor();
         bars.SetHealthValues(_source.CurrentHealth, _source.MaxHealth);
         RefreshLevelLabel();
 
@@ -208,10 +220,22 @@ public class VitalsBars : MonoBehaviour
 
     void RefreshLevelLabel()
     {
-        if (bars == null || _level == null)
+        if (bars == null)
             return;
 
-        bars.SetLevel(_level.Level);
+        if (_level != null)
+        {
+            bars.SetLevel(_level.Level);
+            return;
+        }
+
+        if (_source is Creature creature && GetComponent<AreaKing>() != null)
+        {
+            bars.SetLevel(creature.Level);
+            return;
+        }
+
+        bars.HideLevel();
     }
 
     void OnDamaged(float _)
@@ -221,8 +245,6 @@ public class VitalsBars : MonoBehaviour
 
         if (HideUntilDamaged)
             RevealBars();
-
-        bars.FlashHealthHit();
     }
 
     void UpdateDamageReveal()

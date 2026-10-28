@@ -16,7 +16,7 @@ public class PlayerLandIntro : MonoBehaviour
     CharacterController _characterController;
     PlayerRangeCombat _combat;
     PlayerVitals _vitals;
-    VitalsBars _vitalsBars;
+    HpBar _hpBar;
     FloatingWeapon _floatingWeapon;
     StarterAssetsInputs _input;
     bool _cinematic;
@@ -31,7 +31,7 @@ public class PlayerLandIntro : MonoBehaviour
         _characterController = GetComponent<CharacterController>();
         _combat = GetComponent<PlayerRangeCombat>();
         _vitals = GetComponent<PlayerVitals>();
-        _vitalsBars = GetComponent<VitalsBars>();
+        _hpBar = GetComponent<HpBar>();
         _floatingWeapon = GetComponent<FloatingWeapon>();
         _input = GetComponent<StarterAssetsInputs>();
     }
@@ -60,8 +60,8 @@ public class PlayerLandIntro : MonoBehaviour
             _combat.HideRange();
         if (_vitals != null)
             _vitals.SetInvulnerable(true);
-        if (_vitalsBars != null)
-            _vitalsBars.SetHidden(true);
+        if (_hpBar != null)
+            _hpBar.SetHidden(true);
         if (_floatingWeapon != null)
             _floatingWeapon.SetVisible(false);
     }
@@ -88,8 +88,8 @@ public class PlayerLandIntro : MonoBehaviour
             _combat.enabled = true;
         if (_vitals != null)
             _vitals.SetInvulnerable(false);
-        if (_vitalsBars != null)
-            _vitalsBars.SetHidden(false);
+        if (_hpBar != null)
+            _hpBar.SetHidden(false);
         if (_floatingWeapon != null)
             _floatingWeapon.SetVisible(true);
 

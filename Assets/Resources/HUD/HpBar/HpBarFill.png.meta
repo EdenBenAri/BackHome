@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: e150c2b663c8a604aa4485c1cd856100
+guid: fd1cbf8714d693449bd26a55e8a92482
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: -9142855577387464877
-    second: VitalsBars_0
+      0: 0
+    second: HpBarFill
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -46,13 +46,13 @@ TextureImporter:
   nPOTScale: 0
   lightmap: 0
   compressionQuality: 50
-  spriteMode: 1
+  spriteMode: 2
   spriteExtrude: 1
-  spriteMeshType: 1
+  spriteMeshType: 0
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 800
-  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteBorder: {x: 117, y: 16, z: 117, w: 16}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
   alphaIsTransparency: 1
@@ -115,23 +115,23 @@ TextureImporter:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: VitalsBars_0
+      name: HpBarFill
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 2172
-        height: 724
+        x: 193
+        y: 245
+        width: 1786
+        height: 235
       alignment: 0
-      pivot: {x: 0, y: 0}
-      border: {x: 0, y: 0, z: 0, w: 0}
+      pivot: {x: 0.5, y: 0.5}
+      border: {x: 117, y: 16, z: 117, w: 16}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 3570f151b4d0e1180800000000000000
-      internalID: -9142855577387464877
+      spriteID: 5e97eb03825dee720800000000000000
+      internalID: 1537655665
       vertices: []
       indices: 
       edges: []
@@ -141,7 +141,7 @@ TextureImporter:
     physicsShape: []
     bones: []
     spriteID: 5e97eb03825dee720800000000000000
-    internalID: 0
+    internalID: 1537655665
     vertices: []
     indices: 
     edges: []
@@ -149,7 +149,8 @@ TextureImporter:
     secondaryTextures: []
     spriteCustomMetadata:
       entries: []
-    nameFileIdTable: {}
+    nameFileIdTable:
+      HpBarFill: 1537655665
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

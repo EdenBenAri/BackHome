@@ -135,7 +135,7 @@ public class CreatureBlobShadow : MonoBehaviour
     {
         if (renderer is not MeshRenderer && renderer is not SkinnedMeshRenderer)
             return false;
-        if (renderer.GetComponentInParent<VitalsBarsView>(true) != null)
+        if (renderer.GetComponentInParent<HpBarView>(true) != null)
             return false;
         if (renderer.GetComponentInParent<Canvas>(true) != null)
             return false;

@@ -21,7 +21,7 @@ public static class SlimeSetup
     const string StatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/SlimeStats.asset";
     const string LootItemPath = "Assets/Resources/Items/Coin/Coin.asset";
     const string PrefabPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Slime/Slime.prefab";
-    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/VitalsBars.prefab";
+    const string VitalsPrefabPath = "Assets/Resources/HUD/HpBar/HpBar.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 1.8f;
@@ -296,14 +296,14 @@ public static class SlimeSetup
         creatureSo.FindProperty("destroyDelay").floatValue = 0.1f;
         creatureSo.ApplyModifiedPropertiesWithoutUndo();
 
-        VitalsBars bars = instance.GetComponent<VitalsBars>();
+        HpBar bars = instance.GetComponent<HpBar>();
         if (bars == null)
-            bars = instance.AddComponent<VitalsBars>();
+            bars = instance.AddComponent<HpBar>();
 
         var barsPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(VitalsPrefabPath);
         var barsSo = new SerializedObject(bars);
-        barsSo.FindProperty("vitalsBarsPrefab").objectReferenceValue =
-            barsPrefab != null ? barsPrefab.GetComponent<VitalsBarsView>() : null;
+        barsSo.FindProperty("hpBarPrefab").objectReferenceValue =
+            barsPrefab != null ? barsPrefab.GetComponent<HpBarView>() : null;
         barsSo.FindProperty("localOffset").vector3Value = new Vector3(0f, barHeight, 0f);
         barsSo.FindProperty("worldScale").floatValue = 1.6f;
         barsSo.FindProperty("hideWhenDead").boolValue = true;

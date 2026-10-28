@@ -32,7 +32,7 @@ public static class KingGrimlingSetup
     const string StatsPath = Root + "/King_GrimlingStats.asset";
     const string SourceStatsPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Grimling/GrimlingStats.asset";
     const string PrefabPath = Root + "/King_Grimling.prefab";
-    const string VitalsPrefabPath = "Assets/Resources/HUD/VitalsBars/VitalsBars.prefab";
+    const string VitalsPrefabPath = "Assets/Resources/HUD/HpBar/HpBar.prefab";
     const string DamagePopupPath = "Assets/Resources/HUD/DamageNumber.prefab";
     const string HitFlashPath = "Assets/Resources/Galaxy/Nyxara/Creatures/Shaders/HitFlash.mat";
     const float TargetHeight = 4.2f;
@@ -363,11 +363,11 @@ public static class KingGrimlingSetup
         creatureSo.FindProperty("destroyDelay").floatValue = 0.1f;
         creatureSo.ApplyModifiedPropertiesWithoutUndo();
 
-        VitalsBars bars = instance.GetComponent<VitalsBars>() ?? instance.AddComponent<VitalsBars>();
+        HpBar bars = instance.GetComponent<HpBar>() ?? instance.AddComponent<HpBar>();
         var barsPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(VitalsPrefabPath);
         var barsSo = new SerializedObject(bars);
-        barsSo.FindProperty("vitalsBarsPrefab").objectReferenceValue =
-            barsPrefab != null ? barsPrefab.GetComponent<VitalsBarsView>() : null;
+        barsSo.FindProperty("hpBarPrefab").objectReferenceValue =
+            barsPrefab != null ? barsPrefab.GetComponent<HpBarView>() : null;
         barsSo.FindProperty("localOffset").vector3Value = new Vector3(0f, barHeight, 0f);
         barsSo.FindProperty("worldScale").floatValue = 2.6f;
         barsSo.FindProperty("hideWhenDead").boolValue = true;

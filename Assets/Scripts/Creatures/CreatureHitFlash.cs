@@ -186,7 +186,7 @@ public class CreatureHitFlash : MonoBehaviour
             return false;
         if (renderer.GetComponentInParent<Canvas>(true) != null)
             return false;
-        if (renderer.GetComponentInParent<VitalsBarsView>(true) != null)
+        if (renderer.GetComponentInParent<HpBarView>(true) != null)
             return false;
         return renderer is SkinnedMeshRenderer || renderer is MeshRenderer;
     }

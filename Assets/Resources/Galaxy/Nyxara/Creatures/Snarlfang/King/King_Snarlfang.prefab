@@ -1446,8 +1446,8 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: c2f5d93b0a4e6f7b8c9d0e1f2a3b4c5d, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::VitalsBars
-  vitalsBarsPrefab: {fileID: 100002, guid: a9b8c7d6e5f4039281706a5b4c3d2e1f, type: 3}
+  m_EditorClassIdentifier: Assembly-CSharp::HpBar
+  hpBarPrefab: {fileID: 100002, guid: a9b8c7d6e5f4039281706a5b4c3d2e1f, type: 3}
   bars: {fileID: 0}
   localOffset: {x: 0, y: 4.6499996, z: 0}
   worldScale: 2.6

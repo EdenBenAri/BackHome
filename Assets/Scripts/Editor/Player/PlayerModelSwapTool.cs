@@ -868,7 +868,7 @@ public static class PlayerModelSwapTool
     /// Opens Player.prefab's contents in memory, finds the specific nested model instance that
     /// holds the live running character (named after <see cref="RunOnPlanetModelPath"/> - Player
     /// .prefab also keeps a disabled "Model" instance and several unrelated renderers around,
-    /// e.g. VitalsBars/UI icons, which must NOT be touched), and force-assigns
+    /// e.g. HpBar/UI icons, which must NOT be touched), and force-assigns
     /// <paramref name="mat"/> onto every slot of every Renderer under just that instance,
     /// regardless of whatever the FBX's own material import settings would otherwise resolve to.
     /// Returns how many renderers were touched.
