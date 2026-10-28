@@ -987,6 +987,13 @@ public class PlanetTileMap : MonoBehaviour
             }
         }
 
+        // Neighboring quads repeat the same corner. Welding those cuts the vertex
+        // load of the color pass and of any depth prepass. Positions, UVs, and
+        // splat weights must match exactly, so the walk collider and the shoreline
+        // stay on the same surface. Normals are rebuilt afterwards, which smooths
+        // the 4% shade band instead of leaving one flat normal per quad.
+        WeldCoincidentVertices(vertices, uvs, colors, triangles);
+
         if (_runtimeMesh == null)
             _runtimeMesh = new Mesh();
         else
@@ -1293,6 +1300,114 @@ public class PlanetTileMap : MonoBehaviour
         triangles.Add(start + 0);
         triangles.Add(start + 2);
         triangles.Add(start + 3);
+    }
+
+    readonly struct VertexWeldKey : IEquatable<VertexWeldKey>
+    {
+        readonly int _px, _py, _pz, _u, _v, _r, _g, _b, _a;
+
+        public VertexWeldKey(Vector3 position, Vector2 uv, Color color)
+        {
+            _px = Bit(position.x);
+            _py = Bit(position.y);
+            _pz = Bit(position.z);
+            _u = Bit(uv.x);
+            _v = Bit(uv.y);
+            _r = Bit(color.r);
+            _g = Bit(color.g);
+            _b = Bit(color.b);
+            _a = Bit(color.a);
+        }
+
+        static int Bit(float value)
+        {
+            if (value == 0f)
+                return 0;
+            return BitConverter.SingleToInt32Bits(value);
+        }
+
+        public bool Equals(VertexWeldKey other) =>
+            _px == other._px && _py == other._py && _pz == other._pz
+            && _u == other._u && _v == other._v
+            && _r == other._r && _g == other._g && _b == other._b && _a == other._a;
+
+        public override bool Equals(object obj) => obj is VertexWeldKey other && Equals(other);
+
+        public override int GetHashCode()
+        {
+            unchecked
+            {
+                int hash = _px;
+                hash = (hash * 397) ^ _py;
+                hash = (hash * 397) ^ _pz;
+                hash = (hash * 397) ^ _u;
+                hash = (hash * 397) ^ _v;
+                hash = (hash * 397) ^ _r;
+                hash = (hash * 397) ^ _g;
+                hash = (hash * 397) ^ _b;
+                hash = (hash * 397) ^ _a;
+                return hash;
+            }
+        }
+    }
+
+    static void WeldCoincidentVertices(
+        List<Vector3> vertices,
+        List<Vector2> uvs,
+        List<Color> colors,
+        List<int> triangles)
+    {
+        int count = vertices.Count;
+        if (count == 0 || triangles.Count < 3)
+            return;
+
+        var remap = new int[count];
+        var keyToIndex = new Dictionary<VertexWeldKey, int>(count);
+        var weldedPositions = new List<Vector3>(count / 3);
+        var weldedUvs = new List<Vector2>(count / 3);
+        var weldedColors = new List<Color>(count / 3);
+
+        for (int i = 0; i < count; i++)
+        {
+            var key = new VertexWeldKey(vertices[i], uvs[i], colors[i]);
+            if (!keyToIndex.TryGetValue(key, out int compact))
+            {
+                compact = weldedPositions.Count;
+                keyToIndex.Add(key, compact);
+                weldedPositions.Add(vertices[i]);
+                weldedUvs.Add(uvs[i]);
+                weldedColors.Add(colors[i]);
+            }
+
+            remap[i] = compact;
+        }
+
+        if (weldedPositions.Count == count)
+            return;
+
+        int write = 0;
+        for (int i = 0; i < triangles.Count; i += 3)
+        {
+            int a = remap[triangles[i]];
+            int b = remap[triangles[i + 1]];
+            int c = remap[triangles[i + 2]];
+            if (a == b || b == c || a == c)
+                continue;
+
+            triangles[write++] = a;
+            triangles[write++] = b;
+            triangles[write++] = c;
+        }
+
+        if (write < triangles.Count)
+            triangles.RemoveRange(write, triangles.Count - write);
+
+        vertices.Clear();
+        vertices.AddRange(weldedPositions);
+        uvs.Clear();
+        uvs.AddRange(weldedUvs);
+        colors.Clear();
+        colors.AddRange(weldedColors);
     }
 
     Material BuildTileMaterial()

@@ -64,6 +64,7 @@ Shader "BackHome/PlanetTilesSplat"
                 float2 uv : TEXCOORD0;
                 float4 color : COLOR;
                 float3 normalWS : TEXCOORD1;
+                float3 positionWS : TEXCOORD2;
             };
 
             Varyings vert(Attributes input)
@@ -74,11 +75,16 @@ Shader "BackHome/PlanetTilesSplat"
                 o.uv = TRANSFORM_TEX(input.uv, _Splat0);
                 o.color = input.color;
                 o.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                o.positionWS = posWS;
                 return o;
             }
 
             half4 frag(Varyings input) : SV_Target
             {
+                [branch]
+                if (PlanetSeaCovers(input.positionWS))
+                    return half4(0, 0, 0, 1);
+
                 half4 w = max(input.color, 0);
                 w = pow(w, half4(_BlendSharpness, _BlendSharpness, _BlendSharpness, _BlendSharpness));
                 half sum = w.r + w.g + w.b + w.a + 1e-5;
@@ -105,8 +111,11 @@ Shader "BackHome/PlanetTilesSplat"
             ENDHLSL
         }
 
-        // The deferred depth copy happens before this forward pass. Without these,
-        // the planet is missing from the outline depth and ink shows through the ground.
+        // Used only when URP actually runs a depth prepass (it cannot copy the
+        // camera depth, or something reads depth before opaques). Forward and
+        // Forward+ copy depth after the color pass, so this is not a second
+        // draw of the planet on those paths. Removing it makes the sea and the
+        // outline miss the ground whenever that prepass is the depth source.
         Pass
         {
             Name "DepthOnly"
@@ -118,7 +127,7 @@ Shader "BackHome/PlanetTilesSplat"
 
             HLSLPROGRAM
             #pragma target 3.5
-            #pragma vertex PlanetDepthVert
+            #pragma vertex PlanetDepthPosVert
             #pragma fragment PlanetDepthFrag
             #pragma multi_compile_instancing
             #include "PlanetDepth.hlsl"
@@ -168,7 +177,7 @@ Shader "BackHome/PlanetTilesSplat"
 
             HLSLPROGRAM
             #pragma target 3.5
-            #pragma vertex PlanetDepthVert
+            #pragma vertex PlanetDepthPosVert
             #pragma fragment PlanetStencilFrag
             #pragma multi_compile_instancing
             #include "PlanetDepth.hlsl"

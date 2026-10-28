@@ -13,4 +13,26 @@ half PlanetTileBevel(float2 uv)
     return lerp(pillow, pillow * 0.94h, seam);
 }
 
+// Filled by NyxaraSeaFit. x = sea radius, y = how far under the surface a point
+// must sit before the sea is guaranteed to cover it, waves included.
+float4 _PlanetSeaCenter;
+float4 _PlanetSeaParams;
+
+// The sea is opaque (Blend Off) and draws after the ground. Its color replaces
+// the splat completely. Skipping the samples here still writes depth, which the
+// shore foam reads. Above water, and while the camera is under the surface, the
+// full splat stays.
+bool PlanetSeaCovers(float3 positionWS)
+{
+    float seaRadius = _PlanetSeaParams.x;
+    if (seaRadius <= 1.0)
+        return false;
+
+    float3 center = _PlanetSeaCenter.xyz;
+    if (length(_WorldSpaceCameraPos.xyz - center) <= seaRadius)
+        return false;
+
+    return length(positionWS - center) < seaRadius - _PlanetSeaParams.y;
+}
+
 #endif

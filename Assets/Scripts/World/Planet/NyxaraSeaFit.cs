@@ -14,13 +14,31 @@ public sealed class NyxaraSeaFit : MonoBehaviour
     [SerializeField, Tooltip("World units above the planet surface so ground at height 0 sits just under the water.")]
     float clearance = 0.45f;
 
+    static readonly int SeaCenterId = Shader.PropertyToID("_PlanetSeaCenter");
+    static readonly int SeaParamsId = Shader.PropertyToID("_PlanetSeaParams");
+
     MeshRenderer _renderer;
+    SphericalPlanet _planet;
 
     void OnEnable()
     {
-        var planet = GetComponentInParent<SphericalPlanet>();
-        PlanetLayout.StripLegacyArt(planet);
+        _planet = GetComponentInParent<SphericalPlanet>();
+        PlanetLayout.StripLegacyArt(_planet);
         Fit();
+    }
+
+    void OnDisable()
+    {
+        // Ground shading must come back in scenes that have no sea.
+        Shader.SetGlobalVector(SeaParamsId, Vector4.zero);
+    }
+
+    void LateUpdate()
+    {
+        if (!Application.isPlaying || _planet == null)
+            return;
+
+        PushSeaGlobals();
     }
 
 #if UNITY_EDITOR
@@ -43,6 +61,7 @@ public sealed class NyxaraSeaFit : MonoBehaviour
         if (planet == null)
             return;
 
+        _planet = planet;
         DisablePhysics();
 
         if (_renderer == null)
@@ -62,6 +81,35 @@ public sealed class NyxaraSeaFit : MonoBehaviour
         var sphere = GetComponent<CasualWaterSphereMesh>();
         if (sphere != null)
             sphere.Refresh();
+
+        PushSeaGlobals();
+    }
+
+    void PushSeaGlobals()
+    {
+        if (_planet == null)
+            _planet = GetComponentInParent<SphericalPlanet>();
+        if (_planet == null)
+            return;
+
+        if (_renderer == null)
+            _renderer = GetComponent<MeshRenderer>();
+        if (_renderer == null || !_renderer.enabled)
+        {
+            Shader.SetGlobalVector(SeaParamsId, Vector4.zero);
+            return;
+        }
+
+        float wave = 0.16f;
+        Material material = _renderer != null ? _renderer.sharedMaterial : null;
+        if (material != null && material.HasProperty("_WaveHeight"))
+            wave = material.GetFloat("_WaveHeight");
+
+        // Stay above the tallest wave so a trough never reveals an unshaded seabed.
+        float margin = Mathf.Max(0.05f, wave) + 0.1f;
+        float worldRadius = _planet.GetTerrainRadius(Vector3.up) + Mathf.Max(0f, clearance);
+        Shader.SetGlobalVector(SeaCenterId, _planet.Center);
+        Shader.SetGlobalVector(SeaParamsId, new Vector4(worldRadius, margin, 0f, 0f));
     }
 
     void DisablePhysics()

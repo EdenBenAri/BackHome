@@ -56,6 +56,7 @@ Shader "BackHome/PlanetTilesCube"
                 float2 uv : TEXCOORD0;
                 float4 color : COLOR;
                 float3 normalWS : TEXCOORD1;
+                float3 positionWS : TEXCOORD2;
             };
 
             Varyings vert(Attributes input)
@@ -66,11 +67,16 @@ Shader "BackHome/PlanetTilesCube"
                 o.uv = TRANSFORM_TEX(input.uv, _BaseMap);
                 o.color = input.color;
                 o.normalWS = TransformObjectToWorldNormal(input.normalOS);
+                o.positionWS = posWS;
                 return o;
             }
 
             half4 frag(Varyings input) : SV_Target
             {
+                [branch]
+                if (PlanetSeaCovers(input.positionWS))
+                    return half4(0, 0, 0, 1);
+
                 half4 tex = SAMPLE_TEXTURE2D(_BaseMap, sampler_BaseMap, input.uv);
                 half3 n = normalize(input.normalWS);
                 // Soft top wash. Sides stay close to the tile color, like a flat cartoon map.
@@ -97,7 +103,7 @@ Shader "BackHome/PlanetTilesCube"
 
             HLSLPROGRAM
             #pragma target 3.5
-            #pragma vertex PlanetDepthVert
+            #pragma vertex PlanetDepthPosVert
             #pragma fragment PlanetDepthFrag
             #pragma multi_compile_instancing
             #include "PlanetDepth.hlsl"
@@ -146,7 +152,7 @@ Shader "BackHome/PlanetTilesCube"
 
             HLSLPROGRAM
             #pragma target 3.5
-            #pragma vertex PlanetDepthVert
+            #pragma vertex PlanetDepthPosVert
             #pragma fragment PlanetStencilFrag
             #pragma multi_compile_instancing
             #include "PlanetDepth.hlsl"
