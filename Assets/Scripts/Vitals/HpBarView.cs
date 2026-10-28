@@ -59,6 +59,8 @@ public class HpBarView : MonoBehaviour
 
     MaterialPropertyBlock _block;
     bool _levelLabelReady;
+    Color _levelLabelColor = Color.white;
+    bool _levelLabelColorSet;
     bool _colorsCaptured;
     bool _healthColorLocked;
     Color _authoredFrameColor = Color.white;
@@ -225,11 +227,18 @@ public class HpBarView : MonoBehaviour
     }
 
     /// <summary>
-    /// Level centered above the health bar: "Lv8", white with a dark outline.
-    /// Only the player and area kings show this. Regular mobs call <see cref="HideLevel"/>.
+    /// Level centered above the health bar: "Lv8", with a dark outline.
+    /// The player stays the prefab color. Kings pass red. Regular mobs call <see cref="HideLevel"/>.
     /// </summary>
     public void SetLevel(int level)
     {
+        SetLevel(level, labelColor);
+    }
+
+    public void SetLevel(int level, Color color)
+    {
+        _levelLabelColor = color;
+        _levelLabelColorSet = true;
         EnsureLevelLabel();
         if (levelLabel == null)
             return;
@@ -244,7 +253,7 @@ public class HpBarView : MonoBehaviour
             levelLabel.ForceMeshUpdate();
         }
 
-        ApplyLabelColor(levelLabel);
+        ApplyLevelLabelColor();
     }
 
     public void HideLevel()
@@ -552,7 +561,6 @@ public class HpBarView : MonoBehaviour
             levelLabel.gameObject.SetActive(true);
 
         EnsureWorldSpaceLabel(levelLabel);
-        levelLabel.fontSize = 56f;
         levelLabel.fontStyle = FontStyles.Normal;
         levelLabel.alignment = TextAlignmentOptions.Center;
         levelLabel.textWrappingMode = TextWrappingModes.NoWrap;
@@ -575,7 +583,6 @@ public class HpBarView : MonoBehaviour
 
         RectTransform rect = levelLabel.rectTransform;
         rect.sizeDelta = new Vector2(220f, 90f);
-        // fontSize 56 is in canvas pixels. 0.01 keeps "Lv12" about as tall as the bar.
         if (rect.localScale.y > 0.05f || rect.localScale.sqrMagnitude < 0.0000001f)
             rect.localScale = new Vector3(0.01f, 0.01f, 0.01f);
         PlaceLevelAboveHealth(rect);
@@ -607,7 +614,17 @@ public class HpBarView : MonoBehaviour
     {
         ApplyLabelColor(healthLabel);
         ApplyLabelColor(oxygenLabel);
-        ApplyLabelColor(levelLabel);
+        ApplyLevelLabelColor();
+    }
+
+    void ApplyLevelLabelColor()
+    {
+        if (levelLabel == null)
+            return;
+
+        Color color = _levelLabelColorSet ? _levelLabelColor : labelColor;
+        color.a *= _alpha;
+        levelLabel.color = color;
     }
 
     void ApplyLabelColor(TMP_Text label)

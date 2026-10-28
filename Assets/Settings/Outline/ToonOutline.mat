@@ -25,17 +25,12 @@ Material:
     m_TexEnvs: []
     m_Ints: []
     m_Floats:
-    - _CreaseStrength: 0.73
-    - _DepthSensitivity: 0.019
-    - _DepthSoftness: 1
-    - _FadeEnd: 180
-    - _FadeStart: 80
-    - _NormalSoftness: 0.12
-    - _NormalThreshold: 0.22
-    - _OutlineThickness: 3.4
-    - _SilhouetteStrength: 0.8
+    - _FadeEnd: 160
+    - _FadeStart: 90
+    - _OutlinePixels: 6.42
+    - _UseKing: 0
     m_Colors:
     - _KingOutlineColor: {r: 0.86, g: 0.09, b: 0.12, a: 1}
-    - _OutlineColor: {r: 0.04, g: 0.03, b: 0.07, a: 1}
+    - _OutlineColor: {r: 0, g: 0, b: 0, a: 1}
   m_BuildTextureStacks: []
   m_AllowLocking: 1

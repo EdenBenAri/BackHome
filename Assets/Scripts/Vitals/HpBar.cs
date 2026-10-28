@@ -231,7 +231,7 @@ public class HpBar : MonoBehaviour
 
         if (_source is Creature creature && GetComponent<AreaKing>() != null)
         {
-            bars.SetLevel(creature.Level);
+            bars.SetLevel(creature.Level, hostileHealthColor);
             return;
         }
 

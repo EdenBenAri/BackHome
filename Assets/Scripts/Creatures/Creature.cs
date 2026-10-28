@@ -61,7 +61,6 @@ public class Creature : MonoBehaviour, IVitalsReadable
 
     void Awake()
     {
-        ToonOutlineSubjects.Mark(this);
         _chase = GetComponent<CreatureChase>();
         _anim = GetComponent<CreatureAnimator>();
         if (_anim == null)
@@ -77,12 +76,16 @@ public class Creature : MonoBehaviour, IVitalsReadable
 
     void OnEnable()
     {
+        if (Application.isPlaying)
+            ToonOutlineSubjects.Mark(this);
         if (!Active.Contains(this))
             Active.Add(this);
     }
 
     void OnDisable()
     {
+        if (Application.isPlaying)
+            ToonOutlineSubjects.Unmark(this);
         Active.Remove(this);
     }
 
