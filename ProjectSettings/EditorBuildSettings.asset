@@ -8,5 +8,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/PlanetNyxara.unity
     guid: f2a8c4d1e6b04793a5c1d8e0f3b2947c
+  - enabled: 1
+    path: Assets/Scenes/Ship.unity
+    guid: 953e14b6a5a5b7d44828f3783bd19cd5
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
