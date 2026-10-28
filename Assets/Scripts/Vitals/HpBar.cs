@@ -49,12 +49,19 @@ public class HpBar : MonoBehaviour
 
     bool HideUntilDamaged => hideUntilDamaged || _source is Creature;
 
+    bool IsPlayer => GetComponent<PlayerVitals>() != null;
+
+    bool HealthIsFull =>
+        _source != null
+        && _source.MaxHealth > 0f
+        && _source.CurrentHealth >= _source.MaxHealth - 0.01f;
+
     void Awake()
     {
         _source = GetComponent<IVitalsReadable>();
         EnsureBars();
         ApplyOxygenVisibility();
-        if (HideUntilDamaged)
+        if (HideUntilDamaged || IsPlayer)
             HideBarsImmediate();
     }
 
@@ -212,8 +219,23 @@ public class HpBar : MonoBehaviour
             return;
         }
 
-        if (HideUntilDamaged)
+        // The player bar stays up for the whole time health is missing, and hides again at full.
+        // Creatures only flash the bar for a few seconds after a hit.
+        if (IsPlayer)
+        {
+            if (HealthIsFull)
+                HideBarsImmediate();
+            else
+                ShowBarsImmediate();
             return;
+        }
+
+        if (HideUntilDamaged)
+        {
+            if (KeepsLevelVisible)
+                EnsureLevelStaysVisible();
+            return;
+        }
 
         ShowBarsImmediate();
     }
@@ -236,6 +258,22 @@ public class HpBar : MonoBehaviour
         }
 
         bars.HideLevel();
+    }
+
+    bool KeepsLevelVisible =>
+        (IsPlayer || GetComponent<AreaKing>() != null)
+        && (_source == null || !hideWhenDead || _source.IsAlive);
+
+    void EnsureLevelStaysVisible()
+    {
+        if (bars == null)
+            return;
+
+        if (!bars.gameObject.activeSelf)
+            bars.gameObject.SetActive(true);
+
+        bool barShowing = _alpha > 0.001f || _revealTimer > 0f;
+        bars.SetHealthBarVisible(barShowing);
     }
 
     void OnDamaged(float _)
@@ -269,6 +307,16 @@ public class HpBar : MonoBehaviour
             _alpha = Mathf.MoveTowards(_alpha, target, Time.deltaTime / fadeDuration);
 
         bool show = _alpha > 0.001f || target > 0f;
+        if (KeepsLevelVisible)
+        {
+            if (!bars.gameObject.activeSelf)
+                bars.gameObject.SetActive(true);
+            bars.SetHealthBarVisible(show);
+            if (show)
+                bars.SetAlpha(_alpha);
+            return;
+        }
+
         if (bars.gameObject.activeSelf != show)
             bars.gameObject.SetActive(show);
 
@@ -282,6 +330,7 @@ public class HpBar : MonoBehaviour
         _alpha = 1f;
         if (!bars.gameObject.activeSelf)
             bars.gameObject.SetActive(true);
+        bars.SetHealthBarVisible(true);
         bars.SetAlpha(1f);
     }
 
@@ -294,8 +343,8 @@ public class HpBar : MonoBehaviour
 
         if (!bars.gameObject.activeSelf)
             bars.gameObject.SetActive(true);
-        // HideBarsImmediate zeros alpha. Player bars do not use the damage-fade path, so
-        // activating the object alone would leave them fully transparent.
+        bars.SetHealthBarVisible(true);
+        // HideBarsImmediate can leave the fill inactive. Turning the root on is not enough.
         bars.SetAlpha(1f);
         EnsureBarRenderersEnabled();
     }
@@ -308,6 +357,14 @@ public class HpBar : MonoBehaviour
             return;
 
         bars.SetAlpha(0f);
+        if (KeepsLevelVisible)
+        {
+            if (!bars.gameObject.activeSelf)
+                bars.gameObject.SetActive(true);
+            bars.SetHealthBarVisible(false);
+            return;
+        }
+
         if (bars.gameObject.activeSelf)
             bars.gameObject.SetActive(false);
     }

@@ -59,6 +59,13 @@ public class HpBarView : MonoBehaviour
 
     MaterialPropertyBlock _block;
     bool _levelLabelReady;
+    bool _healthBarVisible = true;
+    bool _levelRaiseReady;
+    bool _levelSliding;
+    float _levelRaise = 1f;
+    float _levelSlideFrom = 1f;
+    float _levelSlideTo = 1f;
+    float _levelSlide;
     Color _levelLabelColor = Color.white;
     bool _levelLabelColorSet;
     bool _colorsCaptured;
@@ -93,6 +100,8 @@ public class HpBarView : MonoBehaviour
 
     void Update()
     {
+        UpdateLevelHeight();
+
         if (!_trailInitialized || _trailHealth <= _previewHealth + 0.0001f)
             return;
 
@@ -254,6 +263,47 @@ public class HpBarView : MonoBehaviour
         }
 
         ApplyLevelLabelColor();
+    }
+
+    /// <summary>
+    /// Hides the frame and fills. The level label stays on the same object.
+    /// </summary>
+    public void SetHealthBarVisible(bool visible)
+    {
+        _healthBarVisible = visible;
+        SetGraphicActive(frameRenderer, visible);
+        SetGraphicActive(healthFill, visible);
+        SetGraphicActive(healthTrailFill, visible);
+        SetGraphicActive(oxygenFrameRenderer, visible && showOxygen);
+        SetGraphicActive(oxygenFill, visible && showOxygen);
+        if (healthLabel != null)
+            healthLabel.gameObject.SetActive(visible && showValueLabels);
+        if (oxygenLabel != null)
+            oxygenLabel.gameObject.SetActive(visible && showValueLabels && showOxygen);
+
+        if (!_levelRaiseReady)
+        {
+            _levelRaiseReady = true;
+            _levelRaise = visible ? 1f : 0f;
+            _levelSlideTo = _levelRaise;
+            _levelSliding = false;
+            ApplyLevelHeight();
+            return;
+        }
+
+        float target = visible ? 1f : 0f;
+        if (_levelSliding && Mathf.Approximately(_levelSlideTo, target))
+            return;
+        if (!_levelSliding && Mathf.Approximately(_levelRaise, target))
+            return;
+
+        BeginLevelSlide(target);
+    }
+
+    static void SetGraphicActive(Component graphic, bool visible)
+    {
+        if (graphic != null && graphic.gameObject.activeSelf != visible)
+            graphic.gameObject.SetActive(visible);
     }
 
     public void HideLevel()
@@ -474,6 +524,8 @@ public class HpBarView : MonoBehaviour
 
         CaptureFill(ref _trailAuthored, healthTrailFill, healthTrailRenderer);
         SetRendererColor(healthTrailRenderer, damageTrailColor);
+        if (!_healthBarVisible)
+            healthTrailFill.gameObject.SetActive(false);
     }
 
     void ApplyTrail(float normalized)
@@ -585,27 +637,65 @@ public class HpBarView : MonoBehaviour
         rect.sizeDelta = new Vector2(220f, 90f);
         if (rect.localScale.y > 0.05f || rect.localScale.sqrMagnitude < 0.0000001f)
             rect.localScale = new Vector3(0.01f, 0.01f, 0.01f);
-        PlaceLevelAboveHealth(rect);
+        ApplyLevelHeight();
         _levelLabelReady = true;
     }
 
-    void PlaceLevelAboveHealth(RectTransform rect)
+    void BeginLevelSlide(float target)
     {
+        if (Mathf.Approximately(_levelRaise, target))
+        {
+            _levelSliding = false;
+            return;
+        }
+
+        _levelSlideFrom = _levelRaise;
+        _levelSlideTo = target;
+        _levelSlide = 0f;
+        _levelSliding = true;
+    }
+
+    void UpdateLevelHeight()
+    {
+        if (!_levelSliding || levelLabel == null)
+            return;
+
+        _levelSlide += Time.deltaTime / 0.18f;
+        float t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(_levelSlide));
+        _levelRaise = Mathf.Lerp(_levelSlideFrom, _levelSlideTo, t);
+        ApplyLevelHeight();
+        if (_levelSlide >= 1f)
+        {
+            _levelRaise = _levelSlideTo;
+            _levelSliding = false;
+            ApplyLevelHeight();
+        }
+    }
+
+    void ApplyLevelHeight()
+    {
+        if (levelLabel == null)
+            return;
+
+        RectTransform rect = levelLabel.rectTransform;
         CaptureFill(ref _healthAuthored, healthFill, healthFillRenderer);
 
+        float barCenter = 0f;
         float barTop = 0.16f;
         float centerX = 0f;
         if (_healthAuthored.valid && healthFill != null)
         {
             float height = _healthAuthored.spriteSize.y * Mathf.Abs(_healthAuthored.localScale.y);
-            barTop = _healthAuthored.localPosition.y + height * 0.5f;
+            barCenter = _healthAuthored.localPosition.y;
+            barTop = barCenter + height * 0.5f;
             centerX = healthLabel != null ? healthLabel.rectTransform.localPosition.x : _healthAuthored.localPosition.x;
         }
 
         float glyph = levelLabel.fontSize * Mathf.Abs(rect.localScale.y);
+        float raised = barTop + glyph * 0.5f + 0.06f;
         Vector3 local = rect.localPosition;
         local.x = centerX;
-        local.y = barTop + glyph * 0.5f + 0.06f;
+        local.y = Mathf.Lerp(barCenter, raised, _levelRaise);
         local.z = -0.05f;
         rect.localPosition = local;
     }
@@ -623,7 +713,6 @@ public class HpBarView : MonoBehaviour
             return;
 
         Color color = _levelLabelColorSet ? _levelLabelColor : labelColor;
-        color.a *= _alpha;
         levelLabel.color = color;
     }
 
