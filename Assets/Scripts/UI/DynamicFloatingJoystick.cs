@@ -147,8 +147,7 @@ public class DynamicFloatingJoystick : MonoBehaviour, IPointerDownHandler, IDrag
     }
 
     /// <summary>
-    /// True once MobileInputBinder has wired both the canvas input and its target player
-    /// (the player may not exist yet during a scene's crash-landing intro).
+    /// True once MobileInputBinder has wired both the canvas input and its target player.
     /// </summary>
     bool HasValidCanvasInput()
     {

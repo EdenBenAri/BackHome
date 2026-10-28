@@ -18,17 +18,14 @@ public class MobileInputBinder : MonoBehaviour
         HideUnusedControls();
         SetupFloatingJoystick();
 
-        // If the player already exists (e.g. no crash-landing intro in this scene), wire it now.
-        // Otherwise SceneBootstrap calls BindPlayer once the player actually spawns - the player
-        // simply not existing yet here is the expected/normal case (not an error), so don't warn
-        // about it.
+        // SceneBootstrap usually spawns the player first. If it has not yet, it calls BindPlayer
+        // once the player exists. A missing player here is not an error.
         BindPlayer(playerInputs, warnIfMissing: false);
     }
 
     /// <summary>
     /// Wires (or re-wires) the joystick/canvas input to a player's StarterAssetsInputs.
-    /// Safe to call again later, e.g. once a deferred crash-landing intro finishes and the
-    /// player finally spawns (the player doesn't exist yet at Awake time in that case).
+    /// Safe to call again once the player exists.
     /// </summary>
     public void BindPlayer(StarterAssetsInputs inputs)
     {
@@ -37,6 +34,9 @@ public class MobileInputBinder : MonoBehaviour
 
     void BindPlayer(StarterAssetsInputs inputs, bool warnIfMissing)
     {
+        if (canvasInput == null)
+            canvasInput = GetComponent<UICanvasControllerInput>();
+
         if (inputs == null)
         {
             GameObject player = GameObject.FindGameObjectWithTag("Player");

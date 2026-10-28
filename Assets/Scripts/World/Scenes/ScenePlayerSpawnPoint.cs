@@ -1,8 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Fixed spawn point for scenes without a crash landing.
-/// Place one in the scene at the position/rotation where the player should appear.
+/// Fixed spawn point. Place one in the scene where the player should appear.
 /// </summary>
 [DisallowMultipleComponent]
 public class ScenePlayerSpawnPoint : MonoBehaviour

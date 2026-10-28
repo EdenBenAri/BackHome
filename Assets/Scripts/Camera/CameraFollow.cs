@@ -96,9 +96,7 @@ public class CameraFollow : MonoBehaviour
     }
 
     /// <summary>
-    /// While true, the camera tracks the target with zero smoothing/motion-framing lag - always
-    /// dead-centered. Use for fast scripted moves (e.g. a crash-landing cinematic) where the
-    /// normal casual-follow damping can't keep up and the target visibly drifts off-frame.
+    /// While true, the camera tracks the target with zero smoothing and stays dead-centered.
     /// </summary>
     public void SetSnapToTarget(bool snap)
     {
@@ -111,7 +109,7 @@ public class CameraFollow : MonoBehaviour
     Vector3 _oxygenOffset;
     float _oxygenFovDelta;
 
-    /// <summary>Brief positional shake (e.g. on crash impact). Decays smoothly to zero over duration.</summary>
+    /// <summary>Brief positional shake. Decays smoothly to zero over duration.</summary>
     public void Shake(float duration, float magnitude)
     {
         if (duration <= 0f || magnitude <= 0f)

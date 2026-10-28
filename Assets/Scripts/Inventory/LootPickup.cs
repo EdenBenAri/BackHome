@@ -44,9 +44,12 @@ public class LootPickup : MonoBehaviour
     bool _collected;
     bool _idleStarted;
 
+    static Material _fallbackSpriteMaterial;
+
     void Awake()
     {
         _sprite = GetComponentInChildren<SpriteRenderer>(true);
+        EnsureSpriteMaterial();
         _visual = _sprite != null
             ? _sprite.transform
             : (transform.childCount > 0 ? transform.GetChild(0) : transform);
@@ -164,6 +167,30 @@ public class LootPickup : MonoBehaviour
         _idleStarted = true;
         if (_animator != null && _sprite != null && !string.IsNullOrWhiteSpace(idleState))
             _animator.Play(idleState, 0, 0f);
+    }
+
+    void EnsureSpriteMaterial()
+    {
+        if (_sprite == null)
+            return;
+
+        Material current = _sprite.sharedMaterial;
+        if (current != null && current.shader != null && current.shader.isSupported
+            && current.shader.name != "Hidden/InternalErrorShader")
+            return;
+
+        if (_fallbackSpriteMaterial == null)
+        {
+            Shader shader = Shader.Find("Universal Render Pipeline/2D/Sprite-Unlit-Default");
+            if (shader == null)
+                shader = Shader.Find("Sprites/Default");
+            if (shader == null)
+                return;
+
+            _fallbackSpriteMaterial = new Material(shader) { name = "WorldSprite (Runtime)" };
+        }
+
+        _sprite.sharedMaterial = _fallbackSpriteMaterial;
     }
 
     void ApplyItemVisual()

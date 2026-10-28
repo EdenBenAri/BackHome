@@ -6,9 +6,7 @@ using UnityEngine;
 /// so the full Canvas is visible in edit mode; this only instantiates it if the scene has none.
 /// CameraFollow stays on Main Camera — only the target is wired at runtime.
 /// Per-scene vitals bar sizing lives here because cameras differ per world.
-/// Where the player spawns is resolved by <see cref="TryResolveSpawnPose"/> from, in order:
-/// crash-landing <see cref="PlayerCrashIntro"/> (the crash intro itself spawns the player at
-/// the start of the fall), or a <see cref="ScenePlayerSpawnPoint"/> marker.
+/// The player appears at the scene's <see cref="ScenePlayerSpawnPoint"/>.
 /// </summary>
 public class SceneBootstrap : MonoBehaviour
 {
@@ -22,10 +20,7 @@ public class SceneBootstrap : MonoBehaviour
     [Tooltip("Local offset of the bars relative to the player (XYZ).")]
     [SerializeField] Vector3 hpBarOffset = new Vector3(0f, 2.15f, 0f);
 
-    PlayerCrashIntro _crashIntro;
-
-    /// <summary>Prefab this scene uses for the player. Crash intro reads this so the falling
-    /// actor is the same object gameplay later walks with.</summary>
+    /// <summary>Prefab this scene uses for the player.</summary>
     public GameObject PlayerPrefab => playerPrefab;
 
     void Awake()
@@ -38,18 +33,7 @@ public class SceneBootstrap : MonoBehaviour
 
         PlayerInventory.EnsureExists();
         PlayerLevel.EnsureExists();
-
-        _crashIntro = FindAnyObjectByType<PlayerCrashIntro>();
-        if (_crashIntro != null)
-            _crashIntro.OnPlayerReady += BindPlayer;
-        else
-            SpawnPlayerAndBindCamera();
-    }
-
-    void OnDestroy()
-    {
-        if (_crashIntro != null)
-            _crashIntro.OnPlayerReady -= BindPlayer;
+        SpawnPlayerAndBindCamera();
     }
 
     void SpawnPlayerAndBindCamera()
@@ -57,10 +41,9 @@ public class SceneBootstrap : MonoBehaviour
         Transform player = FindExistingPlayer();
         if (player == null && playerPrefab != null)
         {
-            if (!TryResolveSpawnPose(out Vector3 position, out Quaternion rotation))
+            if (!ScenePlayerSpawnPoint.TryGetPose(out Vector3 position, out Quaternion rotation))
             {
-                Debug.LogWarning("SceneBootstrap: no spawn pose resolved. Add PlayerCrashIntro " +
-                    "or ScenePlayerSpawnPoint to this scene.", this);
+                Debug.LogWarning("SceneBootstrap: no spawn pose resolved. Add a ScenePlayerSpawnPoint to this scene.", this);
                 return;
             }
 
@@ -81,23 +64,6 @@ public class SceneBootstrap : MonoBehaviour
         BindCameraTarget(player);
         ApplyHpBarSettings(player);
         BindMobileInput(player);
-    }
-
-    /// <summary>
-    /// 1. Crash-landing <see cref="PlayerCrashIntro"/> (crash site on that component).
-    /// 2. <see cref="ScenePlayerSpawnPoint"/> for a fixed spawn.
-    /// </summary>
-    bool TryResolveSpawnPose(out Vector3 position, out Quaternion rotation)
-    {
-        if (_crashIntro != null && _crashIntro.TryComputePlayerSpawnPose(out position, out rotation))
-            return true;
-
-        if (ScenePlayerSpawnPoint.TryGetPose(out position, out rotation))
-            return true;
-
-        position = default;
-        rotation = default;
-        return false;
     }
 
     static void BindMobileInput(Transform player)

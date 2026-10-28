@@ -141,9 +141,7 @@ public class PlanetWalker : MonoBehaviour
             TryStartPlanetWalk();
     }
 
-    /// <summary>Takes planet control (snaps to the surface, disables CharacterController) without
-    /// unlocking locomotion. Call before releasing a cinematic lock so TouchController never
-    /// Move()s on a disabled collider.</summary>
+    /// <summary>Takes planet control and snaps onto the walk surface.</summary>
     public void EnsureWalkingOnPlanet()
     {
         _sceneAllowsPlanetWalk = !onlyInPlanetScenes || SceneRoles.IsPlanetScene();
