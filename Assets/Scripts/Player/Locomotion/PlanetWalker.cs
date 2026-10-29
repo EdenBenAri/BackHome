@@ -807,6 +807,11 @@ public class PlanetWalker : MonoBehaviour
         if (PlanetWalkBand.ShouldIgnorePhysicsWall(col, _planet))
             return false;
 
+        // Camp and other recovery volumes are sensors. A round trigger must not
+        // shove the player the way a rock or tree does.
+        if (col.GetComponent<VitalsRecoveryZone>() != null)
+            return false;
+
         return !IsNonBlockingPropCollider(col);
     }
 
@@ -918,6 +923,11 @@ public class PlanetWalker : MonoBehaviour
         {
             Renderer renderer = renderers[i];
             if (renderer == null || !renderer.enabled || !renderer.gameObject.activeInHierarchy)
+                continue;
+
+            // Level-up particles and the world title are not the body. Their bounds
+            // sit below the pivot and were lifting the character until walking stuck.
+            if (renderer.GetComponentInParent<LevelUpBurst>(true) != null)
                 continue;
 
             Vector3 localMin = transform.InverseTransformPoint(renderer.bounds.min);

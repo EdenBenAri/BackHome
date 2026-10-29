@@ -5,8 +5,10 @@ Shader "BackHome/ToonOutline"
         [Header(Ink)]
         _OutlineColor("Mob Ink", Color) = (0, 0, 0, 1)
         _KingOutlineColor("King Ink", Color) = (0.86, 0.09, 0.12, 1)
-        _OutlinePixels("Thickness (pixels)", Range(1, 8)) = 4
+        _OutlinePixels("Mob Thickness (pixels)", Range(1, 8)) = 4
+        _PlayerOutlinePixels("Player Thickness (pixels)", Range(1, 8)) = 2
         [HideInInspector] _UseKing("Use King Ink", Float) = 0
+        [HideInInspector] _UsePlayer("Use Player Thickness", Float) = 0
 
         [Header(Distance)]
         _FadeStart("Fade Start", Float) = 90
@@ -30,9 +32,11 @@ Shader "BackHome/ToonOutline"
             float4 _OutlineColor;
             float4 _KingOutlineColor;
             float _OutlinePixels;
+            float _PlayerOutlinePixels;
             float _FadeStart;
             float _FadeEnd;
             float _UseKing;
+            float _UsePlayer;
         CBUFFER_END
 
         struct Attributes
@@ -86,7 +90,8 @@ Shader "BackHome/ToonOutline"
 
             float fadeEnd = max(_FadeEnd, _FadeStart + 0.01);
             float fade = 1.0 - smoothstep(_FadeStart, fadeEnd, posCS.w);
-            float pixels = max(_OutlinePixels, 1.0) * fade;
+            float thickness = lerp(_OutlinePixels, _PlayerOutlinePixels, saturate(_UsePlayer));
+            float pixels = max(thickness, 1.0) * fade;
             posCS.xy += dir * pixels * (2.0 / _ScreenParams.xy) * posCS.w;
 
             output.positionCS = posCS;

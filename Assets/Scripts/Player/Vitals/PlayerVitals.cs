@@ -4,10 +4,10 @@ using UnityEngine;
 
 /// <summary>
 /// Runtime vitals. Level 1 HP / oxygen / damage come from <see cref="PlayerStats"/>.
-/// <see cref="LevelTable"/> then raises health and hit damage by 4% per account level,
-/// and the oxygen tank by 2%. Weapons are copied at spawn (up to <see cref="CombatLoadout.MaxWeapons"/>)
+/// <see cref="LevelTable"/> then raises health by 4% per account level and attack by a flat +3.
+/// The oxygen tank stays at the authored size. Weapons are copied at spawn (up to <see cref="CombatLoadout.MaxWeapons"/>)
 /// so play mode can swap guns without dirtying the shared asset. Each gun fights with base + itself,
-/// and that hit damage scales with level. Attack speed, range, and move speed stay as authored.
+/// and that hit damage scales with level. Attack speed, range, move speed, and oxygen stay as authored.
 /// Drain rates stay here as survival feel.
 /// </summary>
 public class PlayerVitals : MonoBehaviour, IVitalsReadable
@@ -32,7 +32,7 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     public PlayerStats Stats => stats;
     public string DisplayName => stats != null ? stats.DisplayName : name;
     public float MaxHealth => stats != null ? LevelTable.ScalePower(stats.MaxHealth, AccountLevel) : 0f;
-    public float MaxOxygen => stats != null ? LevelTable.ScaleOxygen(stats.OxygenTank, AccountLevel) : 0f;
+    public float MaxOxygen => stats != null ? stats.OxygenTank : 0f;
     public CombatStats BaseCombat => ScaleCombat(stats != null ? stats.BaseCombat : CombatStats.Zero);
     public float AttackRange => CombatLoadout.MaxRange(BaseCombat, ActiveWeapons);
     public IReadOnlyList<WeaponDefinition> Weapons => ActiveWeapons;
@@ -356,7 +356,7 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     CombatStats ScaleCombat(CombatStats raw)
     {
         return new CombatStats(
-            LevelTable.ScalePower(raw.AttackDamage, AccountLevel),
+            LevelTable.ScaleAttack(raw.AttackDamage, AccountLevel),
             raw.AttackSpeed,
             raw.AttackRange);
     }

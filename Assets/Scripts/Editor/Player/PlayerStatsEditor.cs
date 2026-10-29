@@ -48,8 +48,8 @@ public class PlayerStatsEditor : Editor
         EditorGUILayout.Space(8f);
         EditorGUILayout.LabelField("By Account Level", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
-            "Level 1 is this asset. Health and each weapon's hit damage then grow 4% per level. " +
-            "Oxygen grows 2% per level. Attack speed, range, and move speed stay as written.",
+            "Level 1 is this asset. Health grows 4% per level. Attack gains a flat +3 per level. " +
+            "Oxygen, attack speed, range, and move speed stay as written.",
             MessageType.Info);
         DrawLevelRow(stats, 1);
         DrawLevelRow(stats, 10);
@@ -60,9 +60,8 @@ public class PlayerStatsEditor : Editor
     static void DrawLevelRow(PlayerStats stats, int level)
     {
         float hp = LevelTable.ScalePower(stats.MaxHealth, level);
-        float oxygen = LevelTable.ScaleOxygen(stats.OxygenTank, level);
-        float damage = LevelTable.ScalePower(stats.BaseCombat.AttackDamage, level);
-        EditorGUILayout.LabelField($"Lv{level}", $"{hp:0} HP    {oxygen:0} O2    {damage:0.#} base dmg");
+        float damage = LevelTable.ScaleAttack(stats.BaseCombat.AttackDamage, level);
+        EditorGUILayout.LabelField($"Lv{level}", $"{hp:0} HP    {stats.OxygenTank:0} O2    {damage:0.#} base dmg");
     }
 
     static string FormatCombat(CombatStats combat)

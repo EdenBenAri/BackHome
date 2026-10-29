@@ -5,9 +5,10 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// Thin silhouette around creature bodies. Mobs are black, area kings are red.
-/// The line is drawn with its own shader on the body meshes. It does not add a
-/// fullscreen pass or an extra color target.
+/// Thin silhouette around creature bodies, the player, and the player's weapons.
+/// Mobs and the player are black, area kings are red. Player thickness is its own
+/// slider and covers both the body and the weapons. The line is drawn with its own
+/// shader on those meshes. It does not add a fullscreen pass or an extra color target.
 /// </summary>
 public class ToonOutlineRendererFeature : ScriptableRendererFeature
 {
@@ -48,18 +49,22 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
     sealed class ToonOutlinePass : ScriptableRenderPass
     {
         static readonly int MaterialPixelsId = Shader.PropertyToID("_OutlinePixels");
+        static readonly int PlayerPixelsId = Shader.PropertyToID("_PlayerOutlinePixels");
         static readonly int MaterialFadeStartId = Shader.PropertyToID("_FadeStart");
         static readonly int MaterialFadeEndId = Shader.PropertyToID("_FadeEnd");
         static readonly int OutlineColorId = Shader.PropertyToID("_OutlineColor");
         static readonly int KingColorId = Shader.PropertyToID("_KingOutlineColor");
         static readonly int UseKingId = Shader.PropertyToID("_UseKing");
+        static readonly int UsePlayerId = Shader.PropertyToID("_UsePlayer");
 
         readonly List<Renderer> _mobs = new List<Renderer>(64);
         readonly List<Renderer> _kings = new List<Renderer>(8);
+        readonly List<Renderer> _players = new List<Renderer>(16);
 
         Material _source;
         Material _mobMaterial;
         Material _kingMaterial;
+        Material _playerMaterial;
 
         public ToonOutlinePass()
         {
@@ -75,16 +80,20 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
         {
             CoreUtils.Destroy(_mobMaterial);
             CoreUtils.Destroy(_kingMaterial);
+            CoreUtils.Destroy(_playerMaterial);
             _mobMaterial = null;
             _kingMaterial = null;
+            _playerMaterial = null;
         }
 
         class PassData
         {
             public Renderer[] mobs;
             public Renderer[] kings;
+            public Renderer[] players;
             public Material mobMaterial;
             public Material kingMaterial;
+            public Material playerMaterial;
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -96,8 +105,8 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
             if (!resources.activeColorTexture.IsValid() || !resources.activeDepthTexture.IsValid())
                 return;
 
-            ToonOutlineSubjects.Copy(_mobs, _kings);
-            if (_mobs.Count == 0 && _kings.Count == 0)
+            ToonOutlineSubjects.Copy(_mobs, _kings, _players);
+            if (_mobs.Count == 0 && _kings.Count == 0 && _players.Count == 0)
                 return;
 
             ApplySettings(_source);
@@ -106,8 +115,10 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
             {
                 passData.mobs = _mobs.ToArray();
                 passData.kings = _kings.ToArray();
+                passData.players = _players.ToArray();
                 passData.mobMaterial = _mobMaterial;
                 passData.kingMaterial = _kingMaterial;
+                passData.playerMaterial = _playerMaterial;
 
                 builder.SetRenderAttachment(resources.activeColorTexture, 0, AccessFlags.ReadWrite);
                 builder.SetRenderAttachmentDepth(resources.activeDepthTexture, AccessFlags.ReadWrite);
@@ -116,44 +127,61 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                 {
                     DrawBodies(context.cmd, data.mobs, data.mobMaterial);
                     DrawBodies(context.cmd, data.kings, data.kingMaterial);
+                    DrawBodies(context.cmd, data.players, data.playerMaterial);
                 });
             }
         }
 
         void ApplySettings(Material source)
         {
-            if (_mobMaterial == null || _kingMaterial == null || _mobMaterial.shader != source.shader)
+            if (_mobMaterial == null || _kingMaterial == null || _playerMaterial == null || _mobMaterial.shader != source.shader)
             {
                 DestroyMaterials();
                 _mobMaterial = new Material(source) { name = "ToonOutline Mob", hideFlags = HideFlags.HideAndDontSave };
                 _kingMaterial = new Material(source) { name = "ToonOutline King", hideFlags = HideFlags.HideAndDontSave };
+                _playerMaterial = new Material(source) { name = "ToonOutline Player", hideFlags = HideFlags.HideAndDontSave };
             }
 
             Color mob = source.GetColor(OutlineColorId);
             Color king = source.GetColor(KingColorId);
             float pixels = source.GetFloat(MaterialPixelsId);
+            float playerPixels = source.GetFloat(PlayerPixelsId);
             float fadeStart = source.GetFloat(MaterialFadeStartId);
             float fadeEnd = source.GetFloat(MaterialFadeEndId);
             if (pixels < 1f)
                 pixels = 4f;
+            if (playerPixels < 1f)
+                playerPixels = 2f;
             if (fadeEnd <= fadeStart)
             {
                 fadeStart = 90f;
                 fadeEnd = 160f;
             }
 
-            Apply(_mobMaterial, mob, king, pixels, fadeStart, fadeEnd, 0f);
-            Apply(_kingMaterial, mob, king, pixels, fadeStart, fadeEnd, 1f);
+            Apply(_mobMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 0f, 0f);
+            Apply(_kingMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 1f, 0f);
+            Apply(_playerMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 0f, 1f);
         }
 
-        static void Apply(Material material, Color mob, Color king, float pixels, float fadeStart, float fadeEnd, float useKing)
+        static void Apply(
+            Material material,
+            Color mob,
+            Color king,
+            float pixels,
+            float playerPixels,
+            float fadeStart,
+            float fadeEnd,
+            float useKing,
+            float usePlayer)
         {
             material.SetColor(OutlineColorId, mob);
             material.SetColor(KingColorId, king);
             material.SetFloat(MaterialPixelsId, pixels);
+            material.SetFloat(PlayerPixelsId, playerPixels);
             material.SetFloat(MaterialFadeStartId, fadeStart);
             material.SetFloat(MaterialFadeEndId, fadeEnd);
             material.SetFloat(UseKingId, useKing);
+            material.SetFloat(UsePlayerId, usePlayer);
         }
 
         static void DrawBodies(RasterCommandBuffer cmd, Renderer[] renderers, Material material)
@@ -194,13 +222,15 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
 
 /// <summary>
 /// Body renderers that receive the silhouette. Shadows, vitals, and VFX are skipped.
+/// The player list uses its own thickness and includes the player's weapons.
 /// </summary>
 public static class ToonOutlineSubjects
 {
     static readonly List<Renderer> Mobs = new List<Renderer>(64);
     static readonly List<Renderer> Kings = new List<Renderer>(8);
+    static readonly List<Renderer> Players = new List<Renderer>(16);
 
-    public static bool Any => Mobs.Count > 0 || Kings.Count > 0;
+    public static bool Any => Mobs.Count > 0 || Kings.Count > 0 || Players.Count > 0;
 
     public static void Mark(Component root)
     {
@@ -216,18 +246,31 @@ public static class ToonOutlineSubjects
     public static void MarkKing(Component root)
     {
         Move(root, Kings, Mobs);
+        RemoveRoot(root, Players);
+    }
+
+    /// <summary>
+    /// Black silhouette for the player body and every weapon mesh under it.
+    /// Thickness comes from the outline material's player slider.
+    /// </summary>
+    public static void MarkPlayer(Component root)
+    {
+        RemoveRoot(root, Kings);
+        Move(root, Players, Mobs);
     }
 
     public static void Unmark(Component root)
     {
         RemoveRoot(root, Mobs);
         RemoveRoot(root, Kings);
+        RemoveRoot(root, Players);
     }
 
-    public static void Copy(List<Renderer> mobs, List<Renderer> kings)
+    public static void Copy(List<Renderer> mobs, List<Renderer> kings, List<Renderer> players)
     {
         CopyEnabled(Mobs, mobs);
         CopyEnabled(Kings, kings);
+        CopyEnabled(Players, players);
     }
 
     static void Move(Component root, List<Renderer> add, List<Renderer> remove)

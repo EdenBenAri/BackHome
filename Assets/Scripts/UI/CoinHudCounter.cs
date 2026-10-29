@@ -15,8 +15,14 @@ public class CoinHudCounter : MonoBehaviour
     [SerializeField] Image icon;
     [SerializeField] TMP_Text label;
 
+    public static CoinHudCounter Active { get; private set; }
+
+    /// <summary>Screen chip cargo icons fly toward when camp banks the pocket.</summary>
+    public RectTransform Target => bar;
+
     PlayerInventory _inventory;
     ItemDefinition _coin;
+    float _receivePulse;
 
     void OnEnable()
     {
@@ -24,19 +30,46 @@ public class CoinHudCounter : MonoBehaviour
             _coin = Resources.Load<ItemDefinition>(CoinResource);
 
         Resolve();
+        Active = this;
         Bind();
         Refresh();
     }
 
     void OnDisable()
     {
+        if (Active == this)
+            Active = null;
         Unbind();
+        if (bar != null)
+            bar.localScale = Vector3.one;
+    }
+
+    public void PlayReceive()
+    {
+        _receivePulse = 1f;
     }
 
     void Update()
     {
         if (_inventory == null)
             Bind();
+        TickReceive();
+    }
+
+    void TickReceive()
+    {
+        if (bar == null || _receivePulse <= 0f)
+            return;
+
+        _receivePulse = Mathf.MoveTowards(_receivePulse, 0f, Time.deltaTime / 0.18f);
+        if (_receivePulse <= 0f)
+        {
+            bar.localScale = Vector3.one;
+            return;
+        }
+
+        float kick = Mathf.Sin(_receivePulse * Mathf.PI);
+        bar.localScale = Vector3.one * (1f + 0.14f * kick);
     }
 
     void Bind()

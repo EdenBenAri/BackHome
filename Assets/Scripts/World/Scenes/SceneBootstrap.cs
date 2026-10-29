@@ -32,6 +32,7 @@ public class SceneBootstrap : MonoBehaviour
         }
 
         PlayerInventory.EnsureExists();
+        PlayerCargo.EnsureExists();
         PlayerLevel.EnsureExists();
         SpawnPlayerAndBindCamera();
     }
@@ -63,6 +64,7 @@ public class SceneBootstrap : MonoBehaviour
 
         BindCameraTarget(player);
         ApplyHpBarSettings(player);
+        ApplyCargoMeter(player);
         BindMobileInput(player);
     }
 
@@ -103,6 +105,13 @@ public class SceneBootstrap : MonoBehaviour
 
         vitals.SetWorldScale(hpBarScale);
         vitals.SetLocalOffset(hpBarOffset);
+    }
+
+    void ApplyCargoMeter(Transform player)
+    {
+        CargoMeter meter = player.GetComponentInChildren<CargoMeter>(true);
+        if (meter != null)
+            meter.SetWorldScale(hpBarScale);
     }
 
     static void BindCameraTarget(Transform player)

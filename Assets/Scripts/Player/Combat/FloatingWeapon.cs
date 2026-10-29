@@ -132,6 +132,8 @@ public class FloatingWeapon : MonoBehaviour
             if (held.Hover != null)
                 held.Hover.gameObject.SetActive(_visible);
         }
+
+        RefreshOutline();
     }
 
     void OnDisable()
@@ -142,6 +144,9 @@ public class FloatingWeapon : MonoBehaviour
             if (held.Hover != null)
                 held.Hover.gameObject.SetActive(false);
         }
+
+        if (Application.isPlaying)
+            ToonOutlineSubjects.Unmark(this);
     }
 
     void LateUpdate()
@@ -230,11 +235,14 @@ public class FloatingWeapon : MonoBehaviour
         if (_resolved.Count == 0)
         {
             Debug.LogWarning($"{name}: FloatingWeapon has no weapon in PlayerStats.Weapons (or fallback).", this);
+            RefreshOutline();
             return;
         }
 
         for (int i = 0; i < _resolved.Count; i++)
             SpawnSlot(_resolved[i], i);
+
+        RefreshOutline();
     }
 
     void SpawnSlot(WeaponDefinition definition, int index)
@@ -504,6 +512,12 @@ public class FloatingWeapon : MonoBehaviour
             right = transform.right;
         else
             right.Normalize();
+    }
+
+    void RefreshOutline()
+    {
+        if (Application.isPlaying)
+            ToonOutlineSubjects.MarkPlayer(this);
     }
 
     void ClearHovers()

@@ -4,7 +4,8 @@ using UnityEngine;
 /// World-space loot pickup. Pops up along planet-up, lands, then idles.
 /// Item identity is applied at spawn via <see cref="Configure"/> so one prefab can serve many items.
 /// Items bob along their local Y axis while idle; sprites keep facing the camera.
-/// Nearby drops arc toward the player and shrink into the inventory on arrival.
+/// Nearby drops arc toward the player and shrink into the cargo pocket on arrival.
+/// A full cargo leaves the drop on the ground. Camp moves cargo into the bank.
 /// Uncollected drops return to the pool after <see cref="lifetimeSeconds"/>.
 /// </summary>
 [RequireComponent(typeof(SphereCollider))]
@@ -149,7 +150,8 @@ public class LootPickup : MonoBehaviour
             TryBeginAttraction();
 
         // Once a drop is on its way, let the collection animation finish.
-        if (lifetimeSeconds > 0f && _phase != Phase.Attracting)
+        // Drops the player is standing on but cannot carry wait instead of vanishing.
+        if (lifetimeSeconds > 0f && _phase != Phase.Attracting && !IsWaitingOnFullCargo())
         {
             _aliveElapsed += Time.deltaTime;
             if (_aliveElapsed >= lifetimeSeconds)
@@ -228,6 +230,9 @@ public class LootPickup : MonoBehaviour
         if (magnetRadius <= 0f)
             return;
 
+        if (item != null && PlayerCargo.EnsureExists().SpaceFor(item) <= 0)
+            return;
+
         Transform player = ResolvePlayer();
         if (player == null || (player.position - transform.position).sqrMagnitude > magnetRadius * magnetRadius)
             return;
@@ -242,6 +247,13 @@ public class LootPickup : MonoBehaviour
 
     void TickAttraction()
     {
+        if (item != null && PlayerCargo.EnsureExists().SpaceFor(item) <= 0)
+        {
+            PlayerCargo.Instance.NotifyRejected();
+            RejectFullCargo();
+            return;
+        }
+
         if (_magnetTarget == null || !_magnetTarget.gameObject.activeInHierarchy
             || (_magnetTargetVitals != null && !_magnetTargetVitals.IsAlive))
         {
@@ -372,15 +384,56 @@ public class LootPickup : MonoBehaviour
         if (_collected)
             return;
 
-        _collected = true;
-
         if (item != null)
         {
-            PlayerInventory inventory = PlayerInventory.EnsureExists();
-            inventory.Add(item, amount);
+            PlayerCargo cargo = PlayerCargo.EnsureExists();
+            int accepted = cargo.TryAdd(item, amount);
+            if (accepted <= 0)
+            {
+                cargo.NotifyRejected();
+                RejectFullCargo();
+                return;
+            }
+
+            if (accepted < amount)
+            {
+                amount -= accepted;
+                RejectFullCargo();
+                return;
+            }
         }
 
+        _collected = true;
         ReturnToPool();
+    }
+
+    void RejectFullCargo()
+    {
+        _groundPosition = transform.position;
+        _up = ResolveUp(_groundPosition);
+        _idleElapsed = 0f;
+        _magnetTarget = null;
+        _magnetTargetVitals = null;
+        _phase = Phase.Idle;
+        if (_visual != null)
+            _visual.localScale = _visualRestScale;
+        BeginIdle();
+    }
+
+    bool IsWaitingOnFullCargo()
+    {
+        if (item == null || magnetRadius <= 0f)
+            return false;
+
+        PlayerCargo cargo = PlayerCargo.Instance;
+        if (cargo == null || cargo.SpaceFor(item) > 0)
+            return false;
+
+        Transform player = ResolvePlayer();
+        if (player == null)
+            return false;
+
+        return (player.position - transform.position).sqrMagnitude <= magnetRadius * magnetRadius;
     }
 
     void OnDrawGizmosSelected()
