@@ -20,6 +20,13 @@ public class CargoMeter : MonoBehaviour
     [SerializeField] TMP_Text label;
     [SerializeField] RectTransform iconRow;
     [SerializeField] CargoChip chipTemplate;
+    [SerializeField] CanvasGroup canvasGroup;
+
+    [Header("Empty")]
+    [Tooltip("How long the bar stays up after the pocket hits zero, same idea as the full HP bar.")]
+    [SerializeField, Min(0f)] float emptyHold = 1.5f;
+    [Tooltip("Seconds the bar takes to fade out after that hold.")]
+    [SerializeField, Min(0.05f)] float emptyFade = 0.5f;
 
     [Header("Colors")]
     [SerializeField] Color fillingColor = new Color(0.32f, 0.9f, 0.28f, 1f);
@@ -52,9 +59,15 @@ public class CargoMeter : MonoBehaviour
     float _shown;
     float _bump;
     float _authoredBarWidth;
+    float _alpha;
+    float _emptyHoldTimer;
     int _lastUsed;
     int _iconSignature;
     bool _snap = true;
+    bool _worldVisible;
+    bool _hasUsedSample;
+    bool _emptyHold;
+    bool _emptyFading;
 
     public void SetWorldScale(float scale)
     {
@@ -81,8 +94,15 @@ public class CargoMeter : MonoBehaviour
     {
         _vitals = GetComponentInParent<PlayerVitals>();
         _canvas = GetComponent<Canvas>();
+        if (canvasGroup == null)
+            canvasGroup = GetComponent<CanvasGroup>();
         if (view == null)
             view = transform as RectTransform;
+        _alpha = 0f;
+        if (canvasGroup != null)
+            canvasGroup.alpha = 0f;
+        if (_canvas != null)
+            _canvas.enabled = false;
 
         if (chipTemplate != null)
             chipTemplate.gameObject.SetActive(false);
@@ -131,8 +151,8 @@ public class CargoMeter : MonoBehaviour
         if (_cargo == null)
             _cargo = PlayerCargo.EnsureExists();
 
-        FollowCamera();
         Refresh();
+        FollowCamera();
     }
 
     void FollowCamera()
@@ -140,13 +160,16 @@ public class CargoMeter : MonoBehaviour
         Camera cam = Camera.main;
         bool onPlanet = SphericalPlanet.Instance != null;
         bool alive = _vitals == null || _vitals.IsAlive;
-        bool show = onPlanet && alive && cam != null;
-        if (_canvas != null && _canvas.enabled != show)
-            _canvas.enabled = show;
+        _worldVisible = onPlanet && alive && cam != null;
+        bool show = _worldVisible && _alpha > 0.001f;
         if (!show || cam == null)
         {
+            if (_canvas != null && _canvas.enabled)
+                _canvas.enabled = false;
             if (_overlayCam != null)
                 _overlayCam.enabled = false;
+            if (canvasGroup != null)
+                canvasGroup.alpha = _alpha;
             return;
         }
 
@@ -177,6 +200,13 @@ public class CargoMeter : MonoBehaviour
             SafeInv(lossy.x) * units * bump,
             SafeInv(lossy.y) * units * bump,
             SafeInv(lossy.z) * units * bump);
+
+        if (_canvas != null && _canvas.enabled != show)
+            _canvas.enabled = show;
+        if (canvasGroup != null)
+            canvasGroup.alpha = _alpha;
+        if (_overlayCam != null)
+            _overlayCam.enabled = show;
     }
 
     void Refresh()
@@ -188,6 +218,10 @@ public class CargoMeter : MonoBehaviour
         int cap = _cargo.Capacity;
         if (used > _lastUsed)
             _bump = 1f;
+
+        bool empty = used <= 0;
+        bool justEmptied = _hasUsedSample && empty && _lastUsed > 0;
+        _hasUsedSample = true;
         _lastUsed = used;
         RefreshMeter(used, cap);
 
@@ -203,6 +237,84 @@ public class CargoMeter : MonoBehaviour
         }
 
         RefreshIcons();
+        PresentEmpty(empty, justEmptied);
+    }
+
+    /// <summary>
+    /// Same dismiss as a full HP bar: hold, fade, then stay hidden until something is picked up.
+    /// An already-empty pocket hides immediately.
+    /// </summary>
+    void PresentEmpty(bool empty, bool justEmptied)
+    {
+        if (!empty)
+        {
+            ShowImmediate();
+            return;
+        }
+
+        if (justEmptied)
+        {
+            BeginEmptyDismiss();
+            return;
+        }
+
+        if (_emptyHold || _emptyFading)
+        {
+            UpdateEmptyDismiss();
+            return;
+        }
+
+        HideImmediate();
+    }
+
+    void BeginEmptyDismiss()
+    {
+        _emptyHold = true;
+        _emptyFading = false;
+        _emptyHoldTimer = Mathf.Max(0f, emptyHold);
+        _alpha = 1f;
+    }
+
+    void UpdateEmptyDismiss()
+    {
+        if (_cargo != null && _cargo.Used > 0)
+        {
+            ShowImmediate();
+            return;
+        }
+
+        if (_emptyHold)
+        {
+            _emptyHoldTimer -= Time.deltaTime;
+            if (_emptyHoldTimer > 0f)
+                return;
+
+            _emptyHold = false;
+            _emptyFading = true;
+            _alpha = 1f;
+        }
+
+        float duration = Mathf.Max(0.05f, emptyFade);
+        _alpha = Mathf.MoveTowards(_alpha, 0f, Time.deltaTime / duration);
+        if (_alpha > 0.001f)
+            return;
+
+        _emptyFading = false;
+        HideImmediate();
+    }
+
+    void ShowImmediate()
+    {
+        _emptyHold = false;
+        _emptyFading = false;
+        _alpha = 1f;
+    }
+
+    void HideImmediate()
+    {
+        _emptyHold = false;
+        _emptyFading = false;
+        _alpha = 0f;
     }
 
     void FitPill(string text)

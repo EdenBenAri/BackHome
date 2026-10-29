@@ -8,13 +8,18 @@ using UnityEngine;
 public class LevelUpBurst : MonoBehaviour
 {
     [SerializeField] TextMeshPro title;
-    [SerializeField] float titlePop = 0.18f;
-    [SerializeField] float titleHold = 0.7f;
-    [SerializeField] float titleFade = 0.4f;
+    [Tooltip("How fast the letters grow from nothing to full size.")]
+    [SerializeField] float titlePop = 0.14f;
+    [Tooltip("Short wobble after the pop, before the text sits still.")]
+    [SerializeField] float titleShake = 0.42f;
+    [SerializeField] float titleHold = 0.32f;
+    [Tooltip("Exit. Squashes the letters flat on Y.")]
+    [SerializeField] float titleClose = 0.16f;
 
     PlayerLevel _level;
     Vector3 _titleScale = Vector3.one;
     float _age;
+    float _roll;
     bool _playing;
 
     void Awake()
@@ -79,6 +84,7 @@ public class LevelUpBurst : MonoBehaviour
         }
 
         _age = 0f;
+        _roll = 0f;
         _playing = title != null;
         if (title != null)
             title.transform.localScale = Vector3.zero;
@@ -91,42 +97,53 @@ public class LevelUpBurst : MonoBehaviour
 
         _age += Time.deltaTime;
         float popEnd = titlePop;
-        float holdEnd = popEnd + titleHold;
-        float fadeEnd = holdEnd + titleFade;
-        float scale;
-        float alpha;
+        float shakeEnd = popEnd + titleShake;
+        float holdEnd = shakeEnd + titleHold;
+        float closeEnd = holdEnd + titleClose;
+        float x = 1f;
+        float y = 1f;
 
         if (_age < popEnd)
         {
             float u = popEnd <= 0f ? 1f : _age / popEnd;
-            scale = EaseOutBack(u);
-            alpha = Mathf.Clamp01(u * 1.6f);
+            float grown = Mathf.Max(0f, EaseOutBack(u));
+            x = grown;
+            y = grown;
+            _roll = 0f;
+        }
+        else if (_age < shakeEnd)
+        {
+            float t = _age - popEnd;
+            float decay = 1f - Mathf.Clamp01(t / Mathf.Max(0.01f, titleShake));
+            float wobble = Mathf.Sin(t * 28f) * decay;
+            x = 1f + wobble * 0.07f;
+            y = 1f - wobble * 0.09f;
+            _roll = wobble * 5f;
         }
         else if (_age < holdEnd)
         {
-            scale = 1f;
-            alpha = 1f;
+            _roll = 0f;
         }
-        else if (_age < fadeEnd)
+        else if (_age < closeEnd)
         {
-            float u = (_age - holdEnd) / Mathf.Max(0.01f, titleFade);
-            scale = Mathf.Lerp(1f, 1.06f, u);
-            alpha = 1f - u;
+            float u = (_age - holdEnd) / Mathf.Max(0.01f, titleClose);
+            float shut = u * u;
+            x = Mathf.Lerp(1f, 1.06f, shut);
+            y = Mathf.Lerp(1f, 0f, shut);
+            _roll = 0f;
         }
         else
         {
             title.transform.localScale = Vector3.zero;
+            _roll = 0f;
             _playing = false;
             return;
         }
 
-        title.transform.localScale = _titleScale * Mathf.Max(0f, scale);
-        Color color = title.color;
-        color.a = alpha;
-        title.color = color;
-        Color outline = title.outlineColor;
-        outline.a = alpha;
-        title.outlineColor = outline;
+        title.transform.localScale = new Vector3(
+            _titleScale.x * x,
+            _titleScale.y * y,
+            _titleScale.z);
     }
 
     void LateUpdate()
@@ -138,7 +155,8 @@ public class LevelUpBurst : MonoBehaviour
         if (toCamera.sqrMagnitude < 0.001f)
             return;
 
-        title.transform.rotation = Quaternion.LookRotation(-toCamera, Camera.main.transform.up);
+        Quaternion face = Quaternion.LookRotation(-toCamera, Camera.main.transform.up);
+        title.transform.rotation = face * Quaternion.Euler(0f, 0f, _roll);
     }
 
     static float EaseOutBack(float t)

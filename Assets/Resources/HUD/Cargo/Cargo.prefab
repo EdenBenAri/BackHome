@@ -10,6 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 101}
   - component: {fileID: 102}
+  - component: {fileID: 104}
   - component: {fileID: 103}
   m_Layer: 7
   m_Name: Cargo
@@ -63,6 +64,18 @@ Canvas:
   m_SortingLayerID: 0
   m_SortingOrder: 40
   m_TargetDisplay: 0
+--- !u!225 &104
+CanvasGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 100}
+  m_Enabled: 1
+  m_Alpha: 1
+  m_Interactable: 0
+  m_BlocksRaycasts: 0
+  m_IgnoreParentGroups: 0
 --- !u!114 &103
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -81,6 +94,9 @@ MonoBehaviour:
   label: {fileID: 223}
   iconRow: {fileID: 301}
   chipTemplate: {fileID: 402}
+  canvasGroup: {fileID: 104}
+  emptyHold: 1.5
+  emptyFade: 0.5
   fillingColor: {r: 0.32, g: 0.9, b: 0.28, a: 1}
   fullColor: {r: 0.98, g: 0.52, b: 0.1, a: 1}
   feetLift: 0.5
@@ -125,11 +141,11 @@ RectTransform:
   - {fileID: 221}
   m_Father: {fileID: 101}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 1}
-  m_AnchorMax: {x: 0.5, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 168, y: 48}
-  m_Pivot: {x: 0.5, y: 1}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &202
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -432,7 +448,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &401
 RectTransform:
   m_ObjectHideFlags: 0
@@ -451,7 +467,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: -15.2}
   m_SizeDelta: {x: 96, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &402

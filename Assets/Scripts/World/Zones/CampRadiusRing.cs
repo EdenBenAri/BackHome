@@ -3,8 +3,8 @@ using UnityEngine;
 using UnityEngine.Rendering;
 
 /// <summary>
-/// Dashed white circle on the ground at the camp trigger's radius.
-/// One mesh, built when the camp moves or resizes. Nothing runs per frame in play.
+/// Dashed circle on the ground at the camp trigger's radius.
+/// Built when the camp moves or resizes. In play it only ticks while the enter flash is running.
 /// </summary>
 [DisallowMultipleComponent]
 [ExecuteAlways]
@@ -20,6 +20,9 @@ public class CampRadiusRing : MonoBehaviour
 
     static readonly int StraightId = Shader.PropertyToID("_Straight");
     static readonly int ColorId = Shader.PropertyToID("_Color");
+    static readonly Color RestColor = Color.white;
+    static readonly Color EnterColor = new Color(0.25f, 1f, 0.38f, 1f);
+    const float EnterFlashSeconds = 0.5f;
 
     static Material s_material;
     static bool s_loggedMissing;
@@ -36,6 +39,8 @@ public class CampRadiusRing : MonoBehaviour
     Vector3 _stampScale;
     Vector3 _stampCenter;
     float _stampRadius;
+    Material _instance;
+    float _flash;
     bool _hasStamp;
 
     void OnEnable()
@@ -60,18 +65,40 @@ public class CampRadiusRing : MonoBehaviour
         _hasStamp = false;
     }
 
-#if UNITY_EDITOR
+    /// <summary>Turns the dashes green for half a second, then back to white.</summary>
+    public void PulseEnter()
+    {
+        if (!Application.isPlaying)
+            return;
+
+        EnsureVisual();
+        _flash = EnterFlashSeconds;
+        ApplyColor(EnterColor);
+    }
+
     void Update()
     {
-        if (Application.isPlaying || !isActiveAndEnabled || !gameObject.scene.IsValid())
-            return;
+#if UNITY_EDITOR
+        if (!Application.isPlaying)
+        {
+            if (!isActiveAndEnabled || !gameObject.scene.IsValid())
+                return;
 
-        if (!Moved())
+            if (Moved())
+                Rebuild();
             return;
-
-        Rebuild();
-    }
+        }
 #endif
+        if (_flash <= 0f)
+            return;
+
+        _flash -= Time.deltaTime;
+        if (_flash > 0f)
+            return;
+
+        _flash = 0f;
+        ApplyColor(RestColor);
+    }
 
     void Rebuild()
     {
@@ -320,7 +347,13 @@ public class CampRadiusRing : MonoBehaviour
         filter.sharedMesh = _mesh;
 
         MeshRenderer renderer = _visual.AddComponent<MeshRenderer>();
-        renderer.sharedMaterial = material;
+        _instance = new Material(material)
+        {
+            name = "Camp Radius",
+            hideFlags = HideFlags.HideAndDontSave
+        };
+        _instance.SetColor(ColorId, _flash > 0f ? EnterColor : RestColor);
+        renderer.sharedMaterial = _instance;
         renderer.shadowCastingMode = ShadowCastingMode.Off;
         renderer.receiveShadows = false;
         renderer.lightProbeUsage = LightProbeUsage.Off;
@@ -390,6 +423,23 @@ public class CampRadiusRing : MonoBehaviour
                 DestroyImmediate(_visual);
             _visual = null;
         }
+
+        if (_instance != null)
+        {
+            if (Application.isPlaying)
+                Destroy(_instance);
+            else
+                DestroyImmediate(_instance);
+            _instance = null;
+        }
+    }
+
+    void ApplyColor(Color color)
+    {
+        if (_instance == null)
+            return;
+
+        _instance.SetColor(ColorId, color);
     }
 
     static Material SharedMaterial()

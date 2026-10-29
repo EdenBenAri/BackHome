@@ -112,6 +112,10 @@ public class SceneBootstrap : MonoBehaviour
         CargoMeter meter = player.GetComponentInChildren<CargoMeter>(true);
         if (meter != null)
             meter.SetWorldScale(hpBarScale);
+
+        CargoFullCallout callout = player.GetComponentInChildren<CargoFullCallout>(true);
+        if (callout != null)
+            callout.SetWorldScale(hpBarScale);
     }
 
     static void BindCameraTarget(Transform player)

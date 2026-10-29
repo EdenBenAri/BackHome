@@ -134,6 +134,8 @@ public class HpBar : MonoBehaviour
     void OnLevelChanged(int _)
     {
         RefreshLevelLabel();
+        if (bars != null)
+            bars.PlayLevelPop();
     }
 
     void LateUpdate()

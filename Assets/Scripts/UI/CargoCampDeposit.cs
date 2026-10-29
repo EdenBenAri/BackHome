@@ -3,13 +3,12 @@ using UnityEngine.UI;
 
 /// <summary>
 /// When the player steps into camp, empties <see cref="PlayerCargo"/> and flies each
-/// icon from the meter into the coin counter. The bank updates as each icon lands.
+/// icon from the middle of the screen into the coin counter. The bank updates as each icon lands.
 /// </summary>
 [DefaultExecutionOrder(1200)]
 public class CargoCampDeposit : MonoBehaviour
 {
     PlayerVitals _vitals;
-    CargoMeter _meter;
 
     void LateUpdate()
     {
@@ -29,30 +28,18 @@ public class CargoCampDeposit : MonoBehaviour
     bool ResolvePlayer()
     {
         if (_vitals != null)
-        {
-            if (_meter == null)
-                _meter = _vitals.GetComponentInChildren<CargoMeter>(true);
             return true;
-        }
 
         _vitals = FindAnyObjectByType<PlayerVitals>();
-        _meter = _vitals != null ? _vitals.GetComponentInChildren<CargoMeter>(true) : null;
         return _vitals != null;
     }
 
     void Deposit(PlayerCargo cargo)
     {
-        int count = cargo.Slots.Count;
-        var origins = new Vector3[count];
-        Vector3 fallback = _vitals.transform.position;
-        for (int i = 0; i < count; i++)
-            origins[i] = _meter != null ? _meter.OriginForSlot(i) : fallback;
-
         PlayerCargo.Slot[] taken = cargo.TakeAll();
         for (int i = 0; i < taken.Length; i++)
         {
-            Vector3 origin = i < origins.Length ? origins[i] : fallback;
-            if (!CargoDepositFlyer.TryLaunch(taken[i].item, taken[i].count, origin, i))
+            if (!CargoDepositFlyer.TryLaunch(taken[i].item, taken[i].count, i))
                 Bank(taken[i].item, taken[i].count);
         }
     }
@@ -74,8 +61,8 @@ public class CargoCampDeposit : MonoBehaviour
 /// </summary>
 public class CargoDepositFlyer : MonoBehaviour
 {
-    const float Duration = 0.52f;
-    const float Arc = 110f;
+    const float Duration = 0.48f;
+    const float Arc = 72f;
 
     RectTransform _rect;
     RectTransform _canvas;
@@ -84,11 +71,12 @@ public class CargoDepositFlyer : MonoBehaviour
     ItemDefinition _item;
     int _amount;
     Vector2 _start;
+    float _bend;
     float _delay;
     float _age;
     bool _committed;
 
-    public static bool TryLaunch(ItemDefinition item, int amount, Vector3 worldOrigin, int stackIndex)
+    public static bool TryLaunch(ItemDefinition item, int amount, int stackIndex)
     {
         if (item == null || amount <= 0)
             return true;
@@ -96,14 +84,8 @@ public class CargoDepositFlyer : MonoBehaviour
         if (item.Icon == null || !TryResolveHud(out RectTransform canvas, out Camera eventCamera, out RectTransform target))
             return false;
 
-        Camera worldCamera = Camera.main;
-        if (worldCamera == null)
-            return false;
-
-        Vector3 screen = worldCamera.WorldToScreenPoint(worldOrigin);
-        if (screen.z < 0f)
-            screen = new Vector3(Screen.width * 0.5f, Screen.height * 0.25f, 1f);
-
+        // Cargo sits in the middle of the view. Lift the icons from there, not from a world point.
+        Vector2 screen = new Vector2(Screen.width * 0.5f, Screen.height * 0.5f);
         if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(
                 canvas, screen, eventCamera, out Vector2 start))
             return false;
@@ -120,11 +102,13 @@ public class CargoDepositFlyer : MonoBehaviour
                 continue;
 
             var go = new GameObject("CargoFlyer", typeof(RectTransform));
+            go.layer = canvas.gameObject.layer;
             go.transform.SetParent(canvas, false);
             var flyer = go.AddComponent<CargoDepositFlyer>();
             Vector2 jitter = new Vector2(Random.Range(-22f, 22f), Random.Range(-8f, 14f));
-            float delay = stackIndex * 0.04f + i * 0.045f;
-            flyer.Setup(item, share, start + jitter, canvas, target, eventCamera, delay);
+            float bend = (i % 2 == 0 ? 1f : -1f) * Random.Range(110f, 190f);
+            float delay = stackIndex * 0.028f + i * 0.03f;
+            flyer.Setup(item, share, start + jitter, bend, canvas, target, eventCamera, delay);
         }
 
         return true;
@@ -140,7 +124,7 @@ public class CargoDepositFlyer : MonoBehaviour
         if (counter == null || counter.Target == null)
             return false;
 
-        Canvas hud = counter.GetComponentInParent<Canvas>();
+        Canvas hud = counter.Target.GetComponentInParent<Canvas>();
         if (hud == null)
             return false;
 
@@ -156,6 +140,7 @@ public class CargoDepositFlyer : MonoBehaviour
         ItemDefinition item,
         int amount,
         Vector2 start,
+        float bend,
         RectTransform canvas,
         RectTransform target,
         Camera eventCamera,
@@ -164,6 +149,7 @@ public class CargoDepositFlyer : MonoBehaviour
         _item = item;
         _amount = amount;
         _start = start;
+        _bend = bend;
         _canvas = canvas;
         _target = target;
         _eventCamera = eventCamera;
@@ -172,7 +158,7 @@ public class CargoDepositFlyer : MonoBehaviour
         _rect.anchorMin = new Vector2(0.5f, 0.5f);
         _rect.anchorMax = new Vector2(0.5f, 0.5f);
         _rect.pivot = new Vector2(0.5f, 0.5f);
-        _rect.sizeDelta = new Vector2(52f, 52f);
+        _rect.sizeDelta = new Vector2(68f, 68f);
         _rect.anchoredPosition = start;
         _rect.localScale = Vector3.zero;
 
@@ -180,7 +166,7 @@ public class CargoDepositFlyer : MonoBehaviour
         image.sprite = item.Icon;
         image.preserveAspect = true;
         image.raycastTarget = false;
-        HudChrome.KeepUnderDeathOverlay(_rect, canvas.GetComponent<Canvas>());
+        _rect.SetAsLastSibling();
     }
 
     void Update()
@@ -194,9 +180,8 @@ public class CargoDepositFlyer : MonoBehaviour
 
         float t = Mathf.Clamp01((_age - _delay) / Duration);
         Vector2 end = CurrentTarget();
-        float travel = t * t;
-        Vector2 position = Vector2.Lerp(_start, end, travel);
-        position.y += Mathf.Sin(t * Mathf.PI) * Arc;
+        float travel = t * t * (3f - 2f * t);
+        Vector2 position = Curve(_start, end, _bend, travel);
         _rect.anchoredPosition = position;
 
         float pop = t < 0.18f ? Mathf.Lerp(0.4f, 1.12f, t / 0.18f) : Mathf.Lerp(1.12f, 0.42f, (t - 0.18f) / 0.82f);
@@ -204,6 +189,17 @@ public class CargoDepositFlyer : MonoBehaviour
 
         if (t >= 1f)
             Finish();
+    }
+
+    static Vector2 Curve(Vector2 start, Vector2 end, float bend, float t)
+    {
+        Vector2 delta = end - start;
+        Vector2 side = delta.sqrMagnitude > 1f
+            ? new Vector2(-delta.y, delta.x).normalized
+            : Vector2.right;
+        Vector2 control = (start + end) * 0.5f + side * bend + Vector2.up * Arc;
+        float k = 1f - t;
+        return k * k * start + 2f * k * t * control + t * t * end;
     }
 
     Vector2 CurrentTarget()

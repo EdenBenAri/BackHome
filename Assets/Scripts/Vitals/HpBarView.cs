@@ -68,6 +68,15 @@ public class HpBarView : MonoBehaviour
     float _levelSlide;
     Color _levelLabelColor = Color.white;
     bool _levelLabelColorSet;
+    static readonly Color LevelPopColor = new Color(1f, 0.74f, 0.12f, 1f);
+    const float LevelPopScale = 1.65f;
+    const float LevelPopUp = 0.18f;
+    const float LevelPopHold = 0.25f;
+    const float LevelPopBack = 0.37f;
+    Vector3 _levelRestScale = new Vector3(0.01f, 0.01f, 0.01f);
+    bool _levelRestScaleReady;
+    bool _levelPopping;
+    float _levelPopAge;
     bool _colorsCaptured;
     bool _healthColorLocked;
     Color _authoredFrameColor = Color.white;
@@ -101,6 +110,7 @@ public class HpBarView : MonoBehaviour
     void Update()
     {
         UpdateLevelHeight();
+        UpdateLevelPop();
 
         if (!_trailInitialized || _trailHealth <= _previewHealth + 0.0001f)
             return;
@@ -263,6 +273,25 @@ public class HpBarView : MonoBehaviour
         }
 
         ApplyLevelLabelColor();
+    }
+
+    /// <summary>
+    /// Grows the level label, tints it yellow-orange, then returns it to the authored size and color.
+    /// </summary>
+    public void PlayLevelPop()
+    {
+        EnsureLevelLabel();
+        if (levelLabel == null)
+            return;
+
+        if (!_levelRestScaleReady)
+        {
+            _levelRestScale = levelLabel.rectTransform.localScale;
+            _levelRestScaleReady = true;
+        }
+
+        _levelPopping = true;
+        _levelPopAge = 0f;
     }
 
     /// <summary>
@@ -655,6 +684,57 @@ public class HpBarView : MonoBehaviour
         _levelSliding = true;
     }
 
+    void UpdateLevelPop()
+    {
+        if (!_levelPopping || levelLabel == null)
+            return;
+
+        _levelPopAge += Time.deltaTime;
+        float upEnd = LevelPopUp;
+        float holdEnd = upEnd + LevelPopHold;
+        float backEnd = holdEnd + LevelPopBack;
+        float age = _levelPopAge;
+
+        float scaleMul;
+        float colorT;
+        if (age < upEnd)
+        {
+            float t = age / LevelPopUp;
+            scaleMul = Mathf.LerpUnclamped(1f, LevelPopScale, EaseOutBack(t));
+            colorT = Mathf.Clamp01(t);
+        }
+        else if (age < holdEnd)
+        {
+            scaleMul = LevelPopScale;
+            colorT = 1f;
+        }
+        else if (age < backEnd)
+        {
+            float t = (age - holdEnd) / LevelPopBack;
+            float settle = t * t;
+            scaleMul = Mathf.Lerp(LevelPopScale, 1f, settle);
+            colorT = 1f - settle;
+        }
+        else
+        {
+            _levelPopping = false;
+            levelLabel.rectTransform.localScale = _levelRestScale;
+            ApplyLevelLabelColor();
+            return;
+        }
+
+        levelLabel.rectTransform.localScale = _levelRestScale * scaleMul;
+        Color rest = _levelLabelColorSet ? _levelLabelColor : labelColor;
+        levelLabel.color = Color.Lerp(rest, LevelPopColor, colorT);
+    }
+
+    static float EaseOutBack(float t)
+    {
+        const float c1 = 1.70158f;
+        const float c3 = c1 + 1f;
+        return 1f + c3 * Mathf.Pow(t - 1f, 3f) + c1 * Mathf.Pow(t - 1f, 2f);
+    }
+
     void UpdateLevelHeight()
     {
         if (!_levelSliding || levelLabel == null)
@@ -709,7 +789,7 @@ public class HpBarView : MonoBehaviour
 
     void ApplyLevelLabelColor()
     {
-        if (levelLabel == null)
+        if (levelLabel == null || _levelPopping)
             return;
 
         Color color = _levelLabelColorSet ? _levelLabelColor : labelColor;

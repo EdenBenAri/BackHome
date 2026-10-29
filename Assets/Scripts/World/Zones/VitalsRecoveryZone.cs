@@ -16,6 +16,7 @@ public class VitalsRecoveryZone : MonoBehaviour
 
     PlayerVitals _occupant;
     int _overlapCount;
+    bool _spawnInside = true;
 
     void Reset()
     {
@@ -96,6 +97,15 @@ public class VitalsRecoveryZone : MonoBehaviour
         _occupant.SetInRecoveryZone(true);
         if (instant)
             _occupant.Refill();
+
+        bool spawnedHere = _spawnInside;
+        _spawnInside = false;
+        if (spawnedHere)
+            return;
+
+        CampRadiusRing ring = GetComponent<CampRadiusRing>();
+        if (ring != null)
+            ring.PulseEnter();
     }
 
     void Release()
