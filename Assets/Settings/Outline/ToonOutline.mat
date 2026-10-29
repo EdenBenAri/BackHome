@@ -27,7 +27,7 @@ Material:
     m_Floats:
     - _FadeEnd: 160
     - _FadeStart: 90
-    - _OutlinePixels: 6.42
+    - _OutlinePixels: 4
     - _UseKing: 0
     m_Colors:
     - _KingOutlineColor: {r: 0.86, g: 0.09, b: 0.12, a: 1}

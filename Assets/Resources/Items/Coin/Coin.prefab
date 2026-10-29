@@ -73,9 +73,14 @@ MonoBehaviour:
   jumpHeight: 1.15
   dropDuration: 0.55
   bounceHeightRatio: 0.18
-  idleSpinDegreesPerSecond: 360
+  idleBobHeight: 0.2
+  idleBobFrequency: 1
   dropState: Drop
   idleState: Idle
+  magnetRadius: 5
+  magnetDuration: 0.4
+  magnetArcHeight: 0.65
+  magnetTargetHeight: 0.9
   lifetimeSeconds: 7
 --- !u!1 &100011
 GameObject:
