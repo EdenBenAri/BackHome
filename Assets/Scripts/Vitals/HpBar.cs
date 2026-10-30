@@ -24,6 +24,12 @@ public class HpBar : MonoBehaviour
     [Tooltip("Seconds the player bar takes to fade out after that hold.")]
     [SerializeField, Min(0.05f)] float fullHealthFade = 0.5f;
 
+    [Header("Player Damage Shake")]
+    [SerializeField, Min(0f)] float damageShakeDuration = 0.22f;
+    [Tooltip("Small camera-facing offset in world units, multiplied by the bar's world scale. Zero disables shake.")]
+    [SerializeField, Min(0f)] float damageShakeMagnitude = 0.04f;
+    [SerializeField, Min(1f)] float damageShakeFrequency = 18f;
+
     IVitalsReadable _source;
     PlayerLevel _level;
     Camera _camera;
@@ -37,6 +43,7 @@ public class HpBar : MonoBehaviour
     bool _fullHoldActive;
     bool _fullFading;
     float _fullHoldTimer;
+    float _damageShakeRemaining;
 
     public void SetWorldScale(float scale)
     {
@@ -107,6 +114,7 @@ public class HpBar : MonoBehaviour
         }
 
         UnbindLevel();
+        ResetDamageShake();
     }
 
     void BindLevel()
@@ -164,6 +172,7 @@ public class HpBar : MonoBehaviour
 
         UpdateDamageReveal();
         UpdatePlayerFullDismiss();
+        UpdateDamageShake(root);
     }
 
     void EnsureBars()
@@ -376,13 +385,41 @@ public class HpBar : MonoBehaviour
         HideBarsImmediate();
     }
 
-    void OnDamaged(float _)
+    void OnDamaged(float amount)
     {
-        if (bars == null)
+        if (bars == null || _forcedHidden || (hideWhenDead && !_source.IsAlive))
             return;
 
         if (HideUntilDamaged)
             RevealBars();
+
+        // Restart the pulse on consecutive hits instead of stacking offsets.
+        if (IsPlayer && amount > 0f)
+            _damageShakeRemaining = damageShakeDuration;
+    }
+
+    void UpdateDamageShake(Transform root)
+    {
+        if (_damageShakeRemaining <= 0f || damageShakeDuration <= 0f)
+            return;
+
+        _damageShakeRemaining = Mathf.Max(0f, _damageShakeRemaining - Time.deltaTime);
+        float remaining = Mathf.Clamp01(_damageShakeRemaining / damageShakeDuration);
+        float age = damageShakeDuration - _damageShakeRemaining;
+        float phase = age * damageShakeFrequency * Mathf.PI * 2f;
+        float strength = damageShakeMagnitude * worldScale * remaining * remaining;
+        Vector3 offset = new Vector3(Mathf.Cos(phase), Mathf.Sin(phase * 1.3f) * 0.3f, 0f);
+
+        // LateUpdate restores the base position first, so the shake never drifts.
+        // Use the billboard's axes to keep the motion consistent around the planet.
+        root.position += root.rotation * (offset * strength);
+    }
+
+    void ResetDamageShake()
+    {
+        _damageShakeRemaining = 0f;
+        if (bars != null)
+            bars.transform.localPosition = localOffset;
     }
 
     void UpdateDamageReveal()
@@ -453,6 +490,7 @@ public class HpBar : MonoBehaviour
 
     void HideBarsImmediate()
     {
+        ResetDamageShake();
         _revealTimer = 0f;
         _fullHoldActive = false;
         _fullFading = false;

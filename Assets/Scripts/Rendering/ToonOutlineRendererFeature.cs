@@ -334,6 +334,9 @@ public static class ToonOutlineSubjects
             return false;
         if (renderer.GetComponentInParent<HpBarView>(true) != null)
             return false;
+        // The attack range is a ground overlay, not part of the player's silhouette.
+        if (renderer.GetComponentInParent<PlayerRangeIndicator>(true) != null)
+            return false;
 
         Material shared = renderer.sharedMaterial;
         if (shared != null && shared.shader != null && shared.shader.name == "BackHome/CreatureBlobShadow")

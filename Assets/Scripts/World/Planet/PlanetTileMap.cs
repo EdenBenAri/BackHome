@@ -99,6 +99,9 @@ public class PlanetTileMap : MonoBehaviour
     MeshCollider _tilesCollider;
     Mesh _runtimeMesh;
     Material _runtimeMaterial;
+    // Height queries are used by movement and by every vertex of the combat ring.
+    // Validate each loaded array once, not the entire map on every sampled corner.
+    [NonSerialized] float[] _validatedHeights;
 
     public PlanetTileset Tileset => tileset;
     public int TilesAroundEquator => tilesAroundEquator;
@@ -311,6 +314,8 @@ public class PlanetTileMap : MonoBehaviour
 
     void OnValidate()
     {
+        // Inspector edits / Undo can change values without replacing the array.
+        _validatedHeights = null;
         tilesAroundEquator = Mathf.Clamp(tilesAroundEquator, 16, 256);
         overlap = Mathf.Max(1f, overlap);
         seamOverlap = Mathf.Clamp(seamOverlap, 0f, 0.05f);
@@ -397,8 +402,12 @@ public class PlanetTileMap : MonoBehaviour
             return;
         if (groundHeights != null && groundHeights.Length == cells)
         {
-            for (int i = 0; i < cells; i++)
-                groundHeights[i] = Mathf.Clamp(groundHeights[i], MinHeight, MaxHeight);
+            if (!ReferenceEquals(_validatedHeights, groundHeights))
+            {
+                for (int i = 0; i < cells; i++)
+                    groundHeights[i] = Mathf.Clamp(groundHeights[i], MinHeight, MaxHeight);
+                _validatedHeights = groundHeights;
+            }
             return;
         }
 
@@ -420,6 +429,7 @@ public class PlanetTileMap : MonoBehaviour
         }
 
         groundHeights = next;
+        _validatedHeights = groundHeights;
         integerHeights = Array.Empty<int>();
 #if UNITY_EDITOR
         if (!Application.isPlaying)
