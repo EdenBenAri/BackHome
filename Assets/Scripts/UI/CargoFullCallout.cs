@@ -70,6 +70,12 @@ public class CargoFullCallout : MonoBehaviour
         int used = _cargo.Used;
         bool justFilled = _lastUsed < _cargo.Capacity && used >= _cargo.Capacity;
         _lastUsed = used;
+        if (!_cargo.IsFull)
+        {
+            HideImmediate();
+            return;
+        }
+
         if (justFilled)
             Show();
     }
@@ -131,10 +137,13 @@ public class CargoFullCallout : MonoBehaviour
 
     bool CanShow()
     {
+        if (_cargo == null || !_cargo.IsFull)
+            return false;
+
         if (SphericalPlanet.Instance == null || Camera.main == null)
             return false;
 
-        return _vitals == null || _vitals.IsAlive;
+        return _vitals == null || (_vitals.IsAlive && !_vitals.IsRecovering);
     }
 
     void Follow()

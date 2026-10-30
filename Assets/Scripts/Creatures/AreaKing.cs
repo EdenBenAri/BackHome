@@ -19,6 +19,9 @@ public class AreaKing : MonoBehaviour
         _anim = GetComponent<CreatureAnimator>();
         if (_anim == null)
             _anim = GetComponentInChildren<CreatureAnimator>();
+
+        if (GetComponent<AreaKingGlow>() == null)
+            gameObject.AddComponent<AreaKingGlow>();
     }
 
     void OnEnable()

@@ -324,7 +324,7 @@ public static class ToonOutlineSubjects
         }
     }
 
-    static bool IsBody(Renderer renderer, Transform root)
+    internal static bool IsBody(Renderer renderer, Transform root)
     {
         if (renderer == null)
             return false;

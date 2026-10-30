@@ -80,6 +80,7 @@ Transform:
   - {fileID: 8300000000000000100}
   - {fileID: 8400000000000000100}
   - {fileID: 8500000000000000002}
+  - {fileID: 8600000000000000100}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!95 &7542673191595131398
@@ -885,4 +886,62 @@ PrefabInstance:
 RectTransform:
   m_CorrespondingSourceObject: {fileID: 101, guid: e7a1c4b82d9f4e6a0c3b5d8f1a2e7c90, type: 3}
   m_PrefabInstance: {fileID: 8400000000000000001}
+  m_PrefabAsset: {fileID: 0}
+--- !u!1001 &8600000000000000001
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 5319693474325473463}
+    m_Modifications:
+    - target: {fileID: 100, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_Name
+      value: HomeArrowNavigation
+      objectReference: {fileID: 0}
+    - target: {fileID: 101, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_Pivot.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 101, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_Pivot.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 101, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_AnchorMax.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 101, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_AnchorMax.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 101, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 101, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_LocalScale.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 101, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 203, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_Color.a
+      value: 0.5019608
+      objectReference: {fileID: 0}
+    - target: {fileID: 403, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+      propertyPath: m_Color.a
+      value: 0.5019608
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+--- !u!224 &8600000000000000100 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 101, guid: 92baf3a26cd54b6b8e21d8a3b15a8d72, type: 3}
+  m_PrefabInstance: {fileID: 8600000000000000001}
   m_PrefabAsset: {fileID: 0}

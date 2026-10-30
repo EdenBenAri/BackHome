@@ -3,16 +3,16 @@ using UnityEngine;
 
 /// <summary>
 /// World-space "NEXT KING" clock shown where an area king will return.
-/// Matches the XP Hero field-boss countdown: a title over mm : ss, facing the camera,
-/// only while that area's king is dead.
+/// Matches the XP Hero field-boss countdown: a compact title over mm : ss, lying
+/// flat on the ground, only while that area's king is dead.
 /// </summary>
 [DisallowMultipleComponent]
 [DefaultExecutionOrder(900)]
 public class AreaKingCountdown : MonoBehaviour
 {
-    const float TitleSize = 4.2f;
-    const float TimerSize = 8f;
-    const float Lift = 3.8f;
+    const float TitleSize = 18f;
+    const float TimerSize = 10f;
+    const float SurfaceOffset = 0.03f;
     const float OpaqueDistance = 32f;
     const float HiddenDistance = 68f;
 
@@ -35,7 +35,8 @@ public class AreaKingCountdown : MonoBehaviour
         EnsureTexts();
         _up = up.sqrMagnitude > 0.001f ? up.normalized : Vector3.up;
         _readyAt = readyAt;
-        transform.position = groundPosition + _up * Lift;
+        transform.position = groundPosition + _up * SurfaceOffset;
+        AlignToGround();
         if (!gameObject.activeSelf)
             gameObject.SetActive(true);
         _shown = true;
@@ -59,14 +60,32 @@ public class AreaKingCountdown : MonoBehaviour
         if (_camera == null)
             return;
 
-        Vector3 toCamera = _camera.transform.position - transform.position;
-        if (toCamera.sqrMagnitude > 0.001f)
-            transform.rotation = Quaternion.LookRotation(-toCamera, _camera.transform.up);
+        AlignToGround();
 
+        Vector3 toCamera = _camera.transform.position - transform.position;
         float distance = toCamera.magnitude;
         float alpha = Mathf.Clamp01(Mathf.InverseLerp(HiddenDistance, OpaqueDistance, distance));
         ApplyAlpha(alpha);
         Refresh();
+    }
+
+    void AlignToGround()
+    {
+        if (_camera == null)
+            _camera = Camera.main;
+
+        // TMP's visible face points along local -Z. Keep it on the surface normal;
+        // the camera only chooses the reading direction within the ground plane.
+        Vector3 heading = Vector3.ProjectOnPlane(
+            _camera != null ? _camera.transform.up : Vector3.forward, _up);
+        if (heading.sqrMagnitude < 0.001f)
+            heading = Vector3.ProjectOnPlane(transform.up, _up);
+        if (heading.sqrMagnitude < 0.001f)
+            heading = Vector3.ProjectOnPlane(Vector3.forward, _up);
+        if (heading.sqrMagnitude < 0.001f)
+            heading = Vector3.ProjectOnPlane(Vector3.right, _up);
+
+        transform.rotation = Quaternion.LookRotation(-_up, heading.normalized);
     }
 
     void Refresh()
@@ -95,8 +114,8 @@ public class AreaKingCountdown : MonoBehaviour
             return;
         }
 
-        _title = CreateLine("Title", "NEXT KING", TitleSize, 3.4f, font, 4f);
-        _timer = CreateLine("Time", "00 : 00", TimerSize, 0f, font, 2f);
+        _title = CreateLine("Title", "NEXT KING", TitleSize, 0.5f, font, 4f);
+        _timer = CreateLine("Time", "00 : 00", TimerSize, -1.3f, font, 2f);
     }
 
     TMP_Text CreateLine(string objectName, string value, float size, float localY, TMP_FontAsset font, float tracking)
@@ -117,8 +136,7 @@ public class AreaKingCountdown : MonoBehaviour
         text.characterSpacing = tracking;
         text.textWrappingMode = TextWrappingModes.NoWrap;
         text.overflowMode = TextOverflowModes.Overflow;
-        text.outlineWidth = 0.18f;
-        text.outlineColor = new Color32(28, 22, 36, 210);
+        text.outlineWidth = 0f;
         text.rectTransform.sizeDelta = new Vector2(30f, size + 1.5f);
 
         Renderer renderer = text.renderer;
