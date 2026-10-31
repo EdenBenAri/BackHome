@@ -14,12 +14,16 @@ public class AreaKingGlow : MonoBehaviour
     const float RadiusMultiplier = 1.35f;
 
     Creature _creature;
+    CreatureAnimator _anim;
     MeshRenderer _renderer;
     Mesh _mesh;
 
     void Awake()
     {
         _creature = GetComponent<Creature>();
+        _anim = GetComponent<CreatureAnimator>();
+        if (_anim == null)
+            _anim = GetComponentInChildren<CreatureAnimator>();
     }
 
     void Start()
@@ -81,7 +85,8 @@ public class AreaKingGlow : MonoBehaviour
     void UpdateVisibility()
     {
         if (_renderer != null)
-            _renderer.enabled = isActiveAndEnabled && _creature != null && _creature.IsAlive;
+            _renderer.enabled = isActiveAndEnabled && _creature != null && _creature.IsAlive
+                && (_anim == null || !_anim.IsSpawnAnimationPlaying);
     }
 
     void OnDisable()

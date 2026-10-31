@@ -61,6 +61,10 @@ public class CreatureAnimator : MonoBehaviour
     /// <summary>True while the one-shot Spawn intro is playing or still waiting for the Animator to wake up.</summary>
     public bool IsSpawning => _spawning || _spawnPending;
 
+    /// <summary>Includes the final blend out of Spawn, until it no longer contributes to the pose.</summary>
+    public bool IsSpawnAnimationPlaying => IsSpawning
+        || (_animator != null && _animator.isInitialized && IsInOrEntering(SpawnHash));
+
     public void SetMoving(bool moving)
     {
         if (_dying || _spawning)
