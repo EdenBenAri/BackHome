@@ -21,8 +21,14 @@ public static class PlanetBorders
     public static bool HasLayout(SphericalPlanet planet)
     {
         BoxCollider[] boxes = SolidBoxes(planet);
-        return boxes != null && boxes.Length > 0;
+        foreach (var box in boxes)
+            if (IsActiveWall(box)) return true;
+        return false;
     }
+
+    // Physics colliders are deliberately disabled. The GameObject's active state
+    // controls whether a wall blocks; check it even when using this frame's cache.
+    static bool IsActiveWall(BoxCollider box) => box != null && box.gameObject.activeInHierarchy;
 
     public static BoxCollider[] SolidBoxes(SphericalPlanet planet)
     {
@@ -120,7 +126,7 @@ public static class PlanetBorders
         for (int i = 0; i < boxes.Length; i++)
         {
             BoxCollider box = boxes[i];
-            if (box == null)
+            if (!IsActiveWall(box))
                 continue;
             if (!TryInnerLatitudeAtLon(box, planet, studyLon, out float inner, out bool north))
                 continue;
@@ -216,7 +222,7 @@ public static class PlanetBorders
 
     static bool TryDepenetrateBox(BoxCollider box, ref Vector3 worldPos, float radius)
     {
-        if (box == null)
+        if (!IsActiveWall(box))
             return false;
 
         Transform t = box.transform;

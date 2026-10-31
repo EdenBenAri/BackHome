@@ -60,7 +60,7 @@ public sealed class PlanetAuthoring : MonoBehaviour
 #endif
     }
 
-    public bool ValidateConfiguration(out string reason)
+    public bool ValidateTerrainConfiguration(out string reason)
     {
         reason = null;
         if (runtimePlanet == null || authoringRoot == null || Tiles == null || !Tiles.HasValidMap())
@@ -77,21 +77,24 @@ public sealed class PlanetAuthoring : MonoBehaviour
             || authoringRoot.localPosition.sqrMagnitude > .000001f
             || Quaternion.Angle(authoringRoot.localRotation, Quaternion.identity) > .001f)
             reason = "Keep the world at unit scale and both Runtime Planet and Authoring Plane at their identity local transforms.";
-        else
+        return reason == null;
+    }
+
+    public bool ValidateConfiguration(out string reason)
+    {
+        if (!ValidateTerrainConfiguration(out reason)) return false;
+        var targets = new System.Collections.Generic.HashSet<Transform>();
+        foreach (var placement in authoringRoot.GetComponentsInChildren<PlanetPlacement>(true))
         {
-            var targets = new System.Collections.Generic.HashSet<Transform>();
-            foreach (var placement in authoringRoot.GetComponentsInChildren<PlanetPlacement>(true))
+            if (placement.RuntimeTarget == null || !placement.RuntimeTarget.IsChildOf(runtimePlanet.transform))
             {
-                if (placement.RuntimeTarget == null || !placement.RuntimeTarget.IsChildOf(runtimePlanet.transform))
-                {
-                    reason = "A flat handle has no target in this world. Use Add Prop to create new objects.";
-                    break;
-                }
-                if (!targets.Add(placement.RuntimeTarget))
-                {
-                    reason = "Two handles point to the same object. Use Duplicate Selected Prop instead of Ctrl+D.";
-                    break;
-                }
+                reason = "A flat handle has no target in this world. Use Add Prop to create new objects.";
+                break;
+            }
+            if (!targets.Add(placement.RuntimeTarget))
+            {
+                reason = "Two handles point to the same object. Use Duplicate Selected Prop instead of Ctrl+D.";
+                break;
             }
         }
         return reason == null;

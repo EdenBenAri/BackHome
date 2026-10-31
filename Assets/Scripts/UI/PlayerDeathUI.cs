@@ -27,7 +27,7 @@ public class PlayerDeathUI : MonoBehaviour
 
     [FormerlySerializedAs("shipSceneName")]
     [FormerlySerializedAs("spaceshipSceneName")]
-    [SerializeField] string restartSceneName = "PlanetNyxara";
+    [SerializeField] string restartSceneName = "Galaxy";
     [Tooltip("Seconds after death before the camera fully locks, time freezes and stays frozen.")]
     [SerializeField, Min(0f)] float freezeDelay = 2f;
     [Tooltip("DeathPanel prefab (You are dead + Continue). Instantiated under the UI canvas.")]
@@ -316,7 +316,7 @@ public class PlayerDeathUI : MonoBehaviour
         _loading = true;
         Time.timeScale = 1f;
 
-        string scene = string.IsNullOrWhiteSpace(restartSceneName) ? "PlanetNyxara" : restartSceneName;
+        string scene = string.IsNullOrWhiteSpace(restartSceneName) ? "Galaxy" : restartSceneName;
         SceneManager.LoadScene(scene);
     }
 

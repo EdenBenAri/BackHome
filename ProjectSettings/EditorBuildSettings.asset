@@ -6,7 +6,7 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Scenes/PlanetNyxara.unity
+    path: Assets/Scenes/Galaxy.unity
     guid: f2a8c4d1e6b04793a5c1d8e0f3b2947c
   - enabled: 1
     path: Assets/Scenes/Ship.unity

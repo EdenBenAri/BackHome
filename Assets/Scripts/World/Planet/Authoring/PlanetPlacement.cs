@@ -7,6 +7,7 @@ public sealed class PlanetPlacement : MonoBehaviour
     [SerializeField, HideInInspector] Transform runtimeTarget;
     [SerializeField, HideInInspector] Vector3 runtimeScaleRatio = Vector3.one;
     public Transform RuntimeTarget => runtimeTarget;
+    public Vector3 RuntimeScaleRatio => runtimeScaleRatio;
 
     public void Bind(Transform target)
     {

@@ -18,6 +18,7 @@ public sealed class PlanetAuthoringEditor : Editor
     int lastRow = -1, lastColumn = -1;
     GameObject propPrefab;
     bool placeProp;
+    bool placeWall;
 
     public override void OnInspectorGUI()
     {
@@ -26,11 +27,13 @@ public sealed class PlanetAuthoringEditor : Editor
             "X = east, Z = north, Y = elevation. Left and right edges join. " +
             "Click a model to select it, then use the normal 3D transform tools.\n" +
             "The private Runtime Planet holds gameplay components. Keep it inactive while editing.", MessageType.Info);
-        if (!owner.ValidateConfiguration(out string reason))
+        if (!owner.ValidateTerrainConfiguration(out string reason))
         {
             EditorGUILayout.HelpBox(reason, MessageType.Error);
             return;
         }
+        if (!owner.ValidateConfiguration(out reason))
+            EditorGUILayout.HelpBox("Gameplay placement needs attention: " + reason + " Terrain editing is still available.", MessageType.Warning);
         EditorGUILayout.LabelField("Grid", $"{owner.Tiles.LongitudeBands} × {owner.Tiles.LatitudeBands}");
         EditorGUILayout.LabelField("Size", $"{2f * Mathf.PI * owner.Radius:F1} × {Mathf.PI * owner.Radius:F1} m");
         if (Application.isPlaying)
@@ -56,10 +59,11 @@ public sealed class PlanetAuthoringEditor : Editor
         if (GUILayout.Button("Load Terrain Preset")) PlanetTerrainPresets.ShowPresetMenu(owner.Tiles, owner.Tiles.LastLoadedPreset);
         if (GUILayout.Button("Save Terrain Preset")) PlanetTerrainPresets.SavePreset(owner.Tiles, owner.Tiles.LastLoadedPreset, true);
         EditorGUILayout.EndHorizontal();
+        PlanetReferenceTerrain.DrawInspector(owner);
         paint = EditorGUILayout.Toggle("Paint in Scene View", paint);
         if (paint)
         {
-            placeProp = false;
+            placeProp = placeWall = false;
             paintTool = EditorGUILayout.Popup("Tool", paintTool, new[] { "Terrain", "Raise Height", "Lower Height", "Set Height" });
             brush = EditorGUILayout.IntSlider("Brush radius (cells)", brush, 0, 10);
             showGrid = EditorGUILayout.Toggle("Show Cell Grid", showGrid);
@@ -89,12 +93,19 @@ public sealed class PlanetAuthoringEditor : Editor
             if (GUILayout.Button(placeProp ? "Cancel Placement (Esc)" : "Place New Prop On Plane"))
             {
                 placeProp = !placeProp;
-                paint = false;
+                paint = placeWall = false;
                 SceneView.RepaintAll();
             }
             if (GUILayout.Button("Add Prop At Map Centre")) PlanetAuthoringTools.AddProp(owner, propPrefab);
         }
         if (placeProp) EditorGUILayout.HelpBox("Click the ground in Scene View to place the prefab. Alt navigates; Esc cancels.", MessageType.None);
+        if (GUILayout.Button(placeWall ? "Cancel Wall Placement (Esc)" : "Place New Invisible Wall"))
+        {
+            placeWall = !placeWall;
+            paint = placeProp = false;
+            SceneView.RepaintAll();
+        }
+        if (placeWall) EditorGUILayout.HelpBox("Click the ground in Scene View to add a wall. Use W / E / R to move, rotate and resize it. Walls have an outline in Scene View and are invisible in Play. Esc cancels.", MessageType.None);
         EditorGUILayout.HelpBox("Disable or delete a flat handle to remove it from Play. Use Duplicate Selected Prop in a handle's inspector to make an independent copy. Terrain heights preserve the existing spherical sampling; flat preview poles are approximate.", MessageType.None);
     }
 
@@ -135,14 +146,14 @@ public sealed class PlanetAuthoringEditor : Editor
 
     void OnSceneGUI()
     {
-        if (Application.isPlaying || (!paint && !placeProp)) return;
+        if (Application.isPlaying || (!paint && !placeProp && !placeWall)) return;
         var owner = (PlanetAuthoring)target;
         if (owner.Tiles == null) return;
         if (showGrid && paint && Event.current.type == EventType.Repaint) PlanetAuthoringPreview.DrawGrid(owner);
         var e = Event.current;
         if (e.type == EventType.KeyDown && e.keyCode == KeyCode.Escape)
         {
-            FinishStroke(); GUIUtility.hotControl = 0; placeProp = paint = false; Repaint(); e.Use(); return;
+            FinishStroke(); GUIUtility.hotControl = 0; placeProp = placeWall = paint = false; Repaint(); e.Use(); return;
         }
         int control = GUIUtility.GetControlID("PlanetTerrainPaint".GetHashCode(), FocusType.Passive);
         if (e.type == EventType.Layout && !e.alt) HandleUtility.AddDefaultControl(control);
@@ -155,6 +166,20 @@ public sealed class PlanetAuthoringEditor : Editor
         // which selects a different cell behind raised terrain. Keep this mesh stable for a stroke.
         if (!PlanetAuthoringPreview.Raycast(owner, worldRay, out RaycastHit hit)) return;
         Vector3 point = owner.transform.InverseTransformPoint(hit.point);
+        if (placeWall)
+        {
+            Handles.color = new Color(1f, .65f, .15f);
+            using (new Handles.DrawingScope(Matrix4x4.TRS(hit.point, owner.transform.rotation, Vector3.one)))
+                Handles.DrawWireCube(Vector3.up * 3f, new Vector3(10, 6, 1));
+            if (!e.alt && e.button == 0 && e.type == EventType.MouseDown)
+            {
+                placeWall = false;
+                PlanetAuthoringTools.AddWall(owner, point);
+                e.Use();
+            }
+            if (e.type == EventType.MouseMove) SceneView.RepaintAll();
+            return;
+        }
         if (placeProp)
         {
             Handles.color = Color.cyan;
@@ -222,7 +247,9 @@ public sealed class PlanetPlacementEditor : Editor
     {
         var handle = (PlanetPlacement)target;
         var owner = handle.GetComponentInParent<PlanetAuthoring>();
+        bool wall = handle.RuntimeTarget != null && PlanetBorders.IsBorderCollider(handle.RuntimeTarget.GetComponent<BoxCollider>());
         EditorGUILayout.HelpBox("Use W / E / R to move, rotate or scale this model in 3D. Place On Plane moves it to the clicked ground position. Its pose is projected to the sphere once before Play.", MessageType.Info);
+        if (wall) EditorGUILayout.HelpBox("Invisible wall: the orange box shows the blocking area. Scale X = length, Y = height, Z = thickness. Disable this handle or use Remove Wall to stop blocking in Play.", MessageType.None);
         using (new EditorGUI.DisabledScope(true))
             EditorGUILayout.ObjectField("Runtime object", handle.RuntimeTarget, typeof(Transform), true);
         if (owner == null || Application.isPlaying) return;
@@ -235,8 +262,8 @@ public sealed class PlanetPlacementEditor : Editor
             handle.transform.position = owner.transform.TransformPoint(flat);
             PrefabUtility.RecordPrefabInstancePropertyModifications(handle.transform);
         }
-        if (GUILayout.Button("Duplicate Selected Prop")) PlanetAuthoringTools.Duplicate(owner, handle);
-        if (GUILayout.Button("Remove Prop")) PlanetAuthoringTools.RemoveProp(owner, handle);
+        if (GUILayout.Button(wall ? "Duplicate Wall" : "Duplicate Selected Prop")) PlanetAuthoringTools.Duplicate(owner, handle);
+        if (GUILayout.Button(wall ? "Remove Wall" : "Remove Prop")) PlanetAuthoringTools.RemoveProp(owner, handle);
         if (handle != null && GUILayout.Button("Edit Gameplay Settings")) Selection.activeGameObject = handle.RuntimeTarget.gameObject;
         if (GUILayout.Button("Select 3D Authoring Plane")) Selection.activeGameObject = owner.gameObject;
     }
@@ -272,6 +299,19 @@ public sealed class PlanetPlacementEditor : Editor
     static void DrawHandle(PlanetPlacement handle, GizmoType type)
     {
         if (Application.isPlaying) return;
+        var box = handle.RuntimeTarget != null ? handle.RuntimeTarget.GetComponent<BoxCollider>() : null;
+        if (PlanetBorders.IsBorderCollider(box))
+        {
+            Matrix4x4 previous = Gizmos.matrix;
+            Gizmos.matrix = Matrix4x4.TRS(handle.transform.position, handle.transform.rotation,
+                Vector3.Scale(handle.transform.lossyScale, handle.RuntimeScaleRatio));
+            Gizmos.color = new Color(1f, .65f, .15f, (type & GizmoType.Selected) != 0 ? .2f : .08f);
+            Gizmos.DrawCube(box.center, box.size);
+            Gizmos.color = new Color(1f, .65f, .15f, 1f);
+            Gizmos.DrawWireCube(box.center, box.size);
+            Gizmos.matrix = previous;
+            return;
+        }
         Gizmos.color = (type & GizmoType.Selected) != 0 ? Color.yellow : new Color(.2f, .9f, 1f, .5f);
         Gizmos.DrawWireSphere(handle.transform.position, .7f);
     }

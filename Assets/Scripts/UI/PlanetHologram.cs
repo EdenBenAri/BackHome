@@ -10,7 +10,7 @@ using UnityEngine.SceneManagement;
 [ExecuteAlways]
 public class PlanetHologram : MonoBehaviour
 {
-    [SerializeField] string planetSceneName = "PlanetNyxara";
+    [SerializeField] string planetSceneName = "Galaxy";
     [SerializeField] Material hologramMaterial;
     [SerializeField] float spinDegreesPerSecond = 12f;
 

@@ -110,14 +110,20 @@ public static class PlanetPlayValidation
             }
             if (!sampled)
             {
-                Check(SceneManager.GetActiveScene().name == "PlanetNyxara", "Wrong world after travel/restart");
+                Check(SceneManager.GetActiveScene().path == PlanetAuthoringTools.ScenePath, "Wrong world after travel/restart");
                 var owner = Object.FindAnyObjectByType<PlanetAuthoring>();
                 var planet = SphericalPlanet.Instance;
                 Check(owner != null && owner.IsProjected && planet == owner.RuntimePlanet, "Plane-to-sphere activation failed");
                 Check(Object.FindObjectsByType<SphericalPlanet>().Length == 1, "Multiple active planets");
                 Check(!owner.AuthoringRoot.gameObject.activeInHierarchy, "Authoring plane is active in Play");
-                Check(owner.AuthoringRoot.GetComponentsInChildren<Renderer>(true).Length == 0, "Editor preview leaked into Play");
-                Check(owner.AuthoringRoot.GetComponentsInChildren<Collider>(true).Length == 0, "Duplicate plane physics");
+                // Authored reference guides may be serialized, but must remain disabled.
+                // Disposable terrain/prop previews must still be fully released before Play.
+                foreach (var renderer in owner.AuthoringRoot.GetComponentsInChildren<Renderer>(true))
+                    Check(renderer.CompareTag("EditorOnly") && !renderer.enabled
+                        && (renderer.gameObject.hideFlags & HideFlags.DontSaveInEditor) == 0, "Editor preview leaked into Play");
+                foreach (var collider in owner.AuthoringRoot.GetComponentsInChildren<Collider>(true))
+                    Check(collider.CompareTag("EditorOnly") && !collider.enabled
+                        && (collider.gameObject.hideFlags & HideFlags.DontSaveInEditor) == 0, "Duplicate plane physics");
                 foreach (var collider in Resources.FindObjectsOfTypeAll<MeshCollider>())
                     Check(collider.name != "3D prop picking (editor only)", "Editor picking collider leaked into Play");
                 tiles = planet.GetComponent<PlanetTileMap>();

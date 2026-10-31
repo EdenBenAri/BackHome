@@ -99,6 +99,7 @@ public static class PlanetAuthoringValidation
 
             Validate3DAuthoring(owner, report);
             ValidateEditingTools(owner, report);
+            ValidateWalls(owner, report);
 
             var first = owner.AuthoringRoot.GetComponentInChildren<PlanetPlacement>(true);
             var duplicate = Object.Instantiate(first.gameObject, first.transform.parent);
@@ -171,6 +172,79 @@ public static class PlanetAuthoringValidation
         report.AppendLine("PASS: three environment palettes retained; add/project/erase prop; streaming identity; terrain preset round trip.");
     }
 
+    static void ValidateWalls(PlanetAuthoring owner, System.Text.StringBuilder report)
+    {
+        int before = owner.AuthoringRoot.GetComponentsInChildren<PlanetPlacement>(true).Length;
+        var wall = PlanetAuthoringTools.AddWall(owner, new Vector3(12, 0, 24), false);
+        Transform destination = wall.RuntimeTarget;
+        try
+        {
+            var box = destination.GetComponent<BoxCollider>();
+            Require(PlanetBorders.IsBorderCollider(box) && !box.enabled && destination.GetComponent<Renderer>() == null,
+                "new wall uses kinematic blocking without a visible renderer or physics collider");
+            wall.transform.localRotation = Quaternion.Euler(0, 37, 0);
+            wall.transform.localScale = new Vector3(16, 8, 2);
+            wall.Apply(owner);
+            Require(Vector3.Distance(destination.position, owner.RuntimePlanet.transform.TransformPoint(
+                PlanetProjection.ToSphere(owner.transform.InverseTransformPoint(wall.transform.position), owner.Radius))) < .001f,
+                "new wall projects to its chosen terrain location");
+            Require(Vector3.Distance(destination.localScale, wall.transform.localScale) < .001f, "wall size follows handle");
+            PlanetAuthoringPreview.Rebuild(owner);
+            Vector3 center = wall.transform.TransformPoint(box.center);
+            var ray = new Ray(center + wall.transform.forward * 20, -wall.transform.forward);
+            Require(PlanetAuthoringPreview.Pick(owner, ray, out _, filter: new[] { wall.gameObject }) == wall.gameObject,
+                "invisible rotated/resized wall can be picked in Scene View");
+            Require(PlanetAuthoringPreview.Pick(owner, ray, out _, ignore: new[] { wall.gameObject }, filter: new[] { wall.gameObject }) == null,
+                "wall picking respects selection exclusions");
+            wall.gameObject.SetActive(false);
+            wall.Apply(owner);
+            Require(!destination.gameObject.activeSelf, "disabled wall handle disables runtime wall");
+        }
+        finally { PlanetAuthoringTools.RemoveProp(owner, wall); }
+        Require(destination == null && owner.ValidateConfiguration(out _)
+            && owner.AuthoringRoot.GetComponentsInChildren<PlanetPlacement>(true).Length == before, "wall deletion cleans both binding and blocker");
+
+        // Separate fixture avoids activating the production runtime snapshot in Edit mode.
+        var fixture = new GameObject("Wall collision validation");
+        fixture.SetActive(false);
+        try
+        {
+            var planet = fixture.AddComponent<SphericalPlanet>();
+            planet.enabled = false;
+            fixture.SetActive(true);
+            var borders = new GameObject(PlanetBorders.RootName);
+            borders.transform.SetParent(fixture.transform, false);
+            var blocker = new GameObject("Invisible Wall");
+            blocker.transform.SetParent(borders.transform, false);
+            blocker.transform.localPosition = Vector3.up * planet.Radius;
+            var box = blocker.AddComponent<BoxCollider>();
+            box.center = Vector3.up * 3;
+            box.size = new Vector3(10, 6, 1);
+            box.enabled = false;
+            Vector3 from = blocker.transform.position + Vector3.up + Vector3.forward * 2;
+            Vector3 desired = blocker.transform.position + Vector3.up + Vector3.forward * .2f;
+            Require(PlanetBorders.HasLayout(planet)
+                && Vector3.Distance(PlanetBorders.ResolveAgainstWalls(planet, from, desired, .3f), desired) > .3f,
+                "active wall blocks walking despite disabled physics collider");
+            blocker.SetActive(false);
+            Require(!PlanetBorders.HasLayout(planet)
+                && PlanetBorders.ResolveAgainstWalls(planet, from, desired, .3f) == desired,
+                "disabled wall stops blocking immediately, including with cached boxes");
+            blocker.SetActive(true);
+            Require(PlanetBorders.HasLayout(planet)
+                && Vector3.Distance(PlanetBorders.ResolveAgainstWalls(planet, from, desired, .3f), desired) > .3f,
+                "reactivated wall blocks again in the same frame");
+            borders.SetActive(false);
+            Require(!PlanetBorders.HasLayout(planet)
+                && PlanetBorders.ResolveAgainstWalls(planet, from, desired, .3f) == desired,
+                "disabled wall group stops blocking");
+            Object.DestroyImmediate(blocker);
+            Require(PlanetBorders.ResolveAgainstWalls(planet, from, desired, .3f) == desired, "deleted wall leaves no cached blocker");
+        }
+        finally { Object.DestroyImmediate(fixture); }
+        report.AppendLine("PASS: wall placement/resize/projection/picking/deletion; active wall blocks; disabled/reactivated/deleted walls and disabled groups update cached blocking immediately.");
+    }
+
     static void Validate3DAuthoring(PlanetAuthoring owner, System.Text.StringBuilder report)
     {
         Vector3 previousPosition = owner.transform.position;
@@ -179,7 +253,10 @@ public static class PlanetAuthoringValidation
         {
             owner.transform.SetPositionAndRotation(new Vector3(13, 7, -22), Quaternion.Euler(12, 37, 8));
             PlanetAuthoringPreview.Rebuild(owner);
-            var surface = owner.AuthoringRoot.GetComponentInChildren<MeshCollider>(true);
+            MeshCollider surface = null;
+            foreach (var candidate in owner.AuthoringRoot.GetComponentsInChildren<MeshCollider>(true))
+                if ((candidate.gameObject.hideFlags & HideFlags.DontSaveInEditor) != 0
+                    && candidate.GetComponentInParent<PlanetPlacement>() == null) { surface = candidate; break; }
             Require(surface != null && (surface.gameObject.hideFlags & HideFlags.DontSaveInEditor) != 0,
                 "3D editor plane has a disposable collider");
             Require(surface.sharedMesh == surface.GetComponent<MeshFilter>().sharedMesh, "3D picking matches rendered terrain");

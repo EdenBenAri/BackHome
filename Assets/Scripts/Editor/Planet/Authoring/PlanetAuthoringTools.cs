@@ -6,7 +6,7 @@ using Object = UnityEngine.Object;
 
 public static class PlanetAuthoringTools
 {
-    public const string ScenePath = "Assets/Scenes/PlanetNyxara.unity";
+    public const string ScenePath = "Assets/Scenes/Galaxy.unity";
     public const string PrefabPath = "Assets/Resources/Galaxy/Nyxara/PlanetNyxara.prefab";
 
     public static void RemoveProp(PlanetAuthoring owner, PlanetPlacement placement)
@@ -78,6 +78,45 @@ public static class PlanetAuthoringTools
         if (select) Selection.activeGameObject = handle.gameObject;
         PlanetAuthoringPreview.Queue(owner);
         return handle;
+    }
+
+    public static PlanetPlacement AddWall(PlanetAuthoring owner, Vector3 flatPosition, bool select = true)
+    {
+        Undo.IncrementCurrentGroup();
+        int group = Undo.GetCurrentGroup();
+        Undo.SetCurrentGroupName("Add invisible wall");
+        Undo.RecordObject(owner, "Add invisible wall");
+        Transform runtimeParent = WallRoot(owner.RuntimePlanet.transform);
+        Transform authorParent = WallRoot(owner.AuthoringRoot);
+        var source = new GameObject(GameObjectUtility.GetUniqueNameForSibling(authorParent, "Invisible Wall"));
+        source.transform.SetParent(runtimeParent, false);
+        source.layer = runtimeParent.gameObject.layer;
+        flatPosition.y = owner.Tiles.GetWalkSurfaceRadius(PlanetProjection.ToSphere(flatPosition, owner.Radius)) - owner.Radius;
+        source.transform.SetPositionAndRotation(owner.RuntimePlanet.transform.TransformPoint(PlanetProjection.ToSphere(flatPosition, owner.Radius)),
+            owner.RuntimePlanet.transform.rotation * PlanetProjection.Frame(flatPosition, owner.Radius));
+        source.transform.localScale = new Vector3(10, 6, 1);
+        var box = source.AddComponent<BoxCollider>();
+        box.center = Vector3.up * .5f; // Bottom pivot sits on the terrain.
+        box.enabled = false; // PlanetBorders handles movement; no solid physics or renderer.
+        Undo.RegisterCreatedObjectUndo(source, "Add invisible wall");
+        var handle = CreateHandle(owner, source.transform, authorParent);
+        Undo.RegisterCreatedObjectUndo(handle.gameObject, "Add invisible wall");
+        PrefabUtility.RecordPrefabInstancePropertyModifications(owner);
+        Undo.CollapseUndoOperations(group);
+        if (select) Selection.activeGameObject = handle.gameObject;
+        PlanetAuthoringPreview.Queue(owner);
+        return handle;
+    }
+
+    static Transform WallRoot(Transform parent)
+    {
+        Transform root = parent.Find(PlanetBorders.RootName);
+        if (root != null) return root;
+        root = new GameObject(PlanetBorders.RootName).transform;
+        root.SetParent(parent, false);
+        root.gameObject.layer = parent.gameObject.layer;
+        Undo.RegisterCreatedObjectUndo(root.gameObject, "Create wall group");
+        return root;
     }
 
     public static void Duplicate(PlanetAuthoring owner, PlanetPlacement original)

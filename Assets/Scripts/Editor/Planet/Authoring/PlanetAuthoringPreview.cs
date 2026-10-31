@@ -150,6 +150,20 @@ public static class PlanetAuthoringPreview
             float distance = Vector3.Distance(ray.origin, meshFilter.transform.TransformPoint(hit.point));
             if (distance < nearest) { nearest = distance; result = handle; }
         }
+        // Invisible walls have no mesh. Pick the same oriented box shown by the gizmo.
+        foreach (var placement in owner.AuthoringRoot.GetComponentsInChildren<PlanetPlacement>())
+        {
+            if (!CanPick(placement.gameObject, layers, ignore, filter) || placement.RuntimeTarget == null) continue;
+            var box = placement.RuntimeTarget.GetComponent<BoxCollider>();
+            if (!PlanetBorders.IsBorderCollider(box)) continue;
+            Matrix4x4 matrix = Matrix4x4.TRS(placement.transform.position, placement.transform.rotation,
+                Vector3.Scale(placement.transform.lossyScale, placement.RuntimeScaleRatio));
+            Matrix4x4 inverse = matrix.inverse;
+            var localRay = new Ray(inverse.MultiplyPoint3x4(ray.origin), inverse.MultiplyVector(ray.direction).normalized);
+            if (!new Bounds(box.center, box.size).IntersectRay(localRay, out float localDistance)) continue;
+            float distance = Vector3.Distance(ray.origin, matrix.MultiplyPoint3x4(localRay.GetPoint(localDistance)));
+            if (distance < nearest) { nearest = distance; result = placement.gameObject; }
+        }
         return result;
     }
 
@@ -201,6 +215,7 @@ public static class PlanetAuthoringPreview
             Object.DestroyImmediate(view.mesh);
             view.mesh = next;
             view.gridLines = null;
+            PlanetReferenceTerrain.ConfigureOverlay(owner, view.ground);
             SceneView.RepaintAll();
         };
     }
@@ -238,6 +253,7 @@ public static class PlanetAuthoringPreview
         view.root = PreviewObject("3D Authoring Plane (editor only)", owner.AuthoringRoot);
         view.mesh = BuildMesh(owner);
         view.ground = BuildMaterial(map.Tileset);
+        PlanetReferenceTerrain.ConfigureOverlay(owner, view.ground);
         view.root.AddComponent<MeshFilter>().sharedMesh = view.mesh;
         view.root.AddComponent<MeshRenderer>().sharedMaterial = view.ground;
         view.surface = view.root.AddComponent<MeshCollider>();
@@ -299,6 +315,13 @@ public static class PlanetAuthoringPreview
             if ((child.hideFlags & HideFlags.DontSaveInEditor) != 0) continue;
             CopyVisuals(child, PreviewObject(child.name, destination).transform, false);
         }
+    }
+
+    public static void UpdateReference(PlanetAuthoring owner)
+    {
+        if (Views.TryGetValue(owner, out var view) && view.ground != null)
+            PlanetReferenceTerrain.ConfigureOverlay(owner, view.ground);
+        SceneView.RepaintAll();
     }
 
     static Material BuildMaterial(PlanetTileset tileset)

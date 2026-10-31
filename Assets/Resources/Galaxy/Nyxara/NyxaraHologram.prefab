@@ -159,6 +159,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6f1a8c3e5b7d4902a4e6c8d0f1b3a572, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::PlanetHologram
-  planetSceneName: PlanetNyxara
+  planetSceneName: Galaxy
   hologramMaterial: {fileID: 2100000, guid: d0c213e01b1342644aa4706603dae9ef, type: 2}
   spinDegreesPerSecond: 12
