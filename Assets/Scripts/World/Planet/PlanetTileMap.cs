@@ -850,6 +850,7 @@ public class PlanetTileMap : MonoBehaviour
 
     public void RebuildVisuals()
     {
+        SurfaceVersion++;
         if (_planet == null)
             _planet = GetComponent<SphericalPlanet>();
         if (_planet == null)
@@ -859,6 +860,9 @@ public class PlanetTileMap : MonoBehaviour
         BuildCombinedMesh();
         EnsureWalkColliders();
     }
+
+    /// <summary>Invalidates cached terrain projections after editing/rebuilding the surface.</summary>
+    public int SurfaceVersion { get; private set; }
 
     public void EnsureWalkColliders()
     {

@@ -115,12 +115,18 @@ Shader "BackHome/ToonOutline"
             Name "Mask"
             Cull Back
             ZWrite Off
-            ZTest LEqual
+            // Mask the complete body silhouette, independently of scene depth.
+            // Re-testing a coplanar body can leave stencil holes on mobile GPUs
+            // when its material and this pass round depth differently. The Ink
+            // pass still tests scene depth, so occluders continue to hide it.
+            ZTest Always
             ColorMask 0
 
             Stencil
             {
                 Ref 16
+                ReadMask 16
+                WriteMask 16
                 Comp Always
                 Pass Replace
             }
@@ -142,6 +148,8 @@ Shader "BackHome/ToonOutline"
             Stencil
             {
                 Ref 16
+                ReadMask 16
+                WriteMask 0
                 Comp NotEqual
                 Pass Keep
             }
@@ -163,6 +171,8 @@ Shader "BackHome/ToonOutline"
             Stencil
             {
                 Ref 0
+                ReadMask 16
+                WriteMask 16
                 Comp Always
                 Pass Replace
             }

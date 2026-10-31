@@ -33,6 +33,11 @@ public class PlayerRangeIndicator : MonoBehaviour
     MeshRenderer _renderer;
     MaterialPropertyBlock _properties;
     float _lastCombatTime = float.NegativeInfinity;
+    Matrix4x4 _lastWorldToLocal;
+    Vector3 _lastOrigin;
+    float _lastRadius, _lastWidth, _lastLift;
+    int _lastSurfaceVersion;
+    bool _geometryValid;
 
     void OnEnable()
     {
@@ -62,6 +67,7 @@ public class PlayerRangeIndicator : MonoBehaviour
             _renderer.SetPropertyBlock(null);
         Release(_mesh);
         _mesh = null;
+        _geometryValid = false;
     }
 
     void OnDamaged(float _)
@@ -179,10 +185,20 @@ public class PlayerRangeIndicator : MonoBehaviour
         {
             _planet = planet;
             _tiles = _planet != null ? _planet.GetComponent<PlanetTileMap>() : null;
+            _geometryValid = false;
         }
 
         Transform player = _vitals.transform;
         Vector3 origin = player.position;
+        Matrix4x4 worldToLocal = transform.worldToLocalMatrix;
+        int surfaceVersion = _tiles != null ? _tiles.SurfaceVersion : 0;
+        // Keep the exact terrain projection while stationary. Parent rotation matters:
+        // these vertices are stored in the player's local space, not in world space.
+        if (Application.IsPlaying(gameObject) && _geometryValid
+            && origin == _lastOrigin && worldToLocal == _lastWorldToLocal
+            && radius == _lastRadius && lineWidth == _lastWidth && surfaceLift == _lastLift
+            && surfaceVersion == _lastSurfaceVersion)
+            return;
         Vector3 up = _planet != null ? (origin - _planet.Center).normalized : player.up;
         Vector3 right = Vector3.Cross(up, Vector3.forward);
         if (right.sqrMagnitude < 0.001f)
@@ -191,7 +207,6 @@ public class PlayerRangeIndicator : MonoBehaviour
         Vector3 forward = Vector3.Cross(right, up);
         float halfWidth = Mathf.Min(lineWidth * 0.5f, radius * 0.5f);
         float originRadius = _planet != null ? Vector3.Distance(origin, _planet.Center) : 0f;
-        Matrix4x4 worldToLocal = transform.worldToLocalMatrix;
 
         for (int i = 0; i <= Segments; i++)
         {
@@ -204,6 +219,13 @@ public class PlayerRangeIndicator : MonoBehaviour
 
         _mesh.vertices = _vertices;
         _mesh.RecalculateBounds();
+        _lastOrigin = origin;
+        _lastWorldToLocal = worldToLocal;
+        _lastRadius = radius;
+        _lastWidth = lineWidth;
+        _lastLift = surfaceLift;
+        _lastSurfaceVersion = surfaceVersion;
+        _geometryValid = true;
     }
 
     Vector3 SurfacePoint(Vector3 origin, Vector3 up, Vector3 tangent, float originRadius, float range)

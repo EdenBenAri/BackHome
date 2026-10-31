@@ -1,4 +1,5 @@
 using UnityEngine;
+using System.Collections.Generic;
 
 /// <summary>
 /// Drives creature Animator bools shared by locomotion and combat.
@@ -28,6 +29,9 @@ public class CreatureAnimator : MonoBehaviour
     [SerializeField] string attackClipName = "Attack";
 
     Animator _animator;
+    RuntimeAnimatorController _parameterController;
+    readonly HashSet<int> _parameterHashes = new();
+    int _cachedParameterCount = -1;
     bool _moving;
     bool _attacking;
     bool _spawning;
@@ -461,14 +465,18 @@ public class CreatureAnimator : MonoBehaviour
         if (_animator == null)
             return false;
 
-        AnimatorControllerParameter[] parameters = _animator.parameters;
-        for (int i = 0; i < parameters.Length; i++)
+        RuntimeAnimatorController controller = _animator.runtimeAnimatorController;
+        int count = _animator.parameterCount;
+        if (_parameterController != controller || _cachedParameterCount != count)
         {
-            if (parameters[i].nameHash == hash)
-                return true;
+            _parameterController = controller;
+            _cachedParameterCount = count;
+            _parameterHashes.Clear();
+            AnimatorControllerParameter[] parameters = _animator.parameters;
+            for (int i = 0; i < parameters.Length; i++)
+                _parameterHashes.Add(parameters[i].nameHash);
         }
-
-        return false;
+        return _parameterHashes.Contains(hash);
     }
 
     void CacheAttackClipLength()

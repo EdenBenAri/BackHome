@@ -118,6 +118,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DamagePopup
   textMesh: {fileID: 100003}
+  popupFont: {fileID: 11400000, guid: 8f586378b4e144a9851e7b34d9b748ee, type: 2}
+  popupMaterial: {fileID: 2100000, guid: 7410ec96b23afbc489f9e40f8aadf4f7, type: 2}
   lifetime: 0.85
   floatSpeed: 1.4
   fadeDelay: 0.07
@@ -127,7 +129,3 @@ MonoBehaviour:
   damageColor: {r: 0.95699996, g: 0.26083514, b: 0.15599103, a: 1}
   healColor: {r: 0.35, g: 0.95, b: 0.45, a: 1}
   spawnOffset: {x: 0, y: 1, z: 0}
-  useOutline: 1
-  outlineColor: {r: 0, g: 0, b: 0, a: 0.92}
-  outlineOffset: 0.04
-  outlineMeshes: []

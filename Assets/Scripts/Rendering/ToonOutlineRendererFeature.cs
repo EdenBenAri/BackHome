@@ -60,6 +60,7 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
         readonly List<Renderer> _mobs = new List<Renderer>(64);
         readonly List<Renderer> _kings = new List<Renderer>(8);
         readonly List<Renderer> _players = new List<Renderer>(16);
+        readonly Plane[] _frustum = new Plane[6];
 
         Material _source;
         Material _mobMaterial;
@@ -106,6 +107,11 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                 return;
 
             ToonOutlineSubjects.Copy(_mobs, _kings, _players);
+            Camera camera = frameData.Get<UniversalCameraData>().camera;
+            GeometryUtility.CalculateFrustumPlanes(camera, _frustum);
+            CullInvisible(_mobs, camera);
+            CullInvisible(_kings, camera);
+            CullInvisible(_players, camera);
             if (_mobs.Count == 0 && _kings.Count == 0 && _players.Count == 0)
                 return;
 
@@ -161,6 +167,21 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
             Apply(_mobMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 0f, 0f);
             Apply(_kingMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 1f, 0f);
             Apply(_playerMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 0f, 1f);
+        }
+
+        void CullInvisible(List<Renderer> renderers, Camera camera)
+        {
+            for (int i = renderers.Count - 1; i >= 0; i--)
+            {
+                Renderer renderer = renderers[i];
+                // Keep a generous margin for the expanded silhouette at the screen edge.
+                Bounds bounds = renderer.bounds;
+                bounds.Expand(2f);
+                if (renderer.forceRenderingOff
+                    || (camera.cullingMask & (1 << renderer.gameObject.layer)) == 0
+                    || !GeometryUtility.TestPlanesAABB(_frustum, bounds))
+                    renderers.RemoveAt(i);
+            }
         }
 
         static void Apply(

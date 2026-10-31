@@ -63,6 +63,8 @@ public class CargoMeter : MonoBehaviour
     float _emptyHoldTimer;
     int _lastUsed;
     int _iconSignature;
+    int _labelUsed = -1, _labelCapacity = -1;
+    float[] _chipWidths = System.Array.Empty<float>();
     bool _snap = true;
     bool _worldVisible;
     bool _hasUsedSample;
@@ -225,8 +227,10 @@ public class CargoMeter : MonoBehaviour
         _lastUsed = used;
         RefreshMeter(used, cap);
 
-        if (label != null)
+        if (label != null && (used != _labelUsed || cap != _labelCapacity))
         {
+            _labelUsed = used;
+            _labelCapacity = cap;
             string text = _cargo.IsFull
                 ? "MAX"
                 : "CARGO [" + used + "/" + FormatAmount(cap) + "]";
@@ -430,7 +434,9 @@ public class CargoMeter : MonoBehaviour
     {
         float total = 0f;
         int placed = 0;
-        var widths = new float[_chips.Count];
+        if (_chipWidths.Length < _chips.Count)
+            _chipWidths = new float[Mathf.NextPowerOfTwo(_chips.Count)];
+        var widths = _chipWidths;
 
         for (int i = 0; i < _chips.Count && placed < shown; i++)
         {

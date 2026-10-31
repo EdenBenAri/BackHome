@@ -45,7 +45,9 @@ public class SlimeBody : MonoBehaviour
         get
         {
             Vector3 scale = transform.lossyScale;
-            float axis = Mathf.Max(Mathf.Abs(scale.x), Mathf.Abs(scale.y), Mathf.Abs(scale.z));
+            // The three-argument params overload allocates an array for every pair
+            // in the separation solver. Two-argument Max preserves the same radius.
+            float axis = Mathf.Max(Mathf.Abs(scale.x), Mathf.Max(Mathf.Abs(scale.y), Mathf.Abs(scale.z)));
             return _collider.radius * axis;
         }
     }

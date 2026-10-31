@@ -16,6 +16,7 @@ public class DamageNumbers : MonoBehaviour
     void Awake()
     {
         _source = GetComponent<IVitalsReadable>();
+        DamagePopup.Prewarm(popupPrefab);
     }
 
     void OnEnable()

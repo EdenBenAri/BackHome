@@ -11,11 +11,13 @@ public static class ItchTestBuild
 {
     const string FlagPath = "Builds/request-itch-build.flag";
     const string ResultPath = "Builds/itch-build-result.txt";
-    const string OutputDir = "Builds/itch-webgl";
+    const string OutputDir = "Builds/itch-mobile-release";
+    static readonly Dictionary<string, TextureImporterPlatformSettings> SavedTextures = new();
+    static readonly Dictionary<string, byte[]> SavedImportMetadata = new();
 
     static ItchTestBuild()
     {
-        EditorApplication.delayCall += MaybeBuild;
+        EditorApplication.update += MaybeBuild;
     }
 
     public static void BuildFromCommandLine()
@@ -42,13 +44,11 @@ public static class ItchTestBuild
 
         if (EditorApplication.isCompiling || EditorApplication.isUpdating)
         {
-            EditorApplication.delayCall += MaybeBuild;
             return;
         }
 
         if (EditorApplication.isPlayingOrWillChangePlaymode)
         {
-            EditorApplication.playModeStateChanged += OnPlayModeChanged;
             EditorApplication.isPlaying = false;
             return;
         }
@@ -63,20 +63,17 @@ public static class ItchTestBuild
             return;
         }
 
-        Build();
-    }
-
-    static void OnPlayModeChanged(PlayModeStateChange state)
-    {
-        if (state != PlayModeStateChange.EnteredEditMode)
-            return;
-
-        EditorApplication.playModeStateChanged -= OnPlayModeChanged;
-        EditorApplication.delayCall += MaybeBuild;
+        try { Build(); }
+        catch (System.Exception ex)
+        {
+            WriteResult("Failed\n" + ex);
+            Debug.LogException(ex);
+        }
     }
 
     static void Build()
     {
+        WriteResult("Building\noutput=" + Path.GetFullPath(OutputDir));
         var scenes = EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
         if (scenes.Length == 0)
         {
@@ -84,6 +81,7 @@ public static class ItchTestBuild
             return;
         }
 
+        MobileReleaseTools.PrepareDamageText();
         EditorSceneManager.SaveOpenScenes();
         AssetDatabase.SaveAssets();
 
@@ -97,12 +95,18 @@ public static class ItchTestBuild
         PlayerSettings.productName = "BackHome";
         PlayerSettings.defaultWebScreenWidth = 450;
         PlayerSettings.defaultWebScreenHeight = 800;
-        // itch.io gzips downloads itself. A file that is already gzipped then gets
-        // served without a matching Content-Encoding header, and Unity refuses to start.
+        // itch.io serves .br files with Content-Encoding: br. Native browser
+        // decompression avoids the larger JavaScript fallback and compresses .data too.
         var previousCompression = PlayerSettings.WebGL.compressionFormat;
-        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Disabled;
-        PlayerSettings.WebGL.decompressionFallback = true;
-        PlayerSettings.WebGL.powerPreference = WebGLPowerPreference.LowPower;
+        var previousFallback = PlayerSettings.WebGL.decompressionFallback;
+        var previousPower = PlayerSettings.WebGL.powerPreference;
+        var previousExceptions = PlayerSettings.WebGL.exceptionSupport;
+        var previousSubtarget = EditorUserBuildSettings.webGLBuildSubtarget;
+        var previousOptimization = UnityEditor.WebGL.UserBuildSettings.codeOptimization;
+        PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
+        PlayerSettings.WebGL.decompressionFallback = false;
+        PlayerSettings.WebGL.powerPreference = WebGLPowerPreference.Default;
+        UnityEditor.WebGL.UserBuildSettings.codeOptimization = UnityEditor.WebGL.WasmCodeOptimization.DiskSizeLTO;
         PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
         // ASTC is not supported by desktop Chrome, so those textures were unpacked into
         // raw memory and the fixed heap aborted. Generic keeps sizes predictable, and
@@ -156,11 +160,18 @@ public static class ItchTestBuild
             if (graphicsApplied)
                 mobile.Restore();
             meshes.Restore();
+            RestoreTextures();
+            RestoreImportMetadata();
             PlayerSettings.WebGL.memoryGrowthMode = previousGrowth;
             PlayerSettings.WebGL.initialMemorySize = previousInitialMemory;
             PlayerSettings.WebGL.maximumMemorySize = previousMaximumMemory;
             PlayerSettings.WebGL.geometricMemoryGrowthStep = previousGrowthStep;
             PlayerSettings.WebGL.compressionFormat = previousCompression;
+            PlayerSettings.WebGL.decompressionFallback = previousFallback;
+            PlayerSettings.WebGL.powerPreference = previousPower;
+            PlayerSettings.WebGL.exceptionSupport = previousExceptions;
+            EditorUserBuildSettings.webGLBuildSubtarget = previousSubtarget;
+            UnityEditor.WebGL.UserBuildSettings.codeOptimization = previousOptimization;
             if (phoneQuality >= 0)
                 QualitySettings.SetQualityLevel(previousQuality, false);
             AssetDatabase.SaveAssets();
@@ -261,7 +272,7 @@ public static class ItchTestBuild
         var css = File.ReadAllText(cssPath);
         css = css.Replace(
             "body { padding: 0; margin: 0 }",
-            "body { padding: 0; margin: 0; background: #111318; overflow: hidden }");
+            "body { padding: 0; margin: 0; background: #111318; overflow: hidden; overscroll-behavior: none }\n#unity-canvas { touch-action: none }");
         css = css.Replace(
             "#unity-footer { position: relative }\n.unity-mobile #unity-footer { display: none }",
             "#unity-footer { display: none }");
@@ -270,6 +281,12 @@ public static class ItchTestBuild
 
     static void ClearOutput(string output)
     {
+        string expected = Path.GetFullPath(OutputDir).TrimEnd(Path.DirectorySeparatorChar);
+        if (!string.Equals(Path.GetFullPath(output).TrimEnd(Path.DirectorySeparatorChar), expected,
+            System.StringComparison.OrdinalIgnoreCase)
+            || !expected.StartsWith(Path.GetFullPath("Builds") + Path.DirectorySeparatorChar,
+                System.StringComparison.OrdinalIgnoreCase))
+            throw new System.InvalidOperationException("Refusing to clear a path outside this build output.");
         if (!Directory.Exists(output))
         {
             Directory.CreateDirectory(output);
@@ -318,14 +335,22 @@ public static class ItchTestBuild
                 if (importer == null)
                     continue;
 
-                var limit = path.IndexOf("normal", System.StringComparison.OrdinalIgnoreCase) >= 0
-                    ? Mathf.Min(maxSize, 64)
+                // Preserve legibility of UI/font atlases and recognizable hero/ship details.
+                if (path.IndexOf("font", System.StringComparison.OrdinalIgnoreCase) >= 0
+                    || path.IndexOf("atlas", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    continue;
+                int limit = path.StartsWith("Assets/Resources/Ship/") ? 512
+                    : path.StartsWith("Assets/Resources/Player/") || importer.textureType == TextureImporterType.Sprite ? 256
                     : maxSize;
+                if (importer.textureType == TextureImporterType.NormalMap)
+                    limit = Mathf.Max(64, limit / 2);
                 var web = importer.GetPlatformTextureSettings("WebGL");
-                var currentMax = web.overridden ? web.maxTextureSize : importer.maxTextureSize;
-                if (currentMax <= limit)
+                limit = Mathf.Min(limit, importer.maxTextureSize);
+                if (web.overridden && web.maxTextureSize == limit && web.format == TextureImporterFormat.RGBA32)
                     continue;
 
+                SavedTextures[path] = importer.GetPlatformTextureSettings("WebGL");
+                SaveImportMetadata(path);
                 web.name = "WebGL";
                 web.overridden = true;
                 web.maxTextureSize = limit;
@@ -343,6 +368,38 @@ public static class ItchTestBuild
         }
 
         return changed;
+    }
+
+    static void RestoreTextures()
+    {
+        AssetDatabase.StartAssetEditing();
+        try
+        {
+            foreach (var saved in SavedTextures)
+            {
+                if (AssetImporter.GetAtPath(saved.Key) is not TextureImporter importer) continue;
+                importer.SetPlatformTextureSettings(saved.Value);
+                importer.SaveAndReimport();
+            }
+        }
+        finally { SavedTextures.Clear(); AssetDatabase.StopAssetEditing(); }
+    }
+
+    static void SaveImportMetadata(string assetPath)
+    {
+        string meta = assetPath + ".meta";
+        if (!SavedImportMetadata.ContainsKey(meta))
+            SavedImportMetadata.Add(meta, File.ReadAllBytes(meta));
+    }
+
+    static void RestoreImportMetadata()
+    {
+        // Importer serialization may normalize disabled overrides and unrelated
+        // humanoid metadata. Preserve the exact authored files as well.
+        foreach (var entry in SavedImportMetadata)
+            File.WriteAllBytes(entry.Key, entry.Value);
+        SavedImportMetadata.Clear();
+        AssetDatabase.Refresh(ImportAssetOptions.ForceSynchronousImport);
     }
 
     sealed class MeshCompressionPass
@@ -372,6 +429,7 @@ public static class ItchTestBuild
                         continue;
 
                     _saved.Add(new Saved { Path = path, Compression = importer.meshCompression });
+                    SaveImportMetadata(path);
                     importer.meshCompression = ModelImporterMeshCompression.High;
                     importer.SaveAndReimport();
                 }
@@ -415,6 +473,7 @@ public static class ItchTestBuild
         ShadowQuality _shadows;
         int _cascades;
         int _pixelLights;
+        int _antiAliasing;
         readonly List<UrpValue> _urp = new List<UrpValue>();
         SerializedObject _pipeline;
 
@@ -425,6 +484,7 @@ public static class ItchTestBuild
             _shadows = QualitySettings.shadows;
             _cascades = QualitySettings.shadowCascades;
             _pixelLights = QualitySettings.pixelLightCount;
+            _antiAliasing = QualitySettings.antiAliasing;
             QualitySettings.lodBias = 0.4f;
             QualitySettings.shadowDistance = 0f;
             QualitySettings.shadows = ShadowQuality.Disable;
@@ -457,6 +517,7 @@ public static class ItchTestBuild
             QualitySettings.shadows = _shadows;
             QualitySettings.shadowCascades = _cascades;
             QualitySettings.pixelLightCount = _pixelLights;
+            QualitySettings.antiAliasing = _antiAliasing;
 
             if (_pipeline == null)
                 return;
