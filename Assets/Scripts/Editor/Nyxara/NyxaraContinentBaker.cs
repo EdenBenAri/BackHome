@@ -10,7 +10,7 @@ public static class NyxaraContinentBaker
     [MenuItem("BackHome/Generate Nyxara Continents")]
     public static void GenerateInOpenScene()
     {
-        PlanetTileMap map = Object.FindAnyObjectByType<PlanetTileMap>();
+        PlanetTileMap map = FindAuthoringMap();
         if (map == null)
         {
             EditorUtility.DisplayDialog(
@@ -39,13 +39,14 @@ public static class NyxaraContinentBaker
         if (map.gameObject.scene.IsValid())
             EditorSceneManager.MarkSceneDirty(map.gameObject.scene);
         map.RebuildVisuals();
+        PlanetTerrainPresets.MarkDirty(map);
         Debug.Log("[BackHome] Generated Nyxara continents.");
     }
 
     [MenuItem("BackHome/Resolve Nyxara Autotile")]
     public static void ResolveInOpenScene()
     {
-        PlanetTileMap map = Object.FindAnyObjectByType<PlanetTileMap>();
+        PlanetTileMap map = FindAuthoringMap();
         if (map == null || map.Tileset == null)
         {
             EditorUtility.DisplayDialog("Nyxara Autotile", "Need PlanetTileMap with a tileset.", "OK");
@@ -54,9 +55,18 @@ public static class NyxaraContinentBaker
 
         Undo.RecordObject(map, "Resolve Nyxara Autotile");
         PlanetBlobAutotile.ResolveAll(map);
+        PlanetTerrainPresets.MarkDirty(map);
         EditorUtility.SetDirty(map);
         PrefabUtility.RecordPrefabInstancePropertyModifications(map);
         if (map.gameObject.scene.IsValid())
             EditorSceneManager.MarkSceneDirty(map.gameObject.scene);
+    }
+
+    static PlanetTileMap FindAuthoringMap()
+    {
+        var stage = PrefabStageUtility.GetCurrentPrefabStage();
+        var owner = stage != null ? stage.prefabContentsRoot.GetComponent<PlanetAuthoring>()
+            : Object.FindAnyObjectByType<PlanetAuthoring>();
+        return owner != null ? owner.Tiles : null;
     }
 }

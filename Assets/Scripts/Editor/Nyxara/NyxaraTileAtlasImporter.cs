@@ -131,7 +131,7 @@ public static class NyxaraTileAtlasImporter
         var summary = new System.Text.StringBuilder();
         summary.AppendLine("Nyxara now splat-blends the handpainted ground pack.");
         summary.AppendLine("Brushes: Grass, Dirt, Clay, Dark Grass.");
-        summary.AppendLine("Paint on the planet, then click Bake Mesh if the view is stale.");
+        summary.AppendLine("Paint on the 3D authoring plane; the preview refreshes on release.");
         Debug.Log("[BackHome] " + summary.ToString().Replace("\n", " "));
         EditorUtility.DisplayDialog("Nyxara Tileset", summary.ToString(), "OK");
     }
@@ -139,14 +139,15 @@ public static class NyxaraTileAtlasImporter
     static void AssignToOpenPlanet()
     {
         PlanetTileset tileset = AssetDatabase.LoadAssetAtPath<PlanetTileset>(TilesetPath);
-        PlanetTileMap[] maps = Object.FindObjectsByType<PlanetTileMap>(FindObjectsInactive.Exclude);
+        PlanetTileMap[] maps = Resources.FindObjectsOfTypeAll<PlanetTileMap>();
         for (int i = 0; i < maps.Length; i++)
         {
-            if (maps[i] == null)
+            if (maps[i] == null || !maps[i].gameObject.scene.IsValid()
+                || maps[i].GetComponentInParent<PlanetAuthoring>() == null)
                 continue;
             Undo.RecordObject(maps[i], "Assign Nyxara Tileset");
             maps[i].SetTileset(tileset, refillBase: false);
-            EditorUtility.SetDirty(maps[i]);
+            PlanetTerrainPresets.MarkDirty(maps[i]);
         }
     }
 

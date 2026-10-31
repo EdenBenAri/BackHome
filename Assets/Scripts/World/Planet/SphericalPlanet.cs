@@ -271,6 +271,8 @@ public class SphericalPlanet : MonoBehaviour
 
     void BuildPlanet()
     {
+        if (!Application.isPlaying && !isActiveAndEnabled && GetComponentInParent<PlanetAuthoring>() != null)
+            return;
         if (IsEditorBusy)
         {
             QueueBuild();

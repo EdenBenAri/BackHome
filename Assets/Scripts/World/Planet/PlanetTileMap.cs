@@ -850,6 +850,9 @@ public class PlanetTileMap : MonoBehaviour
 
     public void RebuildVisuals()
     {
+        // Authoring edits rebuild the plane preview, not a second hidden spherical mesh/collider.
+        if (!Application.isPlaying && !isActiveAndEnabled && GetComponentInParent<PlanetAuthoring>() != null)
+            return;
         SurfaceVersion++;
         if (_planet == null)
             _planet = GetComponent<SphericalPlanet>();

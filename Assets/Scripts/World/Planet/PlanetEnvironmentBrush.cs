@@ -2,9 +2,8 @@ using System;
 using UnityEngine;
 
 /// <summary>
-/// Lives on the planet Environment object. Holds Grass / Rocks / Trees prefab
-/// palettes that the editor brush paints onto the sphere. Painted instances
-/// are parented under a child folder named after the category.
+/// Holds Grass / Rocks / Trees palettes on the plane's Environment authoring folder.
+/// Editor painting creates linked placements; gameplay objects activate on the sphere.
 /// </summary>
 [DisallowMultipleComponent]
 [AddComponentMenu("BackHome/Planet Environment Brush")]

@@ -23,7 +23,6 @@ public sealed class NyxaraSeaFit : MonoBehaviour
     void OnEnable()
     {
         _planet = GetComponentInParent<SphericalPlanet>();
-        PlanetLayout.StripLegacyArt(_planet);
         Fit();
     }
 

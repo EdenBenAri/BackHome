@@ -301,7 +301,7 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
 
     static bool IsContainer(Transform t)
     {
-        if (t.GetComponent<PlanetSurfaceAlign>() != null)
+        if (t.GetComponent<PlanetEnvironmentObject>() != null)
             return false;
         if (t.GetComponent<Renderer>() != null
             || t.GetComponent<MeshFilter>() != null
@@ -312,7 +312,7 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
 
         for (int i = 0; i < t.childCount; i++)
         {
-            if (t.GetChild(i).GetComponent<PlanetSurfaceAlign>() != null)
+            if (t.GetChild(i).GetComponent<PlanetEnvironmentObject>() != null)
                 return true;
         }
 

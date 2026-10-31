@@ -46,11 +46,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 4c019717db714a75970b6919c81611a3, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PlanetSurfaceAlign
-  planet: {fileID: 0}
-  hover: 0.05
-  yaw: 0
-  alignEveryFrame: 0
+  m_EditorClassIdentifier: Assembly-CSharp::PlanetEnvironmentObject
 --- !u!65 &401721134079963197
 BoxCollider:
   m_ObjectHideFlags: 0
