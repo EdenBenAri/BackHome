@@ -93,7 +93,7 @@ public sealed class PlanetAuthoring : MonoBehaviour
             }
             if (!targets.Add(placement.RuntimeTarget))
             {
-                reason = "Two handles point to the same object. Use Duplicate Selected Prop instead of Ctrl+D.";
+                reason = "Two handles point to the same object. Return to Edit Mode to repair their bindings.";
                 break;
             }
         }
@@ -136,12 +136,7 @@ public sealed class PlanetAuthoring : MonoBehaviour
         }
         var watch = System.Diagnostics.Stopwatch.StartNew();
         var placements = authoringRoot.GetComponentsInChildren<PlanetPlacement>(true);
-        // Deleted/disabled authoring handles must not leave invisible gameplay objects behind.
-        foreach (var target in managedTargets)
-            if (target != null)
-                target.gameObject.SetActive(false);
-        foreach (var placement in placements)
-            placement.Apply(this);
+        ApplyPlacements(placements);
         if (runtimePlanet.TryGetComponent<PlanetStageProgression>(out var stages))
             stages.Initialize();
         authoringRoot.gameObject.SetActive(false);
@@ -154,5 +149,19 @@ public sealed class PlanetAuthoring : MonoBehaviour
         Debug.Log($"ChapterOne: projected {placements.Length} placements in {ProjectionMilliseconds:F2} ms; total activation {RuntimeStartupMilliseconds:F2} ms including runtime startup.", this);
     #endif
         return true;
+    }
+
+    void ApplyPlacements(PlanetPlacement[] placements)
+    {
+        // Deleted/disabled authoring handles must not leave invisible gameplay objects behind.
+        foreach (var target in managedTargets)
+            if (target != null)
+                target.gameObject.SetActive(false);
+        // Scene overrides can truncate managedTargets when the prefab gains more props.
+        // Discover the snapshot's decorations too, so only surviving handles enable them.
+        foreach (var prop in runtimePlanet.GetComponentsInChildren<PlanetEnvironmentObject>(true))
+            prop.gameObject.SetActive(false);
+        foreach (var placement in placements)
+            placement.Apply(this);
     }
 }

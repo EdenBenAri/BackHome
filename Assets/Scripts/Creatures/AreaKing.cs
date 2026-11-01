@@ -22,6 +22,8 @@ public class AreaKing : MonoBehaviour
 
         if (GetComponent<AreaKingGlow>() == null)
             gameObject.AddComponent<AreaKingGlow>();
+        if (GetComponent<AreaKingLeashIndicator>() == null)
+            gameObject.AddComponent<AreaKingLeashIndicator>();
     }
 
     void OnEnable()

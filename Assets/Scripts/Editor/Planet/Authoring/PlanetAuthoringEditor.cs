@@ -120,7 +120,7 @@ public sealed class PlanetAuthoringEditor : Editor
             SceneView.RepaintAll();
         }
         if (placeWall) EditorGUILayout.HelpBox("Click the ground in Scene View to add a wall. Use W / E / R to move, rotate and resize it. Walls have an outline in Scene View and are invisible in Play. Esc cancels.", MessageType.None);
-        EditorGUILayout.HelpBox("Disable or delete a flat handle to remove it from Play. Use Duplicate Selected Prop in a handle's inspector to make an independent copy. Terrain heights preserve the existing spherical sampling; flat preview poles are approximate.", MessageType.None);
+        EditorGUILayout.HelpBox("Disable or delete a flat handle to remove it from Play. Ctrl+D or Duplicate Selected Prop creates an independent copy. Terrain heights preserve the existing spherical sampling; flat preview poles are approximate.", MessageType.None);
     }
 
     public static void Frame(PlanetAuthoring owner, bool topView = false)

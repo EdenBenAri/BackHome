@@ -80,6 +80,7 @@ public sealed class StageFogProbeRunner : MonoBehaviour
     GameObject _capture;
     Material _oldMaterial;
     Mesh _oldMesh;
+    Vector3 _bankProbe;
     float _elapsed;
     int _phase;
     string _save;
@@ -110,6 +111,8 @@ public sealed class StageFogProbeRunner : MonoBehaviour
             Require(bank != null && Bank(PlanetStageId.C) != null && Bank(PlanetStageId.D) != null, "Missing locked bank.");
             _oldMaterial = bank.GetComponentInChildren<MeshRenderer>().sharedMaterial;
             _oldMesh = bank.GetComponentInChildren<MeshFilter>().sharedMesh;
+            _bankProbe = FindBankInterior();
+            Require(_fog.GetMovementClearance(_bankProbe, .6f) < 0f, "Closed bank has no movement boundary.");
             CaptureBoundary();
             File.AppendAllText(PlanetStageFogPlayValidation.Report,
                 $"PASS: live prefab built {_fog.BuiltChunkCount} chunks, {_fog.BuiltVertexCount} vertices; captured locked boundary.\n");
@@ -119,6 +122,7 @@ public sealed class StageFogProbeRunner : MonoBehaviour
             foreach (string boss in bosses) _progress.RecordBossDefeat(PlanetStageId.A, boss.Substring(boss.IndexOf(':') + 1));
             Require(_progress.IsUnlocked(PlanetStageId.B), "Production boss progression did not unlock B.");
             Require(Bank(PlanetStageId.B) != null, "Cloud reveal skipped animation.");
+            Require(_fog.GetMovementClearance(_bankProbe, .6f) < 0f, "Movement boundary disappeared before the cloud reveal.");
             _elapsed = 0; _phase = 1;
         }
         else if (_phase == 1 && _elapsed > .35f)
@@ -133,6 +137,7 @@ public sealed class StageFogProbeRunner : MonoBehaviour
             Require(Bank(PlanetStageId.B) == null && _oldMaterial == null && _oldMesh == null,
                 "Reveal left cloud objects, meshes or material allocated.");
             Require(Bank(PlanetStageId.C) != null && Bank(PlanetStageId.D) != null, "Unlock affected a later stage.");
+            Require(_fog.GetMovementClearance(_bankProbe, .6f) >= 0f, "Revealed bank kept an invisible movement boundary.");
             SaveCapture("boundary-open");
             _fog.enabled = false;
             _elapsed = 0; _phase = 3;
@@ -157,11 +162,28 @@ public sealed class StageFogProbeRunner : MonoBehaviour
             _fog.enabled = true;
             Require(Bank(PlanetStageId.C) == null && Bank(PlanetStageId.D) != null, "Interrupted reveal restored a completed stage.");
             Require(PlayerPrefs.GetString(_progress.SaveKey, "") == _save, "Probe changed the player save.");
-            PlanetStageFogPlayValidation.Finish("PASS: animated boss unlock, GPU captures, mesh/material destruction, disable/re-enable, interrupted reveal, save unchanged.");
+            PlanetStageFogPlayValidation.Finish("PASS: animated boss unlock, fog boundary retained during reveal and released afterwards, GPU captures, mesh/material destruction, disable/re-enable, interrupted reveal, save unchanged.");
         }
     }
 
     Transform Bank(PlanetStageId stage) => _fog.transform.Find("Locked Stage " + stage + " Clouds");
+
+    Vector3 FindBankInterior()
+    {
+        var map = _fog.GetComponent<PlanetTileMap>();
+        for (int lat = 2; lat < map.LatitudeBands - 2; lat++)
+        for (int lon = 0; lon < map.LongitudeBands; lon++)
+        {
+            if (map.GetHeight(lat, lon) <= 0f) continue;
+            bool interior = true;
+            for (int y = -2; y <= 2 && interior; y++)
+            for (int x = -2; x <= 2; x++)
+                if (_progress.StageAtCell(lat + y, (lon + x + map.LongitudeBands) % map.LongitudeBands) != PlanetStageId.B)
+                { interior = false; break; }
+            if (interior && map.TryGetCellCenter(lat, lon, out Vector3 point)) return point;
+        }
+        throw new InvalidOperationException("No stage B interior for the reveal movement check.");
+    }
 
     void CaptureBoundary()
     {

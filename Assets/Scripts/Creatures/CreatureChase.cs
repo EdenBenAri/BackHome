@@ -7,6 +7,8 @@ using UnityEngine;
 /// ends, the creature stops chasing and walks back to where it spawned. A hit from
 /// either side restarts that timer. A player hit while it is already walking home
 /// pulls it back into the fight. Health refills only once it reaches its start point.
+/// Kings use a separate radius around their start point: after 0.5s outside it,
+/// they return all the way home, and hits cannot delay or interrupt that return.
 /// Stops inside attack range so <see cref="CreatureRangeCombat"/> can deal damage.
 /// While idle, regular mobs pace a few steps out and back. Kings stay put.
 /// Walks on the spherical planet surface (same stick model as spawn / PlanetWalker).
@@ -47,6 +49,10 @@ public class CreatureChase : MonoBehaviour
     [Tooltip("Speed multiplier while walking back to the start point.")]
     [SerializeField, Min(1f)] float returnHomeSpeedScale = 2.5f;
 
+    [Header("King leash")]
+    [Tooltip("Area kings only: maximum surface distance from their starting position. After 0.5 seconds outside this radius, they return home regardless of hits.")]
+    [SerializeField, Min(1f)] float kingLeashRadius = 30f;
+
     [Header("Hit reaction")]
     [Tooltip("Surface distance shoved away from the attacker. Keep small — a punch, not a launch.")]
     [SerializeField, Min(0f)] float knockbackDistance = 0.2f;
@@ -71,6 +77,7 @@ public class CreatureChase : MonoBehaviour
     const float PaceMinWalkSeconds = 0.9f;
     const float PaceMinSpeedScale = 0.4f;
     const float PaceStuckSeconds = 0.45f;
+    const float KingLeashReturnDelay = 0.5f;
 
     Creature _creature;
     CreatureAnimator _anim;
@@ -89,6 +96,7 @@ public class CreatureChase : MonoBehaviour
     float _leashRadius;
     bool _hasLeash;
     float _outsideLeashTime;
+    bool _returningFromKingLeash;
 
     bool _knockActive;
     float _knockElapsed;
@@ -116,6 +124,14 @@ public class CreatureChase : MonoBehaviour
     /// <summary>True while walking back to the spawn point after the leash (or vision) timer.</summary>
     public bool IsReturning => _state == State.Returning;
 
+    /// <summary>The fixed surface-space boundary used by both king pursuit and its ground indicator.</summary>
+    public bool TryGetKingLeash(out Vector3 center, out float radius)
+    {
+        center = _homePosition;
+        radius = kingLeashRadius;
+        return _isKing && _homeCaptured;
+    }
+
     /// <summary>
     /// Den this creature belongs to. <paramref name="anchor"/> is the area marker (A1–A5);
     /// <paramref name="radius"/> is that den's spawn radius. Leaving it starts the leash timer.
@@ -130,16 +146,19 @@ public class CreatureChase : MonoBehaviour
 
     /// <summary>
     /// Either side landed a hit. Restarts the leash timer so an active fight outside the den
-    /// does not send the creature home.
+    /// does not send a regular creature home. Hits cannot extend a king's outside grace period.
     /// </summary>
     public void ResetLeashTimer()
     {
+        if (_isKing && (_returningFromKingLeash || IsOutsideLeash()))
+            return;
+
         _outsideLeashTime = 0f;
     }
 
     /// <summary>
     /// The player hit this creature. Restarts the leash timer, and if it was walking home
-    /// it turns around and chases again.
+    /// it turns around and chases again, unless a king is committed to returning after leaving its radius.
     /// </summary>
     public void NotifyDamagedByPlayer()
     {
@@ -214,6 +233,9 @@ public class CreatureChase : MonoBehaviour
             return;
         }
 
+        // A king's half-second grace period keeps ticking even while hits knock it back.
+        TickLeash(Time.deltaTime);
+
         if (_knockActive)
         {
             _velocity = Vector3.zero;
@@ -224,8 +246,6 @@ public class CreatureChase : MonoBehaviour
 
         // Default to stationary; MoveToward() re-sets this below on the frames it actually runs.
         _velocity = Vector3.zero;
-
-        TickLeash();
 
         switch (_state)
         {
@@ -260,6 +280,10 @@ public class CreatureChase : MonoBehaviour
     /// </summary>
     public void ApplyKnockback(Vector3 fromWorldPosition)
     {
+        // Repeated hits must not turn a returning king around or hold it away from home.
+        if (_returningFromKingLeash)
+            return;
+
         if (_state != State.Aggroed)
             EnterAggro();
 
@@ -358,9 +382,9 @@ public class CreatureChase : MonoBehaviour
         _anim?.SetMoving(true);
     }
 
-    void TickLeash()
+    void TickLeash(float deltaTime)
     {
-        if (!_hasLeash || _state == State.Returning)
+        if (_state == State.Returning || (!_isKing && (!_hasLeash || _knockActive)))
             return;
 
         if (!IsOutsideLeash())
@@ -369,8 +393,9 @@ public class CreatureChase : MonoBehaviour
             return;
         }
 
-        _outsideLeashTime += Time.deltaTime;
-        if (_outsideLeashTime < leashReturnDelay)
+        _outsideLeashTime += deltaTime;
+        float returnDelay = _isKing ? KingLeashReturnDelay : leashReturnDelay;
+        if (_outsideLeashTime < returnDelay)
             return;
 
         BeginReturnHome();
@@ -378,6 +403,9 @@ public class CreatureChase : MonoBehaviour
 
     bool IsOutsideLeash()
     {
+        if (_isKing)
+            return _homeCaptured && GetSurfaceDistanceTo(_homePosition) > kingLeashRadius;
+
         if (!_hasLeash || _leashAnchor == null)
             return false;
 
@@ -386,8 +414,8 @@ public class CreatureChase : MonoBehaviour
 
     void TickReturning()
     {
-        // Stay on the walk home until the player actually hits this creature.
-        // Seeing the player is not enough — that is what the leash is for.
+        // Regular creatures can be pulled back into combat by a hit. Kings that exceeded
+        // their radius finish the entire walk home, even after re-entering the radius.
         float homeDist = GetSurfaceDistanceTo(_homePosition);
         if (homeDist <= homeArriveDistance)
         {
@@ -402,6 +430,9 @@ public class CreatureChase : MonoBehaviour
 
     void EnterAggro()
     {
+        if (_returningFromKingLeash)
+            return;
+
         _state = State.Aggroed;
         _outOfVisionTime = 0f;
         SetPacePlayback(1f);
@@ -414,6 +445,12 @@ public class CreatureChase : MonoBehaviour
 
     void BeginReturnHome()
     {
+        if (_isKing && IsOutsideLeash())
+        {
+            _returningFromKingLeash = true;
+            _knockActive = false;
+        }
+
         _state = State.Returning;
         _outOfVisionTime = 0f;
         SetPacePlayback(1f);
@@ -425,6 +462,7 @@ public class CreatureChase : MonoBehaviour
         _state = State.Idle;
         _outOfVisionTime = 0f;
         _outsideLeashTime = 0f;
+        _returningFromKingLeash = false;
         _anim?.SetMoving(false);
         _creature?.Heal(_creature.MaxHealth);
 

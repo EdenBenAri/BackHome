@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -140,12 +142,106 @@ public static class PlanetAuthoringValidation
             report.AppendLine("PASS: duplicate-binding guard; edited terrain and placement save/reload; reloaded projection. Temporary fixture removed.");
         }
         finally { PlanetAuthoringPreview.ClearAll(); PrefabUtility.UnloadPrefabContents(root); PlanetAuthoringPreview.RefreshAll(); }
+        ValidatePropProjection(report);
         Require(File.ReadAllText(prefabPath) == originalBefore && File.ReadAllText(PlanetAuthoringTools.ScenePath) == sceneBefore,
             "production assets remain byte-identical");
         report.AppendLine("PASS: production scene and prefab byte-identical; all validation edits discarded.");
         Directory.CreateDirectory("Logs");
         File.WriteAllText(ReportPath, report.ToString());
         Debug.Log(report.ToString());
+    }
+
+    [MenuItem("BackHome/ChapterOne/Validate Prop Projection")]
+    public static void RunPropProjection()
+    {
+        var report = new System.Text.StringBuilder();
+        ValidatePropProjection(report);
+        Directory.CreateDirectory("Logs");
+        File.WriteAllText("Logs/PlanetPropProjection-validation.txt", report.ToString());
+        Debug.Log(report.ToString());
+    }
+
+    static void ValidatePropProjection(System.Text.StringBuilder report)
+    {
+        Require(!EditorApplication.isPlayingOrWillChangePlaymode, "exit Play before prop validation");
+        string prefabBefore = File.ReadAllText(PlanetAuthoringTools.PrefabPath);
+        string sceneBefore = File.ReadAllText(PlanetAuthoringTools.ScenePath);
+        GameObject root = PrefabUtility.LoadPrefabContents(PlanetAuthoringTools.PrefabPath);
+        try
+        {
+            var owner = root.GetComponent<PlanetAuthoring>();
+            CheckPropProjection(owner, "production prefab", report);
+
+            var handles = new List<PlanetPlacement>();
+            foreach (var handle in owner.AuthoringRoot.GetComponentsInChildren<PlanetPlacement>(true))
+                if (handle.gameObject.activeInHierarchy && handle.RuntimeTarget.GetComponent<PlanetEnvironmentObject>() != null)
+                    handles.Add(handle);
+            Require(handles.Count >= 3, "enough props for removal regression");
+            Object.DestroyImmediate(handles[0].gameObject); // Ordinary Delete leaves the runtime snapshot behind.
+            handles[1].gameObject.SetActive(false);
+            var disabledGroup = new GameObject("Disabled authoring group");
+            disabledGroup.transform.SetParent(owner.AuthoringRoot, false);
+            handles[2].transform.SetParent(disabledGroup.transform, true);
+            disabledGroup.SetActive(false);
+            // A scene array-size override can hide registrations added later to the prefab.
+            var serialized = new SerializedObject(owner);
+            serialized.FindProperty("managedTargets").arraySize = 0;
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+            CheckPropProjection(owner, "empty registry + deleted/disabled/grouped handles", report);
+        }
+        finally { PlanetAuthoringPreview.ClearAll(); PrefabUtility.UnloadPrefabContents(root); PlanetAuthoringPreview.RefreshAll(); }
+
+        // The real scene has instance overrides that are absent from LoadPrefabContents.
+        var scene = EditorSceneManager.OpenPreviewScene(PlanetAuthoringTools.ScenePath);
+        try
+        {
+            PlanetAuthoring owner = null;
+            foreach (var candidate in scene.GetRootGameObjects())
+            {
+                owner = candidate.GetComponentInChildren<PlanetAuthoring>(true);
+                if (owner != null) break;
+            }
+            Require(owner != null, "production scene has an authoring world");
+            CheckPropProjection(owner, "production scene with prefab overrides", report);
+        }
+        finally
+        {
+            PlanetAuthoringPreview.ClearAll();
+            EditorSceneManager.ClosePreviewScene(scene);
+            PlanetAuthoringPreview.RefreshAll();
+        }
+        Require(File.ReadAllText(PlanetAuthoringTools.PrefabPath) == prefabBefore
+            && File.ReadAllText(PlanetAuthoringTools.ScenePath) == sceneBefore, "prop validation preserves production assets");
+        report.AppendLine("PASS: prop validation left production prefab and scene byte-identical.");
+    }
+
+    static void CheckPropProjection(PlanetAuthoring owner, string label, System.Text.StringBuilder report)
+    {
+        Require(owner.ValidateConfiguration(out _), label + " has valid bindings");
+        var handles = owner.AuthoringRoot.GetComponentsInChildren<PlanetPlacement>(true);
+        var enabledTargets = new HashSet<Transform>();
+        foreach (var handle in handles)
+            if (handle.gameObject.activeInHierarchy) enabledTargets.Add(handle.RuntimeTarget);
+        typeof(PlanetAuthoring).GetMethod("ApplyPlacements", BindingFlags.NonPublic | BindingFlags.Instance)
+            .Invoke(owner, new object[] { handles });
+        var streamed = new List<GameObject>();
+        Transform environment = owner.RuntimePlanet.transform.Find("Environment");
+        typeof(PlanetEnvironmentStreamer).GetMethod("Collect", BindingFlags.NonPublic | BindingFlags.Static)
+            .Invoke(null, new object[] { environment, owner.RuntimePlanet, streamed });
+        int active = 0, removed = 0;
+        foreach (var prop in environment.GetComponentsInChildren<PlanetEnvironmentObject>(true))
+        {
+            bool expected = enabledTargets.Contains(prop.transform);
+            Require(prop.gameObject.activeSelf == expected, label + ": " + prop.name
+                + " runtime active state differs from its authoring handle at " + prop.transform.position);
+            if (expected) active++;
+            else
+            {
+                removed++;
+                Require(!streamed.Contains(prop.gameObject), label + ": removed prop entered streaming");
+            }
+        }
+        report.AppendLine($"PASS: {label}: {active} authored props active; {removed} removed/disabled props excluded from rendering, physics and streaming.");
     }
 
     static void ValidateEditingTools(PlanetAuthoring owner, System.Text.StringBuilder report)

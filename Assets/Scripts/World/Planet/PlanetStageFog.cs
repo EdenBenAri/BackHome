@@ -169,7 +169,7 @@ public sealed class PlanetStageFog : MonoBehaviour
     /// </summary>
     public float GetMovementClearance(Vector3 worldPosition, float bodyRadius = 0f)
     {
-        if (_tiles == null || (_banks[2] == null && _banks[3] == null && _banks[4] == null))
+        if (!isActiveAndEnabled || _tiles == null || (_banks[2] == null && _banks[3] == null && _banks[4] == null))
             return float.PositiveInfinity;
         Vector3 direction = (worldPosition - _planet.Center).normalized;
         float latitude = Mathf.Asin(Mathf.Clamp(direction.y, -1f, 1f));
