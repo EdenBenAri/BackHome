@@ -338,7 +338,7 @@ public static class PlanetAuthoringPreview
     public static float SeaElevation(PlanetAuthoring owner)
     {
         var water = owner != null && owner.RuntimePlanet != null
-            ? owner.RuntimePlanet.GetComponentInChildren<NyxaraSeaFit>(true) : null;
+            ? owner.RuntimePlanet.GetComponentInChildren<ChapterOneSeaFit>(true) : null;
         if (water == null) return float.NegativeInfinity;
         return owner.RuntimePlanet.GetTerrainRadius(Vector3.up) + water.Clearance - owner.Radius;
     }
@@ -386,7 +386,7 @@ public static class PlanetAuthoringPreview
             indices[t] = v; indices[t+1] = v+2; indices[t+2] = v+1;
             indices[t+3] = v; indices[t+4] = v+3; indices[t+5] = v+2;
         }
-        var mesh = new Mesh { name = "Nyxara editor grid", hideFlags = HideFlags.HideAndDontSave,
+        var mesh = new Mesh { name = "ChapterOne editor grid", hideFlags = HideFlags.HideAndDontSave,
             indexFormat = vertices.Length > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16 };
         mesh.vertices = vertices; mesh.uv = uv; mesh.colors = colors; mesh.SetUVs(1, highs); mesh.SetUVs(2, tops); mesh.triangles = indices;
         mesh.RecalculateNormals(); mesh.RecalculateBounds();

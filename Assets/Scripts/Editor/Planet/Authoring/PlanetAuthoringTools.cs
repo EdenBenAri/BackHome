@@ -7,7 +7,7 @@ using Object = UnityEngine.Object;
 public static class PlanetAuthoringTools
 {
     public const string ScenePath = "Assets/Scenes/Galaxy.unity";
-    public const string PrefabPath = "Assets/Resources/Galaxy/Nyxara/PlanetNyxara.prefab";
+    public const string PrefabPath = "Assets/Resources/Galaxy/ChapterOne/PlanetChapterOne.prefab";
 
     public static void RemoveProp(PlanetAuthoring owner, PlanetPlacement placement)
     {
@@ -136,7 +136,7 @@ public static class PlanetAuthoringTools
         PlanetAuthoringPreview.Queue(owner);
     }
 
-    [MenuItem("BackHome/Nyxara/Open World")]
+    [MenuItem("BackHome/ChapterOne/Open World")]
     public static void Open()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) return;

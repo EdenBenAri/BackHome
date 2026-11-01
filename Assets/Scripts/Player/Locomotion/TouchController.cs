@@ -149,6 +149,7 @@ public class TouchController : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
         if (_planetWalker != null && _planetWalker.IsWalkingOnPlanet)
             return;
         if (LockLocomotion)
@@ -285,12 +286,11 @@ public class TouchController : MonoBehaviour
         if (_animationBlend < 0.01f)
             _animationBlend = 0f;
 
-        Vector3 inputDirection = new Vector3(moveInput.x, 0f, moveInput.y).normalized;
+        Vector3 inputDirection = CameraRelativeMoveFrame.Resolve(moveInput, Vector3.up, GetCameraFlatForward());
 
         if (moveInput.sqrMagnitude >= 0.01f)
         {
-            _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg
-                              + (_camera != null ? _camera.transform.eulerAngles.y : 0f);
+            _targetRotation = Mathf.Atan2(inputDirection.x, inputDirection.z) * Mathf.Rad2Deg;
 
             float rotation = Mathf.SmoothDampAngle(
                 transform.eulerAngles.y,

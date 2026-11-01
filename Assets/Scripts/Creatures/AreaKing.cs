@@ -33,12 +33,28 @@ public class AreaKing : MonoBehaviour
 
     void Start()
     {
+        FacePlayer(FindAnyObjectByType<PlayerVitals>()?.transform);
+
         if (_anim == null)
             return;
 
         _holding = true;
         _creature.SetFrozen(true);
         _anim.PlaySpawn();
+    }
+
+    /// <summary>Face the player immediately while preserving the king's surface alignment.</summary>
+    public void FacePlayer(Transform player)
+    {
+        if (player == null)
+            return;
+
+        Vector3 up = transform.up;
+        Vector3 forward = Vector3.ProjectOnPlane(player.position - transform.position, up);
+        if (forward.sqrMagnitude < 0.001f)
+            return;
+
+        transform.rotation = Quaternion.LookRotation(forward.normalized, up);
     }
 
     void Update()

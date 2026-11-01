@@ -1,7 +1,7 @@
 using UnityEngine;
 
 /// <summary>
-/// Fixed spawn point. Place one in the scene where the player should appear.
+/// Fixed spawn location. On a planet, face the next undefeated king at this location.
 /// </summary>
 [DisallowMultipleComponent]
 public class ScenePlayerSpawnPoint : MonoBehaviour
@@ -18,6 +18,9 @@ public class ScenePlayerSpawnPoint : MonoBehaviour
 
         position = point.transform.position;
         rotation = point.transform.rotation;
+        CreatureSpawner spawner = FindAnyObjectByType<CreatureSpawner>();
+        if (spawner != null && spawner.TryGetNextKingFacing(position, out Vector3 forward, out Vector3 up))
+            rotation = Quaternion.LookRotation(forward, up);
         return true;
     }
 }

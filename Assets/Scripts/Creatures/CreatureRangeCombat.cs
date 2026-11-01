@@ -27,6 +27,7 @@ public class CreatureRangeCombat : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
         _hitPlayerThisFrame = false;
 
         if (_creature == null || !_creature.IsAlive || _creature.IsFrozen)

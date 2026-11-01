@@ -788,7 +788,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7033818282479677052, guid: c4a91e7b2d8f4065a3c1e0b9d7f24618, type: 3}
       propertyPath: m_Name
-      value: NyxaraHologram
+      value: ChapterOneHologram
       objectReference: {fileID: 0}
     - target: {fileID: 7033818282479677052, guid: c4a91e7b2d8f4065a3c1e0b9d7f24618, type: 3}
       propertyPath: m_IsActive

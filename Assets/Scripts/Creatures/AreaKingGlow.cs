@@ -10,7 +10,7 @@ using UnityEngine.Rendering;
 [DefaultExecutionOrder(100)]
 public class AreaKingGlow : MonoBehaviour
 {
-    const string MaterialPath = "Galaxy/Nyxara/Creatures/VFX/AreaKingGlow";
+    const string MaterialPath = "Galaxy/ChapterOne/Creatures/VFX/AreaKingGlow";
     const float RadiusMultiplier = 1.35f;
 
     Creature _creature;

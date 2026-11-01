@@ -179,6 +179,7 @@ public class CreatureChase : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
         if (_creature == null)
         {
             _velocity = Vector3.zero;

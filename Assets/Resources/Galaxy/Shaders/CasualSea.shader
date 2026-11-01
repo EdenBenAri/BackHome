@@ -17,11 +17,11 @@ Shader "BackHome/CasualSea"
         _WaveHeight("Wave Height", Range(0, 1)) = 0.16
         _WaveFrequency("Wave Size", Range(0.05, 2)) = 0.38
         _WaveSpeed("Wave Speed", Range(0, 3)) = 0.55
-        _CrestStrength("Ripple Strength", Range(0, 1)) = 0.42
-        _RippleNormal("Glint Breakup", Range(0, 6)) = 2.2
+        _CrestStrength("Ripple Strength", Range(0, 1)) = 0.22
+        _RippleNormal("Glint Breakup", Range(0, 6)) = 1.4
 
         [Header(Highlights)]
-        _GlintStrength("Sun Glint", Range(0, 1.5)) = 0.65
+        _GlintStrength("Sun Glint", Range(0, 1.5)) = 0.3
         _SparkleScale("Sparkle Size", Range(0.1, 4)) = 0.42
         _SparkleSpeed("Sparkle Speed", Range(0, 6)) = 2.4
         _ShadeFloor("Shadow Brightness", Range(0.5, 1)) = 0.88
@@ -91,56 +91,74 @@ Shader "BackHome/CasualSea"
                 float4 positionCS : SV_POSITION;
                 float3 positionWS : TEXCOORD0;
                 float3 normalWS : TEXCOORD1;
-                float4 screenPos : TEXCOORD2;
+                float3 wavePosition : TEXCOORD2;
                 float fogFactor : TEXCOORD3;
                 UNITY_VERTEX_INPUT_INSTANCE_ID
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
-            void SeaFrame(float3 normalWS, out float3 tangent, out float3 bitangent)
+            float3 SeaScale()
             {
-                float3 n = normalize(normalWS);
-                float3 axis = abs(n.y) > 0.92 ? float3(1, 0, 0) : float3(0, 1, 0);
-                tangent = normalize(cross(axis, n));
-                bitangent = cross(n, tangent);
+                float4x4 objectToWorld = GetObjectToWorldMatrix();
+                return float3(length(objectToWorld._m00_m10_m20),
+                    length(objectToWorld._m01_m11_m21), length(objectToWorld._m02_m12_m22));
             }
 
-            void SeaWaves(float3 positionWS, float3 normalWS, out float height, out float crest, out float3 slopeWS)
+            // A continuous 3D field in planet-local axes, measured in world units.
+            // Projecting a radial position onto its own tangent frame collapses the
+            // coordinates, and switching that frame near a pole creates a visible cap.
+            // This field has neither a longitude seam nor a special case at the poles.
+            void SeaWaves(float3 p, out float height, out float crest, out float3 gradient)
             {
-                float3 tangent;
-                float3 bitangent;
-                SeaFrame(normalWS, tangent, bitangent);
-                float2 uv = float2(dot(positionWS, tangent), dot(positionWS, bitangent));
-
                 float time = _Time.y * _WaveSpeed;
-                float2 k1 = float2(0.85, 0.28) * _WaveFrequency;
-                float2 k2 = float2(-0.36, 0.74) * _WaveFrequency;
-                float phase1 = dot(uv, k1) + time;
-                float phase2 = dot(uv, k2) - time * 0.72;
-
-                float s1 = sin(phase1);
-                float s2 = sin(phase2);
-                height = (s1 * 0.62 + s2 * 0.38) * _WaveHeight;
-
-                float2 gradient = (cos(phase1) * 0.62 * k1 + cos(phase2) * 0.38 * k2) * _WaveHeight;
-                slopeWS = tangent * gradient.x + bitangent * gradient.y;
-
-                // Broad painted bands, only on the crests, like a casual water sprite.
-                float band = s1 * 0.5 + 0.5;
-                crest = smoothstep(0.58, 0.94, band);
+                float3 k1 = float3(0.85, 0.28, 0.43) * _WaveFrequency;
+                float3 k2 = float3(-0.36, 0.74, 0.57) * _WaveFrequency * 1.37;
+                float3 k3 = float3(0.52, 0.61, -0.59) * _WaveFrequency * 1.91;
+                float3 kw = float3(-0.18, 0.31, 0.23) * _WaveFrequency;
+                float warp = dot(p, kw) - time * 0.31;
+                float phase1 = dot(p, k1) + sin(warp) * 0.8 + time;
+                float phase2 = dot(p, k2) + sin(warp * 1.3 + 1.7) * 0.6 - time * 0.72;
+                float phase3 = dot(p, k3) + time * 0.46;
+                float wave = sin(phase1) * 0.5 + sin(phase2) * 0.3 + sin(phase3) * 0.2;
+                height = wave * _WaveHeight;
+                gradient = (cos(phase1) * 0.5 * (k1 + cos(warp) * 0.8 * kw)
+                    + cos(phase2) * 0.3 * (k2 + cos(warp * 1.3 + 1.7) * 0.78 * kw)
+                    + cos(phase3) * 0.2 * k3) * _WaveHeight;
+                // Thin, broken crest strokes instead of broad stripes or round spots.
+                crest = smoothstep(0.82, 0.98, sin(phase1))
+                    * smoothstep(-0.25, 0.65, sin(phase2));
             }
 
-            float Sparkle(float3 positionWS, float3 normalWS, float crest)
+            float Sparkle(float3 p, float crest)
             {
-                float3 tangent;
-                float3 bitangent;
-                SeaFrame(normalWS, tangent, bitangent);
-                float2 uv = float2(dot(positionWS, tangent), dot(positionWS, bitangent));
-                float2 cell = floor(uv * _SparkleScale);
-                float rnd = frac(sin(dot(cell, float2(127.1, 311.7))) * 43758.5453);
+                float3 q = p * _SparkleScale;
+                float3 cell = floor(q);
+                float rnd = frac(sin(dot(cell, float3(127.1, 311.7, 74.7))) * 43758.5453);
                 float twinkle = sin(_Time.y * _SparkleSpeed + rnd * 6.28318) * 0.5 + 0.5;
-                float dotOn = step(0.992, rnd) * smoothstep(0.5, 1.0, twinkle);
-                return dotOn * smoothstep(0.35, 0.85, crest);
+                // Fade to zero at cell edges: no square patches or cell-boundary pops.
+                float spot = 1.0 - smoothstep(0.08, 0.3, length(frac(q) - 0.5));
+                return step(0.94, rnd) * spot * smoothstep(0.5, 1.0, twinkle) * crest;
+            }
+
+            float SeaThickness(float2 screenUV, float3 positionWS)
+            {
+                float depth = SampleSceneDepth(screenUV);
+                // Empty depth is open water, never a foamy intersection with the sky.
+                #if UNITY_REVERSED_Z
+                    if (depth <= 0.000001) return _DepthDistance;
+                #else
+                    if (depth >= 0.999999) return _DepthDistance;
+                    depth = lerp(UNITY_NEAR_CLIP_VALUE, 1.0, depth);
+                #endif
+                // Inverse projection works for both perspective and orthographic views.
+                float3 groundWS = ComputeWorldSpacePosition(screenUV, depth, UNITY_MATRIX_I_VP);
+                float3 centerWS = TransformObjectToWorld(float3(0, 0, 0));
+                float waterRadius = length(positionWS - centerWS);
+                float groundRadius = length(groundWS - centerWS);
+                // Radial depth keeps the shore width stable around a spherical ocean.
+                // Distant scenery outside the ocean is not its seabed.
+                if (groundRadius > waterRadius + 0.02) return _DepthDistance;
+                return max(waterRadius - groundRadius, 0.0);
             }
 
             Varyings vert(Attributes input)
@@ -153,14 +171,14 @@ Shader "BackHome/CasualSea"
                 float3 normalWS = TransformObjectToWorldNormal(input.normalOS);
                 float3 positionWS = TransformObjectToWorld(input.positionOS.xyz);
                 float height, crest;
-                float3 slopeWS;
-                SeaWaves(positionWS, normalWS, height, crest, slopeWS);
+                float3 gradient;
+                output.wavePosition = input.positionOS.xyz * SeaScale();
+                SeaWaves(output.wavePosition, height, crest, gradient);
                 positionWS += normalize(normalWS) * height;
 
                 output.positionWS = positionWS;
                 output.normalWS = normalWS;
                 output.positionCS = TransformWorldToHClip(positionWS);
-                output.screenPos = ComputeScreenPos(output.positionCS);
                 output.fogFactor = ComputeFogFactor(output.positionCS.z);
                 return output;
             }
@@ -171,17 +189,17 @@ Shader "BackHome/CasualSea"
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(input);
 
                 float height, crest;
-                float3 slopeWS;
-                SeaWaves(input.positionWS, input.normalWS, height, crest, slopeWS);
+                float3 gradient;
+                // Sample the same undisplaced coordinates as the vertex stage.
+                SeaWaves(input.wavePosition, height, crest, gradient);
+                float3 baseNormal = normalize(input.normalWS);
+                float3 gradientWS = TransformObjectToWorldNormal(gradient * SeaScale(), false);
+                float3 slopeWS = gradientWS - baseNormal * dot(gradientWS, baseNormal);
+                float3 normalWS = normalize(baseNormal - slopeWS * _RippleNormal);
+                float3 viewDir = GetWorldSpaceNormalizeViewDir(input.positionWS);
 
-                float3 normalWS = normalize(input.normalWS - slopeWS * _RippleNormal);
-                float3 viewDir = normalize(_WorldSpaceCameraPos.xyz - input.positionWS);
-
-                float2 screenUV = input.screenPos.xy / input.screenPos.w;
-                float sceneEye = LinearEyeDepth(SampleSceneDepth(screenUV), _ZBufferParams);
-                float surfaceEye = LinearEyeDepth(input.positionCS.z, _ZBufferParams);
-                // Eye-depth gap to the ground. Large over open water, small on the beach.
-                float thickness = max(sceneEye - surfaceEye, 0);
+                float2 screenUV = GetNormalizedScreenSpaceUV(input.positionCS);
+                float thickness = SeaThickness(screenUV, input.positionWS);
 
                 float deep = saturate(pow(saturate(thickness / max(_DepthDistance, 0.01)), _DepthPower));
                 half3 color = lerp(_ShallowColor.rgb, _DeepColor.rgb, deep);
@@ -200,9 +218,9 @@ Shader "BackHome/CasualSea"
                 color *= shade;
 
                 float3 halfDir = normalize(lightDir + viewDir);
-                float glint = smoothstep(0.72, 0.98, saturate(dot(normalWS, halfDir)));
-                float sparkle = Sparkle(input.positionWS, input.normalWS, crest);
-                color += (glint * _GlintStrength + sparkle) * half3(1, 1, 1);
+                float glint = pow(saturate(dot(normalWS, halfDir)), 64.0) * ndl;
+                float sparkle = Sparkle(input.wavePosition, crest);
+                color = lerp(color, _CrestColor.rgb, saturate(glint * _GlintStrength + sparkle * 0.35));
 
                 float shore = saturate(1.0 - thickness / max(_ShoreWidth, 0.01));
                 shore = saturate(shore + (crest - 0.35) * 0.18);

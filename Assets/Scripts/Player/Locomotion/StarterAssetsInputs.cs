@@ -13,6 +13,27 @@ namespace StarterAssets
 		public bool jump;
 		public bool sprint;
 
+		// Contact lasts even when the thumb rests in the joystick's dead zone.
+		// Track the owning touch gesture so cinematic freezes can cancel it cleanly.
+		public bool IsMoveGestureActive { get; private set; }
+		public bool GameplayBlocked { get; private set; }
+
+		public void BeginMoveGesture() { if (!GameplayBlocked) IsMoveGestureActive = true; }
+
+		public void SetGameplayBlocked(bool blocked)
+		{
+			GameplayBlocked = blocked;
+			EndMoveGesture();
+			look = Vector2.zero;
+			jump = sprint = false;
+		}
+
+		public void EndMoveGesture()
+		{
+			IsMoveGestureActive = false;
+			move = Vector2.zero;
+		}
+
 		[Header("Movement Settings")]
 		public bool analogMovement;
 
@@ -48,7 +69,7 @@ namespace StarterAssets
 
 		public void MoveInput(Vector2 newMoveDirection)
 		{
-			move = newMoveDirection;
+			move = GameplayBlocked ? Vector2.zero : newMoveDirection;
 		} 
 
 		public void LookInput(Vector2 newLookDirection)

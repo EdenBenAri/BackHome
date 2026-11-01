@@ -10,7 +10,20 @@ namespace StarterAssets
 
         public void VirtualMoveInput(Vector2 virtualMoveDirection)
         {
-            starterAssetsInputs.MoveInput(virtualMoveDirection);
+            if (starterAssetsInputs != null)
+                starterAssetsInputs.MoveInput(virtualMoveDirection);
+        }
+
+        public void BeginMoveGesture()
+        {
+            if (starterAssetsInputs != null)
+                starterAssetsInputs.BeginMoveGesture();
+        }
+
+        public void EndMoveGesture()
+        {
+            if (starterAssetsInputs != null)
+                starterAssetsInputs.EndMoveGesture();
         }
 
         public void VirtualLookInput(Vector2 virtualLookDirection)

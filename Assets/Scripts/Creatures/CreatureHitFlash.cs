@@ -7,7 +7,7 @@ using UnityEngine;
 [RequireComponent(typeof(Creature))]
 public class CreatureHitFlash : MonoBehaviour
 {
-    const string ResourcesPath = "Galaxy/Planets/Nyxara/Creatures/HitFlash";
+    const string ResourcesPath = "Galaxy/ChapterOne/Creatures/VFX/HitFlash";
 
     static readonly int HitColorId = Shader.PropertyToID("_HitColor");
     static readonly int HitAmountId = Shader.PropertyToID("_HitAmount");

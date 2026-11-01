@@ -231,7 +231,7 @@ public sealed class PlanetAuthoringEditor : Editor
         }
         if (e.type == EventType.MouseDown)
         {
-            Undo.RegisterCompleteObjectUndo(map, water ? "Paint flat water" : sculpt ? "Sculpt flat Nyxara" : "Paint flat Nyxara");
+            Undo.RegisterCompleteObjectUndo(map, water ? "Paint flat water" : sculpt ? "Sculpt flat ChapterOne" : "Paint flat ChapterOne");
             stroke = true; changed = false; lastRow = lastColumn = -1;
             GUIUtility.hotControl = control;
         }

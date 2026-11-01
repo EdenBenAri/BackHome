@@ -68,7 +68,7 @@ public class SphericalPlanet : MonoBehaviour
     public float Radius => radius;
 
     /// <summary>
-    /// Planet-local +Y. Agreed north for Nyxara layout (positive latitude).
+    /// Planet-local +Y. Agreed north for ChapterOne layout (positive latitude).
     /// </summary>
     public Vector3 LocalNorth => transform.up;
 

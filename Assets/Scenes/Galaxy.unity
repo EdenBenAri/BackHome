@@ -129,7 +129,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 3889423873524859007, guid: ca77c2c1c14f1d446b5a1988719992d5, type: 3}
       propertyPath: m_Name
-      value: PlanetNyxara
+      value: PlanetChapterOne
       objectReference: {fileID: 0}
     - target: {fileID: 4904927570820870627, guid: ca77c2c1c14f1d446b5a1988719992d5, type: 3}
       propertyPath: runtimeTarget
@@ -187,8 +187,14 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 8500000000000001100, guid: ca77c2c1c14f1d446b5a1988719992d5, type: 3}
+      propertyPath: persistProgress
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
-    m_RemovedGameObjects: []
+    m_RemovedGameObjects:
+    - {fileID: 2137236955360934294, guid: ca77c2c1c14f1d446b5a1988719992d5, type: 3}
+    - {fileID: 7646939895914442922, guid: ca77c2c1c14f1d446b5a1988719992d5, type: 3}
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 3157891369791452170, guid: ca77c2c1c14f1d446b5a1988719992d5, type: 3}
       insertIndex: -1
@@ -728,6 +734,10 @@ PrefabInstance:
     - target: {fileID: 1722103695826375278, guid: 6f5cc733040770e4185166a9281c264a, type: 3}
       propertyPath: m_ActiveFontFeatures.Array.size
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1932776418727144980, guid: 6f5cc733040770e4185166a9281c264a, type: 3}
+      propertyPath: m_IsActive
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2178371070516501550, guid: 6f5cc733040770e4185166a9281c264a, type: 3}
       propertyPath: m_AnchorMax.x
@@ -1538,8 +1548,7 @@ MonoBehaviour:
   planet: {fileID: 0}
   spawnEntries: []
   spawnPoints:
-  - areaName: SlimeA1
-    areaId: A1
+  - areaId: A1
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -1549,8 +1558,7 @@ MonoBehaviour:
     king:
       prefab: {fileID: 0}
       respawnSeconds: 40
-  - areaName: SlimeA2
-    areaId: A2
+  - areaId: KingA1
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -1560,8 +1568,7 @@ MonoBehaviour:
     king:
       prefab: {fileID: 202015356711912051, guid: 04690b2de08995141ae3a8185b580fc6, type: 3}
       respawnSeconds: 40
-  - areaName: GrimlingA3
-    areaId: A3
+  - areaId: A2
     radius: 10
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -1571,8 +1578,7 @@ MonoBehaviour:
     king:
       prefab: {fileID: 0}
       respawnSeconds: 40
-  - areaName: GrimlingA4
-    areaId: A4
+  - areaId: KingA2
     radius: 12
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -1582,8 +1588,7 @@ MonoBehaviour:
     king:
       prefab: {fileID: 8108090093416353532, guid: 5a22e372a6c6ac148b3940fad2719cdd, type: 3}
       respawnSeconds: 40
-  - areaName: SnarlfangA5
-    areaId: A5
+  - areaId: A3
     radius: 12
     creatures:
     - prefab: {fileID: 1093679255119258297, guid: c60b7a11b4d2b84458df7cbf8a822cf5, type: 3}
@@ -1593,8 +1598,7 @@ MonoBehaviour:
     king:
       prefab: {fileID: 0}
       respawnSeconds: 40
-  - areaName: SnarlfangA6
-    areaId: A6
+  - areaId: KingA3
     radius: 8
     creatures:
     - prefab: {fileID: 1093679255119258297, guid: c60b7a11b4d2b84458df7cbf8a822cf5, type: 3}
@@ -1707,6 +1711,7 @@ GameObject:
   - component: {fileID: 1505854906}
   - component: {fileID: 1505854909}
   - component: {fileID: 1505854910}
+  - component: {fileID: 1505854911}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -1852,25 +1857,22 @@ MonoBehaviour:
   lookAtTarget: 1
   alignToTargetUp: 1
   preferPlanetRadialUp: 1
-  followTargetFacing: 0
-  fixedBackHint: {x: 0.45, y: 0, z: 1}
   upSmoothSpeed: 5
   focusSmoothSpeed: 10
   heightSmoothSpeed: 2.5
-  enableMotionFraming: 1
-  moveExtraHeight: 1.1
-  moveExtraBack: 0.7
-  moveExtraFov: 1.5
-  walkStartBoost: 1.12
-  walkStartBoostDuration: 0.9
-  zoomOutSpeed: 3.5
-  zoomInSpeed: 2.2
-  sustainSettleTime: 2
-  sustainPitchHeight: 0.8
-  sustainPitchBack: -0.3
-  lookAheadDistance: 1.4
-  lookAheadSmoothSpeed: 3.5
-  referenceMoveSpeed: 12
+--- !u!114 &1505854911
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1505854905}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d2fdfc34c2110394f93fa89c8706e3b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::KingCinematicDirector
+  settings: {fileID: 11400000, guid: 73ed9f4d031248b7ac994889cf58ba4a, type: 2}
 --- !u!1 &2011369679
 GameObject:
   m_ObjectHideFlags: 0

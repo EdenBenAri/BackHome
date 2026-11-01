@@ -162,6 +162,7 @@ public class PlanetWalker : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
         if (!_sceneAllowsPlanetWalk)
             return;
 
@@ -374,6 +375,7 @@ public class PlanetWalker : MonoBehaviour
         next = UnstickIfImmobile(from, next, inputMagnitude, hover);
         next = PlanetBorders.ResolveAgainstWalls(_planet, from, next, wallRadius);
         next = PushFeetOutOfSolidProps(next, up);
+        next = PlanetStageProgression.ConstrainMove(_planet, from, next, wallRadius);
         fromCenterFinal = next - _planet.Center;
         if (fromCenterFinal.sqrMagnitude > 0.0001f)
             up = fromCenterFinal.normalized;
@@ -1041,24 +1043,8 @@ public class PlanetWalker : MonoBehaviour
 
     Vector3 GetTangentMoveDirection(Vector2 moveInput, Vector3 up)
     {
-        if (moveInput.sqrMagnitude < 0.01f)
-            return Vector3.zero;
-
         Vector3 camForward = _camera != null ? _camera.transform.forward : transform.forward;
-        Vector3 camRight = _camera != null ? _camera.transform.right : transform.right;
-        camForward = Vector3.ProjectOnPlane(camForward, up);
-        camRight = Vector3.ProjectOnPlane(camRight, up);
-
-        if (camForward.sqrMagnitude < 0.001f)
-            camForward = Vector3.ProjectOnPlane(transform.forward, up);
-        if (camRight.sqrMagnitude < 0.001f)
-            camRight = Vector3.Cross(up, camForward);
-
-        camForward.Normalize();
-        camRight.Normalize();
-
-        Vector3 dir = camRight * moveInput.x + camForward * moveInput.y;
-        return dir.sqrMagnitude > 0.001f ? dir.normalized : Vector3.zero;
+        return CameraRelativeMoveFrame.Resolve(moveInput, up, camForward);
     }
 
     void SnapToSurface(Vector3 preferredUp)
@@ -1096,7 +1082,10 @@ public class PlanetWalker : MonoBehaviour
         transform.position = point;
         up = normal;
 
-        Vector3 forward = Vector3.ProjectOnPlane(Vector3.forward, up);
+        // Keep the spawn/objective heading when attaching to the sphere.
+        Vector3 forward = Vector3.ProjectOnPlane(transform.forward, up);
+        if (forward.sqrMagnitude < 0.001f)
+            forward = Vector3.ProjectOnPlane(Vector3.forward, up);
         if (forward.sqrMagnitude < 0.001f)
             forward = Vector3.ProjectOnPlane(Vector3.right, up);
         transform.rotation = Quaternion.LookRotation(forward.normalized, up);

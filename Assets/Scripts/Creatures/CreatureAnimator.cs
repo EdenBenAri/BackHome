@@ -38,6 +38,10 @@ public class CreatureAnimator : MonoBehaviour
     bool _spawnPending;
     float _spawnEnteredAt = -1f;
     float _spawnClipLength = -1f;
+    bool _cinematicSpawn;
+    AnimatorUpdateMode _savedUpdateMode;
+    AnimatorCullingMode _savedCullingMode;
+    float _savedAnimatorSpeed;
     int _hasMovingParam = -1;
     float _attackClipLength = -1f;
     float _lightClipLength = -1f;
@@ -64,6 +68,54 @@ public class CreatureAnimator : MonoBehaviour
 
     /// <summary>True while the one-shot Spawn intro is playing or still waiting for the Animator to wake up.</summary>
     public bool IsSpawning => _spawning || _spawnPending;
+
+    /// <summary>Replay the configured Spawn state while the rest of the world is frozen.</summary>
+    public float BeginCinematicSpawn()
+    {
+        if (_dying || _animator == null || _animator.runtimeAnimatorController == null) return 0f;
+        if (_cinematicSpawn) EndCinematicSpawn();
+        _savedUpdateMode = _animator.updateMode;
+        _savedCullingMode = _animator.cullingMode;
+        _savedAnimatorSpeed = _animator.speed;
+        _cinematicSpawn = true;
+        _animator.updateMode = AnimatorUpdateMode.UnscaledTime;
+        _animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+        _animator.speed = 1f;
+        _animator.Update(0f);
+        if (!_animator.HasState(0, SpawnHash)) return 0f;
+
+        _spawning = true;
+        _spawnPending = _moving = _attacking = false;
+        if (HasParameter(IsMovingHash)) _animator.SetBool(IsMovingHash, false);
+        if (HasParameter(IsAttackingHash)) _animator.SetBool(IsAttackingHash, false);
+        _animator.Play(SpawnHash, 0, 0f);
+        _animator.Update(0f);
+        _spawnEnteredAt = Time.unscaledTime;
+        AnimatorStateInfo state = _animator.GetCurrentAnimatorStateInfo(0);
+        float speed = Mathf.Abs(state.speed * state.speedMultiplier);
+        float duration = state.length / Mathf.Max(0.01f, speed);
+        // Read the state rather than assuming a species or an imported clip name.
+        _cinematicSpawnDuration = Mathf.Max(0f, duration);
+        return _cinematicSpawnDuration;
+    }
+
+    float _cinematicSpawnDuration;
+
+    public void EndCinematicSpawn()
+    {
+        if (!_cinematicSpawn) return;
+        if (_animator != null)
+        {
+            _animator.updateMode = _savedUpdateMode;
+            _animator.cullingMode = _savedCullingMode;
+            _animator.speed = _savedAnimatorSpeed;
+        }
+        if (_spawnEnteredAt >= 0f)
+            _spawnEnteredAt = Time.time - (Time.unscaledTime - _spawnEnteredAt);
+        _cinematicSpawn = false;
+    }
+
+    void OnDisable() => EndCinematicSpawn();
 
     /// <summary>Includes the final blend out of Spawn, until it no longer contributes to the pose.</summary>
     public bool IsSpawnAnimationPlaying => IsSpawning
@@ -274,10 +326,11 @@ public class CreatureAnimator : MonoBehaviour
     void HoldSpawn()
     {
         TryEnterSpawn();
-        float length = CacheClip(ref _spawnClipLength, "Spawn");
+        float length = _cinematicSpawn ? _cinematicSpawnDuration : CacheClip(ref _spawnClipLength, "Spawn");
         if (_spawnEnteredAt < 0f || length <= 0.05f)
             return;
-        if (Time.time < _spawnEnteredAt + length - 0.05f)
+        float now = _cinematicSpawn ? Time.unscaledTime : Time.time;
+        if (now < _spawnEnteredAt + length)
             return;
 
         _spawning = false;

@@ -4,7 +4,7 @@ using UnityEngine;
 [CustomEditor(typeof(PlanetTileMapPreset))]
 public class PlanetTileMapPresetEditor : Editor
 {
-    public const string DefaultFolder = "Assets/Resources/Galaxy/Nyxara/TilePresets";
+    public const string DefaultFolder = "Assets/Resources/Galaxy/ChapterOne/Tiles/TilePresets";
 
     public override void OnInspectorGUI()
     {

@@ -18,6 +18,7 @@ public class DynamicFloatingJoystick : MonoBehaviour, IPointerDownHandler, IDrag
     RectTransform _canvasRect;
     Canvas _canvas;
     bool _dragging;
+    int _pointerId = int.MinValue;
     UIVirtualJoystick _stockJoystick;
 
     public void Setup(RectTransform moveJoystick, UICanvasControllerInput input)
@@ -73,10 +74,13 @@ public class DynamicFloatingJoystick : MonoBehaviour, IPointerDownHandler, IDrag
 
     public void OnPointerDown(PointerEventData eventData)
     {
-        if (joystickRoot == null || !HasValidCanvasInput())
+        if (_dragging || joystickRoot == null || !HasValidCanvasInput()
+            || canvasInput.starterAssetsInputs.GameplayBlocked)
             return;
 
         _dragging = true;
+        _pointerId = eventData.pointerId;
+        canvasInput.BeginMoveGesture();
         PlaceJoystick(eventData);
         joystickRoot.gameObject.SetActive(true);
         UpdateJoystick(eventData);
@@ -84,7 +88,12 @@ public class DynamicFloatingJoystick : MonoBehaviour, IPointerDownHandler, IDrag
 
     public void OnDrag(PointerEventData eventData)
     {
-        if (!_dragging)
+        if (HasValidCanvasInput() && canvasInput.starterAssetsInputs.GameplayBlocked)
+        {
+            CancelGesture();
+            return;
+        }
+        if (!_dragging || eventData.pointerId != _pointerId)
             return;
 
         UpdateJoystick(eventData);
@@ -92,13 +101,30 @@ public class DynamicFloatingJoystick : MonoBehaviour, IPointerDownHandler, IDrag
 
     public void OnPointerUp(PointerEventData eventData)
     {
-        if (!_dragging)
+        if (!_dragging || eventData.pointerId != _pointerId)
             return;
 
+        CancelGesture();
+    }
+
+    void OnDisable() => CancelGesture();
+    void Update()
+    {
+        if (_dragging && HasValidCanvasInput() && canvasInput.starterAssetsInputs.GameplayBlocked)
+            CancelGesture();
+    }
+    void OnApplicationFocus(bool focused) { if (!focused) CancelGesture(); }
+    void OnApplicationPause(bool paused) { if (paused) CancelGesture(); }
+
+    void CancelGesture()
+    {
+        if (!_dragging)
+            return;
         _dragging = false;
+        _pointerId = int.MinValue;
 
         if (HasValidCanvasInput())
-            canvasInput.VirtualMoveInput(Vector2.zero);
+            canvasInput.EndMoveGesture();
 
         if (handleRect != null)
             handleRect.anchoredPosition = Vector2.zero;
@@ -135,11 +161,12 @@ public class DynamicFloatingJoystick : MonoBehaviour, IPointerDownHandler, IDrag
                 out Vector2 localPoint))
             return;
 
-        Vector2 clamped = Vector2.ClampMagnitude(localPoint, joystickRange);
+        float range = Mathf.Max(1f, joystickRange);
+        Vector2 clamped = Vector2.ClampMagnitude(localPoint, range);
         if (handleRect != null)
             handleRect.anchoredPosition = clamped;
 
-        Vector2 output = clamped / joystickRange;
+        Vector2 output = clamped / range;
         if (invertY)
             output.y = -output.y;
 

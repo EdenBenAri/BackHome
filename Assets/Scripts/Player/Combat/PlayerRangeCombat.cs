@@ -74,6 +74,7 @@ public class PlayerRangeCombat : MonoBehaviour
 
     void Update()
     {
+        if (Time.timeScale <= 0f) return;
         _firing = false;
         if (_vitals == null || !_vitals.IsAlive)
         {

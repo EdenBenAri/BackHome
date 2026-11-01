@@ -12,10 +12,10 @@ public static class PlanetAuthoringValidation
 
     static void Require(bool condition, string message)
     {
-        if (!condition) throw new InvalidOperationException("Nyxara validation: " + message);
+        if (!condition) throw new InvalidOperationException("ChapterOne validation: " + message);
     }
 
-    [MenuItem("BackHome/Nyxara/Validate World")]
+    [MenuItem("BackHome/ChapterOne/Validate World")]
     public static void Run()
     {
         var report = new System.Text.StringBuilder();

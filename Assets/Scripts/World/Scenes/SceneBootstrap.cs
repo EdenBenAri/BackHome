@@ -125,7 +125,10 @@ public class SceneBootstrap : MonoBehaviour
             follow = Camera.main.GetComponent<CameraFollow>();
 
         if (follow != null)
+        {
             follow.SetTarget(player);
+            follow.BindKingGuidance(Object.FindAnyObjectByType<CreatureSpawner>());
+        }
         else
             Debug.LogWarning("SceneBootstrap: add CameraFollow on Main Camera to tune offsets per scene.");
     }

@@ -123,14 +123,14 @@ public sealed class PlanetAuthoring : MonoBehaviour
         }
         if (!ValidateConfiguration(out string reason))
         {
-            Debug.LogError("Nyxara: " + reason, this);
+            Debug.LogError("ChapterOne: " + reason, this);
             return false;
         }
         foreach (var other in FindObjectsByType<SphericalPlanet>())
         {
             if (other != runtimePlanet && other.isActiveAndEnabled)
             {
-                Debug.LogError("Nyxara requires its own scene. Another spherical planet is already active.", this);
+                Debug.LogError("ChapterOne requires its own scene. Another spherical planet is already active.", this);
                 return false;
             }
         }
@@ -142,6 +142,8 @@ public sealed class PlanetAuthoring : MonoBehaviour
                 target.gameObject.SetActive(false);
         foreach (var placement in placements)
             placement.Apply(this);
+        if (runtimePlanet.TryGetComponent<PlanetStageProgression>(out var stages))
+            stages.Initialize();
         authoringRoot.gameObject.SetActive(false);
         ProjectionMilliseconds = watch.Elapsed.TotalMilliseconds;
         runtimePlanet.gameObject.SetActive(true);
@@ -149,7 +151,7 @@ public sealed class PlanetAuthoring : MonoBehaviour
         ProjectedObjectCount = placements.Length;
         RuntimeStartupMilliseconds = watch.Elapsed.TotalMilliseconds;
     #if UNITY_EDITOR
-        Debug.Log($"Nyxara: projected {placements.Length} placements in {ProjectionMilliseconds:F2} ms; total activation {RuntimeStartupMilliseconds:F2} ms including runtime startup.", this);
+        Debug.Log($"ChapterOne: projected {placements.Length} placements in {ProjectionMilliseconds:F2} ms; total activation {RuntimeStartupMilliseconds:F2} ms including runtime startup.", this);
     #endif
         return true;
     }

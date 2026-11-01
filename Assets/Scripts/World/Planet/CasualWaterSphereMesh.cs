@@ -2,7 +2,7 @@ using UnityEngine;
 
 /// <summary>
 /// Replaces the built-in low-poly sphere so cartoon water waves have enough verts to read.
-/// Radius stays 0.5 to match Unity's sphere; <see cref="NyxaraSeaFit"/> scales it to sea level.
+/// Radius stays 0.5 to match Unity's sphere; <see cref="ChapterOneSeaFit"/> scales it to sea level.
 /// </summary>
 [ExecuteAlways]
 [DisallowMultipleComponent]

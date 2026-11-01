@@ -36,7 +36,7 @@ public static class PlanetPlayValidation
         };
     }
 
-    [MenuItem("BackHome/Nyxara/Validate Play And Travel")]
+    [MenuItem("BackHome/ChapterOne/Validate Play And Travel")]
     public static void Run()
     {
         if (EditorApplication.isPlayingOrWillChangePlaymode) throw new InvalidOperationException("Exit Play first.");

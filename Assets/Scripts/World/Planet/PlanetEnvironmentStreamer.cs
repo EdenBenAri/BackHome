@@ -24,9 +24,33 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
         public Vector3 Position;
         public bool Visible;
         public bool Dynamic;
+        public PlanetStageId Stage;
     }
 
     static PlanetEnvironmentStreamer _instance;
+    readonly HashSet<GameObject> _cinematicPins = new();
+
+    /// <summary>Keep the featured king awake even when it is beyond the player's streaming radius.</summary>
+    public static void SetCinematicVisible(GameObject instance, bool visible)
+    {
+        if (instance == null) return;
+        if (visible) instance.SetActive(true);
+        if (_instance != null)
+        {
+            if (visible) _instance._cinematicPins.Add(instance);
+            else _instance._cinematicPins.Remove(instance);
+            // Keep the cache honest without forcing every prop to reevaluate in a single frame.
+            for (int i = 0; i < _instance._entries.Count; i++)
+            {
+                Entry entry = _instance._entries[i];
+                if (entry.Instance != instance) continue;
+                entry.Visible = instance.activeSelf;
+                entry.Position = instance.transform.position;
+                _instance._entries[i] = entry;
+                break;
+            }
+        }
+    }
 
     readonly List<Entry> _entries = new List<Entry>(256);
     Transform _player;
@@ -37,6 +61,7 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
     bool _hasFocus;
     float _showSqr;
     float _hideSqr;
+    PlanetStageProgression _stageProgression;
 
     void OnValidate()
     {
@@ -81,6 +106,12 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
 
         var found = new List<GameObject>(256);
         SphericalPlanet planet = GetComponentInParent<SphericalPlanet>();
+        _stageProgression = planet != null ? planet.GetComponent<PlanetStageProgression>() : null;
+        if (_stageProgression != null)
+        {
+            _stageProgression.Initialize();
+            _stageProgression.ProgressChanged += RefreshStageAccess;
+        }
         Collect(transform, planet, found);
 
         for (int i = 0; i < found.Count; i++)
@@ -92,13 +123,15 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
             {
                 Instance = found[i],
                 Position = found[i].transform.position,
-                Visible = false
+                Visible = false,
+                Stage = _stageProgression != null ? _stageProgression.StageFor(found[i].transform) : PlanetStageId.A
             });
         }
     }
 
     void OnDestroy()
     {
+        if (_stageProgression != null) _stageProgression.ProgressChanged -= RefreshStageAccess;
         if (_instance == this)
             _instance = null;
     }
@@ -113,7 +146,8 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
 
         ResolveTargets();
         Vector3 position = instance.transform.position;
-        bool show = BestDistanceSqr(position) <= _showSqr;
+        PlanetStageId stage = _stageProgression != null ? _stageProgression.StageFor(instance.transform) : PlanetStageId.A;
+        bool show = IsStageUnlocked(stage) && BestDistanceSqr(position) <= _showSqr;
         if (instance.activeSelf != show)
             instance.SetActive(show);
 
@@ -122,13 +156,35 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
             Instance = instance,
             Position = position,
             Visible = show,
-            Dynamic = true
+            Dynamic = true,
+            Stage = stage
         });
+    }
+
+    bool IsStageUnlocked(PlanetStageId stage) => _stageProgression == null || _stageProgression.IsUnlocked(stage);
+
+    void RefreshStageAccess()
+    {
+        // Re-evaluate the whole list next frame, preserving distance culling after an unlock.
+        _hasFocus = false;
+        for (int i = 0; i < _entries.Count; i++)
+        {
+            Entry entry = _entries[i];
+            if (entry.Instance == null || IsStageUnlocked(entry.Stage)) continue;
+            entry.Instance.SetActive(false);
+            entry.Visible = false;
+            _entries[i] = entry;
+        }
     }
 
     void LateUpdate()
     {
-        if (!Application.isPlaying || _entries.Count == 0)
+        if (Application.isPlaying) UpdateVisibility();
+    }
+
+    void UpdateVisibility()
+    {
+        if (_entries.Count == 0)
             return;
 
         ResolveTargets();
@@ -176,8 +232,13 @@ public class PlanetEnvironmentStreamer : MonoBehaviour
                 entry.Position = position;
             }
 
-            float best = BestDistanceSqr(position, hasPlayer, playerPos, hasCamera, cameraPos);
-            bool shouldShow = entry.Visible ? best <= _hideSqr : best <= _showSqr;
+            bool shouldShow = false;
+            if (IsStageUnlocked(entry.Stage))
+            {
+                float best = BestDistanceSqr(position, hasPlayer, playerPos, hasCamera, cameraPos);
+                shouldShow = (_cinematicPins.Count > 0 && _cinematicPins.Contains(instance))
+                    || (entry.Visible ? best <= _hideSqr : best <= _showSqr);
+            }
             if (entry.Dynamic && !shouldShow)
                 entry.Position = position;
 

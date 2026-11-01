@@ -49,11 +49,8 @@ public class CreatureSpawner : MonoBehaviour
     [Serializable]
     public struct SpawnPoint
     {
-        [Tooltip("Your label for this den. Shown as this spawn point's header. Not used at runtime.")]
-        public string areaName;
-
-        [Tooltip("Planet Areas child name (A1–A5). Creatures of this den spawn around that " +
-            "volume and are parented under it.")]
+        [Tooltip("Area name (A1–A6) or path under Areas (Stage A/A1). Also shown as this spawn point's header. Creatures of this den " +
+            "spawn around that volume and are parented under it.")]
         public string areaId;
 
         [Tooltip("Max distance (world units) from the area creatures can land. Small = a tight, dense cluster.")]
@@ -96,7 +93,7 @@ public class CreatureSpawner : MonoBehaviour
     [SerializeField] SpawnEntry[] spawnEntries = Array.Empty<SpawnEntry>();
 
     [Header("Spawn Points")]
-    [Tooltip("One row per area. Each row has its mobs, and one optional king.")]
+    [Tooltip("One row per area. Each row has its mobs and one optional king. King rows also define navigation order within each stage.")]
     [SerializeField] SpawnPoint[] spawnPoints = Array.Empty<SpawnPoint>();
 
     [Header("Timing")]
@@ -141,7 +138,96 @@ public class CreatureSpawner : MonoBehaviour
     readonly List<PendingRespawn> _pendingRespawns = new();
     readonly List<ResolvedEntry> _allEntries = new();
     readonly List<LiveKing> _kings = new();
+    readonly HashSet<int> _startedEntries = new();
+    readonly HashSet<int> _startedKings = new();
+    readonly HashSet<int> _sessionDefeatedKings = new();
+    PlanetStageProgression _stageProgression;
     LootDropPool _lootPool;
+
+    /// <summary>Raised after saving a new boss victory and opening any newly unlocked stage.</summary>
+    public event Action KingDefeatedFirstTime;
+
+    /// <summary>First defeat of each king in this scene visit, independent of saved stage progress.</summary>
+    public event Action KingDefeatedThisVisit;
+
+    /// <summary>
+    /// First unfinished, accessible king: stage order, then the configured spawn-point order.
+    /// Use its den as a stable navigation destination, even while the creature is chasing.
+    /// Available before Start so the player's initial spawn can face the same objective.
+    /// </summary>
+    public bool TryGetNextKingObjective(out Vector3 worldPosition)
+    {
+        worldPosition = default;
+        int index = FindNextKingIndex();
+        if (index < 0) return false;
+        worldPosition = FindPlanetArea(spawnPoints[index].areaId).position;
+        return true;
+    }
+
+    int FindNextKingIndex(bool thisVisitOnly = false)
+    {
+        if (!TryResolvePlanet() || spawnPoints == null) return -1;
+        var progress = planet.GetComponent<PlanetStageProgression>();
+        progress?.Initialize();
+        int bestStage = int.MaxValue;
+        int bestIndex = -1;
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            var point = spawnPoints[i];
+            if (point.king.prefab == null) continue;
+            Transform area = FindPlanetArea(point.areaId);
+            if (area == null) continue;
+            PlanetStageId stage = progress != null ? progress.StageFor(area) : PlanetStageId.A;
+            bool defeated = !thisVisitOnly && progress != null
+                ? progress.HasDefeatedBoss(stage, area.name) : _sessionDefeatedKings.Contains(i);
+            if (defeated || (progress != null && !progress.IsUnlocked(stage)) || (int)stage >= bestStage) continue;
+            bestIndex = i;
+            bestStage = (int)stage;
+        }
+        return bestIndex;
+    }
+
+    /// <summary>The actual configured king, including a live instance hidden by distance streaming.</summary>
+    public bool TryGetKingForPresentation(string areaId, out Creature king)
+    {
+        king = null;
+        if (spawnPoints == null) return false;
+        for (int i = 0; i < spawnPoints.Length; i++)
+        {
+            Transform area = FindPlanetArea(spawnPoints[i].areaId);
+            if (area != null && string.Equals(area.name, areaId, StringComparison.OrdinalIgnoreCase))
+                return TryGetLiveKing(i, out king);
+        }
+        return false;
+    }
+
+    public bool TryGetNextKingForPresentation(out Creature king, bool thisVisitOnly = false) =>
+        TryGetLiveKing(FindNextKingIndex(thisVisitOnly), out king);
+
+    bool TryGetLiveKing(int index, out Creature king)
+    {
+        king = null;
+        if (index < 0) return false;
+        foreach (var live in _kings)
+        {
+            if (live.spawnPointIndex != index) continue;
+            king = live.creature;
+            return king != null && king.IsAlive;
+        }
+        return false;
+    }
+
+    public bool TryGetNextKingFacing(Vector3 from, out Vector3 forward, out Vector3 up)
+    {
+        forward = default;
+        up = Vector3.up;
+        if (!TryGetNextKingObjective(out Vector3 objective)) return false;
+        up = planet.GetUpAt(from);
+        forward = Vector3.ProjectOnPlane(objective - from, up);
+        if (forward.sqrMagnitude < .001f) return false;
+        forward.Normalize();
+        return true;
+    }
 
     void OnValidate()
     {
@@ -243,6 +329,7 @@ public class CreatureSpawner : MonoBehaviour
 
     void OnDestroy()
     {
+        if (_stageProgression != null) _stageProgression.StageUnlocked -= OnStageUnlocked;
         UnsubscribeAll();
         _pendingRespawns.Clear();
         for (int i = 0; i < _kings.Count; i++)
@@ -264,6 +351,7 @@ public class CreatureSpawner : MonoBehaviour
         }
 
         BuildAllEntries();
+        BindStageProgression();
 
         int totalRequested = GetTotalRequestedCount();
         bool anyKing = HasAnyKing();
@@ -283,12 +371,21 @@ public class CreatureSpawner : MonoBehaviour
             return;
         }
 
+        SpawnAvailableEntries();
+        SpawnKings();
+    }
+
+    void SpawnAvailableEntries()
+    {
+        int totalRequested = GetTotalRequestedCount();
         for (int e = 0; e < _allEntries.Count; e++)
         {
             SpawnEntry entry = _allEntries[e].entry;
             int spawnPointIndex = _allEntries[e].spawnPointIndex;
-            if (entry.prefab == null || entry.count <= 0)
+            if (entry.prefab == null || entry.count <= 0 || _startedEntries.Contains(e)
+                || !IsSpawnPointUnlocked(spawnPointIndex))
                 continue;
+            _startedEntries.Add(e);
 
             float minDot = ComputeMinDot(ResolveMinSeparationDegrees(entry));
 
@@ -310,7 +407,36 @@ public class CreatureSpawner : MonoBehaviour
                 placed++;
             }
         }
+    }
 
+    void BindStageProgression()
+    {
+        _stageProgression = planet.GetComponent<PlanetStageProgression>();
+        if (_stageProgression == null) return;
+        _stageProgression.Initialize();
+        _stageProgression.StageUnlocked += OnStageUnlocked;
+        if (spawnPoints == null) return;
+        foreach (var point in spawnPoints)
+        {
+            if (point.king.prefab == null) continue;
+            Transform area = FindPlanetArea(point.areaId);
+            if (area != null)
+                _stageProgression.RegisterBoss(_stageProgression.StageFor(area), area.name);
+        }
+    }
+
+    bool IsSpawnPointUnlocked(int index)
+    {
+        if (_stageProgression == null || index < 0) return true;
+        if (spawnPoints == null || index >= spawnPoints.Length) return false;
+        Transform area = FindPlanetArea(spawnPoints[index].areaId);
+        return area != null && _stageProgression.IsUnlocked(_stageProgression.StageFor(area));
+    }
+
+    void OnStageUnlocked(PlanetStageId stage)
+    {
+        // Existing mobs and respawn timers survive; only newly accessible dens are created.
+        SpawnAvailableEntries();
         SpawnKings();
     }
 
@@ -335,9 +461,10 @@ public class CreatureSpawner : MonoBehaviour
 
         for (int i = 0; i < spawnPoints.Length; i++)
         {
-            if (spawnPoints[i].king.prefab == null)
+            if (spawnPoints[i].king.prefab == null || _startedKings.Contains(i) || !IsSpawnPointUnlocked(i))
                 continue;
 
+            _startedKings.Add(i);
             var live = new LiveKing { spawnPointIndex = i };
             _kings.Add(live);
             if (!SpawnKing(live))
@@ -354,6 +481,8 @@ public class CreatureSpawner : MonoBehaviour
             return true;
         if (live.spawnPointIndex < 0 || live.spawnPointIndex >= spawnPoints.Length)
             return false;
+        if (!IsSpawnPointUnlocked(live.spawnPointIndex))
+            return false;
 
         SpawnPoint point = spawnPoints[live.spawnPointIndex];
         GameObject prefab = point.king.prefab;
@@ -366,6 +495,8 @@ public class CreatureSpawner : MonoBehaviour
             return false;
 
         if (!TryGetSurfacePose(radial.normalized, out Vector3 position, out Quaternion rotation))
+            return false;
+        if (_stageProgression != null && !_stageProgression.IsPositionUnlocked(position))
             return false;
 
         Transform parent = FindPlanetArea(point.areaId);
@@ -434,8 +565,35 @@ public class CreatureSpawner : MonoBehaviour
             string area = string.IsNullOrWhiteSpace(point.areaId) ? "King" : point.areaId.Trim();
             EnsureKingCountdown(live, area);
             live.countdown.Show(feet, up, live.readyAt);
+            RecordKingDefeat(live.spawnPointIndex);
             return;
         }
+    }
+
+    void RecordKingDefeat(int spawnPointIndex)
+    {
+        if (spawnPoints == null || spawnPointIndex < 0 || spawnPointIndex >= spawnPoints.Length
+            || spawnPoints[spawnPointIndex].king.prefab == null) return;
+        Transform area = FindPlanetArea(spawnPoints[spawnPointIndex].areaId);
+        if (area == null) return;
+        bool firstSavedDefeat;
+        if (_stageProgression != null)
+        {
+            PlanetStageId stage = _stageProgression.StageFor(area);
+            if (!_stageProgression.IsUnlocked(stage)) return;
+            firstSavedDefeat = !_stageProgression.HasDefeatedBoss(stage, area.name);
+            if (firstSavedDefeat)
+            {
+                _stageProgression.RecordBossDefeat(stage, area.name);
+                if (!_stageProgression.HasDefeatedBoss(stage, area.name)) return;
+            }
+        }
+        else firstSavedDefeat = !_sessionDefeatedKings.Contains(spawnPointIndex);
+
+        // Unlocks remain persistent; presentation advances once per king in each visit.
+        bool firstVisitDefeat = _sessionDefeatedKings.Add(spawnPointIndex);
+        if (firstSavedDefeat) KingDefeatedFirstTime?.Invoke();
+        if (firstVisitDefeat) KingDefeatedThisVisit?.Invoke();
     }
 
     /// <summary>Rebuilds the combined spawn-entry list: global <see cref="spawnEntries"/> rows
@@ -476,6 +634,10 @@ public class CreatureSpawner : MonoBehaviour
     [ContextMenu("Clear Spawned")]
     public void ClearSpawned()
     {
+        if (_stageProgression != null) _stageProgression.StageUnlocked -= OnStageUnlocked;
+        _stageProgression = null;
+        _startedEntries.Clear();
+        _startedKings.Clear();
         UnsubscribeAll();
         _pendingRespawns.Clear();
 
@@ -524,7 +686,7 @@ public class CreatureSpawner : MonoBehaviour
             return;
 
         ResolvedEntry resolved = _allEntries[pending.entryIndex];
-        if (resolved.entry.prefab == null)
+        if (resolved.entry.prefab == null || !IsSpawnPointUnlocked(resolved.spawnPointIndex))
             return;
 
         if (!TryResolvePlanet())
@@ -565,10 +727,12 @@ public class CreatureSpawner : MonoBehaviour
     {
         ResolvedEntry resolved = _allEntries[entryIndex];
         SpawnEntry entry = resolved.entry;
-        if (entry.prefab == null)
+        if (entry.prefab == null || !IsSpawnPointUnlocked(resolved.spawnPointIndex))
             return false;
 
         if (!TryGetSurfacePose(dir, out Vector3 position, out Quaternion rotation))
+            return false;
+        if (_stageProgression != null && !_stageProgression.IsPositionUnlocked(position))
             return false;
 
         Transform parent = ResolveSpawnParent(resolved);
@@ -822,7 +986,7 @@ public class CreatureSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// Area dens parent under the matching Areas child (A1–A5). Everything else uses
+    /// Area dens parent under the matching area, including areas inside stages. Everything else uses
     /// <see cref="spawnRoot"/>.
     /// </summary>
     Transform ResolveSpawnParent(ResolvedEntry resolved)
@@ -892,6 +1056,9 @@ public class CreatureSpawner : MonoBehaviour
             if (candidate.sqrMagnitude < 0.0001f)
                 continue;
             candidate.Normalize();
+            if (_stageProgression != null
+                && !_stageProgression.IsPositionUnlocked(GetAnalyticSurfacePoint(candidate)))
+                continue;
 
             if (_tiles != null && _tiles.ProvidesWalkSurface)
             {
@@ -943,7 +1110,7 @@ public class CreatureSpawner : MonoBehaviour
     }
 
     /// <summary>
-    /// World origin of a spawn den: the named Areas child (A1–A5), so dens follow the
+    /// World origin of a spawn den: the named area inside Areas or a stage, so dens follow the
     /// encounter volumes even when the planet is rotated.
     /// </summary>
     Vector3 GetSpawnOrigin(SpawnPoint spawnPoint)
@@ -962,14 +1129,7 @@ public class CreatureSpawner : MonoBehaviour
 
     Transform FindPlanetArea(string areaId)
     {
-        if (string.IsNullOrWhiteSpace(areaId))
-            return null;
-
-        Transform areas = FindAreasRoot();
-        if (areas == null)
-            return null;
-
-        return areas.Find(areaId.Trim());
+        return PlanetStage.FindArea(FindAreasRoot(), areaId);
     }
 
     void OnDrawGizmosSelected()
