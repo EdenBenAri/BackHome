@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: PlayerStats
   m_EditorClassIdentifier: Assembly-CSharp::PlayerStats
   displayName: Player
-  attackDamage: 30
+  attackDamage: 900
   attackSpeed: 3
   attackRange: 2.7
   weapons:

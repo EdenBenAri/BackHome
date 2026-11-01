@@ -93,7 +93,7 @@ public class CreatureSpawner : MonoBehaviour
     [SerializeField] SpawnEntry[] spawnEntries = Array.Empty<SpawnEntry>();
 
     [Header("Spawn Points")]
-    [Tooltip("One row per area. Each row has its mobs and one optional king. King rows also define navigation order within each stage.")]
+    [Tooltip("One row per area. Kings follow stage order and the number in their area name (KingA1, KingA2, etc.). Rows break ties for unnumbered areas.")]
     [SerializeField] SpawnPoint[] spawnPoints = Array.Empty<SpawnPoint>();
 
     [Header("Timing")]
@@ -141,6 +141,7 @@ public class CreatureSpawner : MonoBehaviour
     readonly HashSet<int> _startedEntries = new();
     readonly HashSet<int> _startedKings = new();
     readonly HashSet<int> _sessionDefeatedKings = new();
+    int _lastPresentationDefeatIndex = -1;
     PlanetStageProgression _stageProgression;
     LootDropPool _lootPool;
 
@@ -151,7 +152,7 @@ public class CreatureSpawner : MonoBehaviour
     public event Action KingDefeatedThisVisit;
 
     /// <summary>
-    /// First unfinished, accessible king: stage order, then the configured spawn-point order.
+    /// First unfinished, accessible king: stage order, then the area's numeric suffix.
     /// Use its den as a stable navigation destination, even while the creature is chasing.
     /// Available before Start so the player's initial spawn can face the same objective.
     /// </summary>
@@ -164,12 +165,17 @@ public class CreatureSpawner : MonoBehaviour
         return true;
     }
 
-    int FindNextKingIndex(bool thisVisitOnly = false)
+    int FindNextKingIndex(bool thisVisitOnly = false, int afterIndex = -1)
     {
         if (!TryResolvePlanet() || spawnPoints == null) return -1;
         var progress = planet.GetComponent<PlanetStageProgression>();
         progress?.Initialize();
+        Transform afterArea = afterIndex >= 0 && afterIndex < spawnPoints.Length
+            ? FindPlanetArea(spawnPoints[afterIndex].areaId) : null;
+        int afterStage = afterArea != null && progress != null ? (int)progress.StageFor(afterArea) : (int)PlanetStageId.A;
+        int afterNumber = afterArea != null ? KingAreaNumber(afterArea.name) : 0;
         int bestStage = int.MaxValue;
+        int bestNumber = int.MaxValue;
         int bestIndex = -1;
         for (int i = 0; i < spawnPoints.Length; i++)
         {
@@ -180,11 +186,31 @@ public class CreatureSpawner : MonoBehaviour
             PlanetStageId stage = progress != null ? progress.StageFor(area) : PlanetStageId.A;
             bool defeated = !thisVisitOnly && progress != null
                 ? progress.HasDefeatedBoss(stage, area.name) : _sessionDefeatedKings.Contains(i);
-            if (defeated || (progress != null && !progress.IsUnlocked(stage)) || (int)stage >= bestStage) continue;
+            if (defeated || (progress != null && !progress.IsUnlocked(stage))) continue;
+            int number = KingAreaNumber(area.name);
+            if (afterArea != null && CompareKingOrder((int)stage, number, i, afterStage, afterNumber, afterIndex) <= 0)
+                continue;
+            if (bestIndex >= 0 && CompareKingOrder((int)stage, number, i, bestStage, bestNumber, bestIndex) >= 0)
+                continue;
             bestIndex = i;
             bestStage = (int)stage;
+            bestNumber = number;
         }
         return bestIndex;
+    }
+
+    static int KingAreaNumber(string areaName)
+    {
+        int start = areaName.Length;
+        while (start > 0 && areaName[start - 1] >= '0' && areaName[start - 1] <= '9') start--;
+        return int.TryParse(areaName.AsSpan(start), out int number) ? number : int.MaxValue;
+    }
+
+    static int CompareKingOrder(int stage, int number, int index, int otherStage, int otherNumber, int otherIndex)
+    {
+        int comparison = stage.CompareTo(otherStage);
+        if (comparison == 0) comparison = number.CompareTo(otherNumber);
+        return comparison != 0 ? comparison : index.CompareTo(otherIndex);
     }
 
     /// <summary>The actual configured king, including a live instance hidden by distance streaming.</summary>
@@ -202,7 +228,7 @@ public class CreatureSpawner : MonoBehaviour
     }
 
     public bool TryGetNextKingForPresentation(out Creature king, bool thisVisitOnly = false) =>
-        TryGetLiveKing(FindNextKingIndex(thisVisitOnly), out king);
+        TryGetLiveKing(FindNextKingIndex(thisVisitOnly, _lastPresentationDefeatIndex), out king);
 
     bool TryGetLiveKing(int index, out Creature king)
     {
@@ -592,6 +618,7 @@ public class CreatureSpawner : MonoBehaviour
 
         // Unlocks remain persistent; presentation advances once per king in each visit.
         bool firstVisitDefeat = _sessionDefeatedKings.Add(spawnPointIndex);
+        if (firstVisitDefeat || firstSavedDefeat) _lastPresentationDefeatIndex = spawnPointIndex;
         if (firstSavedDefeat) KingDefeatedFirstTime?.Invoke();
         if (firstVisitDefeat) KingDefeatedThisVisit?.Invoke();
     }

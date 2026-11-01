@@ -58,6 +58,7 @@ public static class PlanetPlacementDuplicationValidation
         string prefabBefore = File.ReadAllText(PlanetAuthoringTools.PrefabPath);
         string sceneBefore = File.ReadAllText(PlanetAuthoringTools.ScenePath);
         string temporaryPath = "Assets/PlacementDuplication-" + Guid.NewGuid().ToString("N") + ".prefab";
+        ValidateAreaSynchronization();
         GameObject root = PrefabUtility.LoadPrefabContents(PlanetAuthoringTools.PrefabPath);
         try
         {
@@ -161,6 +162,43 @@ public static class PlanetPlacementDuplicationValidation
             Require(handle.RuntimeTarget.name == name && handle.RuntimeTarget.parent.name == "Stage " + stage,
                 "Wrong binding for " + name);
         }
+    }
+
+    static void ValidateAreaSynchronization()
+    {
+        GameObject root = PrefabUtility.LoadPrefabContents(PlanetAuthoringTools.PrefabPath);
+        try
+        {
+            var owner = root.GetComponent<PlanetAuthoring>();
+            Require(PlanetAreaSynchronization.Synchronize(owner) == 0, "Saved area positions are out of sync with the flat world.");
+            var handle = owner.AuthoringRoot.Find("Areas/Stage A/A1").GetComponent<PlanetPlacement>();
+            var target = handle.RuntimeTarget;
+            root.transform.SetPositionAndRotation(new Vector3(41, -8, 23), Quaternion.Euler(12, 34, 7));
+            handle.transform.localPosition += new Vector3(9, 2, -4);
+            handle.transform.localRotation = Quaternion.Euler(0, 53, 0);
+            handle.transform.localScale *= 1.25f;
+            Vector3 position = handle.transform.position;
+            Quaternion rotation = handle.transform.rotation;
+            Vector3 scale = handle.transform.localScale;
+            Require(PlanetAreaSynchronization.Synchronize(owner) > 0, "Changed area pose was not synchronized.");
+            Vector3 expected = owner.RuntimePlanet.transform.TransformPoint(PlanetProjection.ToSphere(
+                owner.transform.InverseTransformPoint(position), owner.Radius));
+            Require(Vector3.Distance(target.position, expected) < .0001f, "Area position did not follow the flat handle.");
+            Quaternion expectedRotation = owner.RuntimePlanet.transform.rotation * PlanetProjection.Frame(
+                owner.transform.InverseTransformPoint(position), owner.Radius) * Quaternion.Inverse(owner.transform.rotation) * rotation;
+            Require(Quaternion.Angle(target.rotation, expectedRotation) < .05f
+                && Vector3.Distance(target.localScale, Vector3.Scale(handle.transform.lossyScale, handle.RuntimeScaleRatio)) < .0001f,
+                "Area rotation or scale did not follow the flat handle.");
+            Require(handle.transform.position == position && handle.transform.rotation == rotation && handle.transform.localScale == scale,
+                "Synchronization changed authored coordinates.");
+            Require(PlanetAreaSynchronization.Synchronize(owner) == 0, "Unchanged areas keep dirtying the world.");
+            handle.gameObject.SetActive(false);
+            Require(PlanetAreaSynchronization.Synchronize(owner) == 1 && !target.gameObject.activeSelf,
+                "Disabled area did not synchronize.");
+            Require(!owner.RuntimePlanet.gameObject.activeSelf, "Edit synchronization activated gameplay.");
+            File.AppendAllText(Report, "PASS area position, rotation, scale and disabled state follow the flat world; rotated/translated roots, unchanged authored poses and no-op synchronization.\n");
+        }
+        finally { PrefabUtility.UnloadPrefabContents(root); }
     }
 
     static void Require(bool condition, string message) { if (!condition) throw new InvalidOperationException(message); }

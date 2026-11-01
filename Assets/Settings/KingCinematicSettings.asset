@@ -22,6 +22,8 @@ MonoBehaviour:
   slowMotionDuration: 0.7
   slowMotionScale: 0.04
   turnDuration: 0.3
+  waitForStageFog: 1
+  stageRevealSettleTime: 0
   zoomInDuration: 0.65
   zoomOutDuration: 0.65
   minimumSpawnHold: 0.5

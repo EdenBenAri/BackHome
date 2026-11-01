@@ -55,7 +55,7 @@ public static class KingCinematicPlayValidation
             SetPersistence(progress, false);
             SessionState.SetBool(Key + ".restore", true);
             SessionState.SetBool(Key, true);
-            SessionState.SetFloat(Key + ".deadline", (float)EditorApplication.timeSinceStartup + 90f);
+            SessionState.SetFloat(Key + ".deadline", (float)EditorApplication.timeSinceStartup + 180f);
             File.WriteAllText(Report, "King cinematic live integration; isolated progression and zero-XP lethal hits\n");
             Time.timeScale = 1f;
             EditorApplication.isPlaying = true;
@@ -87,14 +87,21 @@ public static class KingCinematicPlayValidation
 [DefaultExecutionOrder(30000)]
 public class KingCinematicValidationRunner : MonoBehaviour
 {
+    static readonly string[] ExpectedKings =
+    {
+        "KingA1", "KingA2", "KingA3", "KingB1", "KingB2", "KingB3",
+        "KingC1", "KingC2", "KingC3", "KingD1", "KingD2"
+    };
     const BindingFlags Private = BindingFlags.Instance | BindingFlags.NonPublic;
     KingCinematicDirector director;
     CreatureSpawner spawner;
+    PlanetStageFog fog;
     Transform player;
     StarterAssetsInputs input;
     KingCinematicDirector.Phase previous = KingCinematicDirector.Phase.Idle;
     float phaseStart, lastKillAt, holdLength, spawnStart;
     int completed;
+    int fogWaits;
     bool initialized, sawIntro, frozen, captured;
     Vector3 playerAtFreeze;
     Animator kingAnimator;
@@ -134,6 +141,8 @@ public class KingCinematicValidationRunner : MonoBehaviour
             // Simulate the reported returning-player case without touching real PlayerPrefs.
             var progress = Object.FindAnyObjectByType<PlanetStageProgression>();
             Require(progress != null && !(bool)Get(progress, "persistProgress"), "Live test progression was not isolated.");
+            fog = progress.GetComponent<PlanetStageFog>();
+            Require(fog != null && fog.enabled && director.Settings.waitForStageFog, "Stage-fog sequencing is not enabled.");
             progress.RecordBossDefeat(PlanetStageId.A, director.Settings.firstKingArea);
             Require(progress.HasDefeatedBoss(PlanetStageId.A, director.Settings.firstKingArea),
                 "Could not seed the previous first-king victory.");
@@ -149,6 +158,18 @@ public class KingCinematicValidationRunner : MonoBehaviour
                 Require(now - lastKillAt >= .69f && now - lastKillAt < .85f, "Slow motion duration was not 0.7 real seconds.");
             if (previous == KingCinematicDirector.Phase.Turn)
                 Require(now - phaseStart >= .29f && now - phaseStart < .45f, "Orbit duration was not 0.3 real seconds.");
+            if (phase == KingCinematicDirector.Phase.StageReveal)
+            {
+                fogWaits++;
+                File.AppendAllText(KingCinematicPlayValidation.Report, "Waiting for stage clouds before " + ExpectedKings[completed] + "\n");
+            }
+            if (phase == KingCinematicDirector.Phase.Turn)
+            {
+                Require(!fog.IsRevealing, "Camera turned while the next stage's clouds were still revealing.");
+                char stage = ExpectedKings[completed][4];
+                Transform bank = fog.transform.Find("Locked Stage " + stage + " Clouds");
+                Require(bank == null || !bank.gameObject.activeInHierarchy, "Next stage's fog was still visible at camera handoff.");
+            }
             if (previous == KingCinematicDirector.Phase.SpawnHold)
             {
                 Require(now - phaseStart >= holdLength - .03f, "Spawn hold ended before configured animation duration.");
@@ -160,14 +181,9 @@ public class KingCinematicValidationRunner : MonoBehaviour
             {
                 sawIntro = true;
                 var featured = (Creature)Get(director, "_featured");
-                string expected = "KingA" + (completed + 1);
+                Require(completed < ExpectedKings.Length, "Cinematic continued beyond the final configured King.");
+                string expected = ExpectedKings[completed];
                 Require(featured != null && featured.name.StartsWith(expected + "_"), "Wrong featured area: " + featured?.name);
-                if (!frozen)
-                {
-                    frozen = true; playerAtFreeze = player.position; frozenCreatures.Clear();
-                    foreach (var creature in Creature.ActiveCreatures)
-                        if (creature != featured && creature.IsAlive) frozenCreatures[creature.transform] = creature.transform.position;
-                }
             }
             if (phase == KingCinematicDirector.Phase.SpawnHold)
             {
@@ -184,32 +200,44 @@ public class KingCinematicValidationRunner : MonoBehaviour
         if (phase == KingCinematicDirector.Phase.SpawnHold && !captured && now - phaseStart > .25f)
         {
             captured = true;
-            ScreenCapture.CaptureScreenshot($"Logs/KingCinematic-KingA{completed + 1}.png");
+            ScreenCapture.CaptureScreenshot($"Logs/KingCinematic-{ExpectedKings[completed]}.png");
         }
         if (Time.timeScale == 0f)
         {
+            if (!frozen)
+            {
+                frozen = true; playerAtFreeze = player.position; frozenCreatures.Clear();
+                var featured = (Creature)Get(director, "_featured");
+                foreach (var creature in Creature.ActiveCreatures)
+                    if (creature != featured && creature.IsAlive) frozenCreatures[creature.transform] = creature.transform.position;
+            }
             Require(input.GameplayBlocked && input.move == Vector2.zero, "Frozen cinematic accepted movement.");
             Require(Vector3.Distance(playerAtFreeze, player.position) < .002f, "Player moved while frozen.");
+            var presentingKing = (Creature)Get(director, "_featured");
             foreach (var item in frozenCreatures)
-                if (item.Key != null && item.Key.gameObject.activeInHierarchy)
+                if (item.Key != null && item.Key.gameObject.activeInHierarchy
+                    && (presentingKing == null || item.Key != presentingKing.transform))
                     Require(Vector3.Distance(item.Key.position, item.Value) < .002f, "A mob moved while frozen.");
         }
         if (phase != KingCinematicDirector.Phase.Idle || !sawIntro) return;
         Require(Time.timeScale == 1f && !input.GameplayBlocked, "End of reveal leaked time or input ownership.");
         frozen = false;
-        if (completed == 3)
+        if (completed == ExpectedKings.Length)
         {
+            Require(fogWaits == 3, "Expected fog-first handoffs into B, C and D; observed " + fogWaits);
             Require(!spawner.TryGetNextKingObjective(out _), "Final king left an unfinished objective.");
             var samples = tickRecorder.ToArray();
             long total = 0, peak = 0;
             foreach (var sample in samples) { total += sample.Value; peak = Math.Max(peak, sample.Value); }
             File.AppendAllText(KingCinematicPlayValidation.Report,
                 $"PERF cinematic Update: {samples.Length} frames, mean={total / Math.Max(1, samples.Length) / 1000000.0:F4}ms, peak={peak / 1000000.0:F4}ms (Unity Editor)\n");
-            KingCinematicPlayValidation.Finish("PASS KingA1 intro, actual lethal hit -> KingA2 -> KingA3, final victory, real-time spawn/freeze and restoration");
+            KingCinematicPlayValidation.Finish("PASS " + string.Join(" -> ", ExpectedKings)
+                + "; fog fully clears before B1/C1/D1, actual lethal hits, spawn/freeze and final restoration");
             enabled = false;
             return;
         }
-        Require(spawner.TryGetKingForPresentation("KingA" + (completed + 1), out var king), "Missing king to defeat.");
+        Require(spawner.TryGetKingForPresentation(ExpectedKings[completed], out var king),
+            "Missing king to defeat: " + ExpectedKings[completed]);
         var safeStats = Object.Instantiate(king.Stats); transientStats.Add(safeStats);
         Set(safeStats, "experience", 0); Set(safeStats, "loot", Array.Empty<LootEntry>());
         king.SetStats(safeStats, false);

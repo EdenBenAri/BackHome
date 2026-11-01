@@ -19,6 +19,7 @@ public sealed class PlanetStageFog : MonoBehaviour
     [SerializeField, Range(0f, 1f)] float edgePadding = .7f;
     [Tooltip("Small gap between the player's body and the visible cloud edge, in world units.")]
     [SerializeField, Range(0f, 1f)] float movementClearance = .35f;
+    [Tooltip("Cloud removal duration in real seconds, including during victory slow motion or a cinematic freeze.")]
     [SerializeField, Range(.1f, 2f)] float revealDuration = .85f;
 
     // At most 64 cells per renderer: spatial culling without a renderer per puff.
@@ -61,10 +62,13 @@ public sealed class PlanetStageFog : MonoBehaviour
     PlanetTileMap _tiles;
     SphericalPlanet _planet;
     float _maxFootprintAngle, _maxFootprintAspect, _minFootprintRadius;
+    int _revealingStagesMask;
 
     public int CoveredCellCount { get; private set; }
     public int BuiltVertexCount { get; private set; }
     public int BuiltChunkCount { get; private set; }
+    /// <summary>True until all currently opening banks have been hidden and released.</summary>
+    public bool IsRevealing => _revealingStagesMask != 0;
 
     void OnEnable()
     {
@@ -207,9 +211,13 @@ public sealed class PlanetStageFog : MonoBehaviour
 
     void OnStageUnlocked(PlanetStageId stage)
     {
-        if (_banks[(int)stage] == null) return;
+        if (_banks[(int)stage] == null || (_revealingStagesMask & (1 << (int)stage)) != 0) return;
         if (!Application.isPlaying || !isActiveAndEnabled) ReleaseBank((int)stage);
-        else StartCoroutine(Reveal((int)stage));
+        else
+        {
+            _revealingStagesMask |= 1 << (int)stage;
+            StartCoroutine(Reveal((int)stage));
+        }
     }
 
     IEnumerator Reveal(int stage)
@@ -218,7 +226,7 @@ public sealed class PlanetStageFog : MonoBehaviour
         float elapsed = 0f;
         while (elapsed < revealDuration)
         {
-            elapsed += Time.deltaTime;
+            elapsed += Time.unscaledDeltaTime;
             bank.Material.SetFloat(RevealId, Mathf.Clamp01(elapsed / Mathf.Max(.01f, revealDuration)));
             yield return null;
         }
@@ -237,6 +245,7 @@ public sealed class PlanetStageFog : MonoBehaviour
 
     void ReleaseBank(int stage)
     {
+        _revealingStagesMask &= ~(1 << stage);
         Bank bank = _banks[stage];
         if (bank == null) return;
         bank.Root.SetActive(false);

@@ -31,7 +31,7 @@ public sealed class KingCinematicDirector : MonoBehaviour
         else DestroyImmediate(settings);
     }
 
-    public enum Phase { Idle, IntroGrace, SlowMotion, Turn, ZoomIn, SpawnHold, ZoomOut }
+    public enum Phase { Idle, IntroGrace, SlowMotion, Turn, ZoomIn, SpawnHold, ZoomOut, StageReveal }
     public Phase CurrentPhase { get; private set; }
     public bool IsPresenting => CurrentPhase != Phase.Idle && CurrentPhase != Phase.IntroGrace;
 
@@ -49,6 +49,8 @@ public sealed class KingCinematicDirector : MonoBehaviour
     PlayerVitals _vitals;
     StarterAssetsInputs _input;
     SphericalPlanet _planet;
+    PlanetStageFog _stageFog;
+    bool _waitForStageReveal;
     Creature _featured;
     CreatureAnimator _spawnAnimation;
     GameObject _featuredRoot;
@@ -70,6 +72,7 @@ public sealed class KingCinematicDirector : MonoBehaviour
         _camera = GetComponent<Camera>();
         _planet = spawner != null ? spawner.GetComponentInParent<SphericalPlanet>() : null;
         if (_planet == null) _planet = SphericalPlanet.Instance;
+        _stageFog = _planet != null ? _planet.GetComponent<PlanetStageFog>() : null;
         _input = player != null ? player.GetComponent<StarterAssetsInputs>() : null;
         _vitals = player != null ? player.GetComponent<PlayerVitals>() : null;
         Subscribe();
@@ -119,6 +122,9 @@ public sealed class KingCinematicDirector : MonoBehaviour
         // A second kill during this beat is included when we resolve the next living objective.
         if (IsPresenting || !CanRun() || Time.timeScale <= 0f || !settings.playVictoryReveals) return;
         AcquireTimeAndInput();
+        // StageUnlocked is dispatched before the king-defeat event, so the fog has
+        // already begun revealing. Saved/open stages need no extra wait.
+        _waitForStageReveal = settings.waitForStageFog && _stageFog != null && _stageFog.IsRevealing;
         SetTimeScale(_savedTimeScale * settings.slowMotionScale);
         Enter(Phase.SlowMotion);
     }
@@ -162,9 +168,18 @@ public sealed class KingCinematicDirector : MonoBehaviour
                 break;
             case Phase.SlowMotion:
                 if (_elapsed < settings.slowMotionDuration) break;
-                if (_spawner.TryGetNextKingForPresentation(out var next, settings.replayVictoriesOnChapterEntry))
-                    StartPresentation(next, true);
-                else Cancel(); // Last king: finish the victory beat and return control.
+                // Another in-flight hit can finish the stage during this slow-motion beat.
+                if (_waitForStageReveal || (settings.waitForStageFog && _stageFog != null && _stageFog.IsRevealing))
+                {
+                    SetTimeScale(0f);
+                    Enter(Phase.StageReveal);
+                }
+                else PresentNextKing();
+                break;
+            case Phase.StageReveal:
+                if (_stageFog != null && _stageFog.IsRevealing) { _elapsed = 0f; break; }
+                if (_elapsed < settings.stageRevealSettleTime) break;
+                PresentNextKing();
                 break;
             case Phase.Turn:
                 float turn = Ease(_elapsed / Mathf.Max(.01f, settings.turnDuration));
@@ -200,6 +215,13 @@ public sealed class KingCinematicDirector : MonoBehaviour
                 if (_elapsed >= settings.zoomOutDuration) Cancel();
                 break;
         }
+    }
+
+    void PresentNextKing()
+    {
+        if (_spawner.TryGetNextKingForPresentation(out var next, settings.replayVictoriesOnChapterEntry))
+            StartPresentation(next, true);
+        else Cancel(); // Last king: finish the victory beat and return control.
     }
 
     void StartPresentation(Creature king, bool turn)
@@ -264,6 +286,7 @@ public sealed class KingCinematicDirector : MonoBehaviour
     /// <summary>Safe for death, disable, scene unload, missing targets and normal completion.</summary>
     public void Cancel()
     {
+        _waitForStageReveal = false;
         _spawnAnimation?.EndCinematicSpawn();
         _spawnAnimation = null;
         if (_featuredRoot != null) PlanetEnvironmentStreamer.SetCinematicVisible(_featuredRoot, false);

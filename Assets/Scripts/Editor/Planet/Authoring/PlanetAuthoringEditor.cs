@@ -270,7 +270,11 @@ public sealed class PlanetPlacementEditor : Editor
         var handle = (PlanetPlacement)target;
         var owner = handle.GetComponentInParent<PlanetAuthoring>();
         bool wall = handle.RuntimeTarget != null && PlanetBorders.IsBorderCollider(handle.RuntimeTarget.GetComponent<BoxCollider>());
-        EditorGUILayout.HelpBox("Use W / E / R to move, rotate or scale this model in 3D. Place On Plane moves it to the clicked ground position. Its pose is projected to the sphere once before Play.", MessageType.Info);
+        Transform areas = owner != null && owner.AuthoringRoot != null ? owner.AuthoringRoot.Find("Areas") : null;
+        bool area = areas != null && handle.transform.IsChildOf(areas);
+        EditorGUILayout.HelpBox("Use W / E / R to move, rotate or scale this model in 3D. Place On Plane moves it to the clicked ground position. "
+            + (area ? "The linked area on the sphere updates automatically as you edit this flat handle."
+                : "Its pose is projected to the sphere once before Play."), MessageType.Info);
         if (wall) EditorGUILayout.HelpBox("Invisible wall: the orange box shows the blocking area. Scale X = length, Y = height, Z = thickness. Disable this handle or use Remove Wall to stop blocking in Play.", MessageType.None);
         using (new EditorGUI.DisabledScope(true))
             EditorGUILayout.ObjectField("Runtime object", handle.RuntimeTarget, typeof(Transform), true);

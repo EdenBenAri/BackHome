@@ -106,7 +106,7 @@ public static class PlanetStageValidation
                 Require(stage != null && stage.GetComponent<PlanetStage>().Id == (PlanetStageId)i, "Missing " + name);
                 Require(stage.localPosition == Vector3.zero && stage.localScale == Vector3.one
                     && Quaternion.Angle(stage.localRotation, Quaternion.identity) < .001f, "Nonidentity stage transform.");
-                Require(stage.childCount == (i == 1 ? 7 : 0), "Incorrect stage population.");
+                Require(stage.childCount == (i == 1 ? 7 : 6), "Incorrect stage population: " + name);
             }
             foreach (string area in new[] { "Camp", "A1", "KingA1", "A2", "KingA2", "A3", "KingA3" })
             {
@@ -232,7 +232,7 @@ public static class PlanetStageValidation
         {
             var template = new GameObject("Creature fixture"); template.transform.SetParent(fixture.transform);
             template.AddComponent<Creature>();
-            var b1 = new GameObject("B1");
+            var b1 = new GameObject("ValidationB1");
             b1.transform.SetParent(owner.RuntimePlanet.transform.Find("Areas/Stage B"), false);
             b1.transform.position = StagePosition(owner.Tiles, PlanetStageId.B);
             spawner = fixture.AddComponent<CreatureSpawner>();
@@ -243,7 +243,7 @@ public static class PlanetStageValidation
                 creatures = new[] { new CreatureSpawner.SpawnEntry { prefab = template, count = 1, respawnTime = 4 } },
                 king = new CreatureSpawner.KingSpawn { prefab = template, respawnSeconds = 40 }
             };
-            Set(spawner, "spawnPoints", new[] { Point("A2"), Point("B1") });
+            Set(spawner, "spawnPoints", new[] { Point("A2"), Point("ValidationB1") });
             spawner.SpawnAll();
             Transform a2 = owner.RuntimePlanet.transform.Find("Areas/Stage A/A2");
             Require(a2.childCount == 2 && b1.transform.childCount == 0, "Locked stage instantiated creatures.");

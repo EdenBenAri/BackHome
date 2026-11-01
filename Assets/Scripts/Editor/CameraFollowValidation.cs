@@ -54,6 +54,8 @@ public static class CameraFollowValidation
         Check("Planet attachment preserves the player's initial king-facing heading", SpawnHeading);
         Check("King cinematic intro, lethal-hit timing, freeze, minimum hold and seamless return", KingCinematicTiming);
         Check("Saved victories replay once per chapter visit without resetting saved progress", KingCinematicVisitReplay);
+        Check("King reveals advance A3 to B1, B3 to C1 and onward in numeric order", KingCinematicStageOrder);
+        Check("Camera waits for fog completion; freeze, optional pause and cancellation restore safely", KingCinematicFogWait);
         Check("Input and combat activity cannot interrupt any King cinematic phase", KingCinematicInputIsolation);
         Check("King cinematic cancellation restores time/input and respects another pause owner", KingCinematicCancellation);
         Check("King cinematic steady ticks allocate zero managed bytes while idle and zooming", KingCinematicAllocations);
@@ -426,7 +428,7 @@ public static class CameraFollowValidation
     static Creature AddLiveKing(CreatureSpawner spawner, int index, string area)
     {
         var go = Make("species-independent king");
-        go.transform.position = spawner.transform.Find("Areas/Stage A/" + area).position;
+        go.transform.position = PlanetStage.FindArea(spawner.transform.Find("Areas"), area).position;
         var creature = go.AddComponent<Creature>();
         var stats = ScriptableObject.CreateInstance<CreatureStats>(); Cleanup.Add(stats);
         creature.SetStats(stats);
@@ -562,6 +564,110 @@ public static class CameraFollowValidation
                 "The external replay option did not preserve first-saved-defeat mode.");
         }
         finally { PlayerPrefs.DeleteKey(key); PlayerPrefs.Save(); }
+    }
+
+    static void KingCinematicStageOrder()
+    {
+        string[] order = { "KingA1", "KingA2", "KingA3", "KingB1", "KingB2", "KingB3",
+            "KingC1", "KingC2", "KingC3", "KingD1", "KingD2", "KingD10" };
+        var root = Make("complete chapter"); root.SetActive(false);
+        var planet = root.AddComponent<SphericalPlanet>(); Set(planet, "radius", 80f);
+        var progress = root.AddComponent<PlanetStageProgression>(); Set(progress, "persistProgress", false);
+        var areas = new GameObject("Areas").transform; areas.SetParent(root.transform, false);
+        var groups = new Transform[4];
+        for (int i = 0; i < groups.Length; i++)
+        {
+            groups[i] = new GameObject("Stage " + (char)('A' + i)).transform;
+            groups[i].SetParent(areas, false);
+            Set(groups[i].gameObject.AddComponent<PlanetStage>(), "stageId", (PlanetStageId)(i + 1));
+        }
+        for (int i = 0; i < order.Length; i++)
+        {
+            var area = new GameObject(order[i]).transform; area.SetParent(groups[i / 3], false);
+            area.position = Origin + Quaternion.AngleAxis(-(i + 1) * 15f, Vector3.forward) * Vector3.up * 80f;
+        }
+        progress.Initialize();
+        var spawner = root.AddComponent<CreatureSpawner>();
+        Set(spawner, "planet", planet); Set(spawner, "_stageProgression", progress);
+        var prefab = Make("chapter king prefab");
+        var points = new CreatureSpawner.SpawnPoint[order.Length];
+        // Intentionally reverse every row: presentation must not depend on Inspector row order.
+        for (int i = 0; i < order.Length; i++)
+        {
+            progress.RegisterBoss((PlanetStageId)(i / 3 + 1), order[i]);
+            points[order.Length - 1 - i] = new CreatureSpawner.SpawnPoint
+                { areaId = order[i], king = new CreatureSpawner.KingSpawn { prefab = prefab } };
+        }
+        Set(spawner, "spawnPoints", points);
+        var kings = new Creature[order.Length];
+        for (int i = 0; i < order.Length; i++) kings[i] = AddLiveKing(spawner, order.Length - 1 - i, order[i]);
+        // The player resumes at A3; A1/A2 are saved victories, not kills in this visit.
+        progress.RecordBossDefeat(PlanetStageId.A, "KingA1");
+        progress.RecordBossDefeat(PlanetStageId.A, "KingA2");
+        Require(!progress.IsUnlocked(PlanetStageId.B), "Stage B unlocked before A3.");
+        var rig = Rig(out var player); player.position = Origin + Vector3.up * 80f;
+        rig.SetTarget(player); Tick(rig); rig.BindKingGuidance(spawner);
+        var director = rig.GetComponent<KingCinematicDirector>(); director.Cancel();
+        for (int i = 2; i < order.Length; i++)
+        {
+            Call(spawner, "RecordKingDefeat", order.Length - 1 - i);
+            Call(director, "Tick", .7f);
+            if (i == order.Length - 1)
+            {
+                Require(director.CurrentPhase == KingCinematicDirector.Phase.Idle && Time.timeScale == 1f,
+                    "Final chapter king did not restore gameplay.");
+                break;
+            }
+            Require(director.CurrentPhase == KingCinematicDirector.Phase.Turn
+                && Get<Creature>(director, "_featured") == kings[i + 1],
+                order[i] + " did not present " + order[i + 1]);
+            Require(progress.IsUnlocked((PlanetStageId)((i + 1) / 3 + 1)), "Next stage did not unlock before its reveal.");
+            Call(director, "Tick", .3f); Call(director, "Tick", .65f);
+            Call(director, "Tick", .5f); Call(director, "Tick", .65f);
+            Call(spawner, "RecordKingDefeat", order.Length - 1 - i);
+            Require(director.CurrentPhase == KingCinematicDirector.Phase.Idle, "Respawn replayed a completed transition.");
+        }
+    }
+
+    static void KingCinematicFogWait()
+    {
+        var director = CinematicFixture(out var rig, out var spawner);
+        var fog = spawner.gameObject.AddComponent<PlanetStageFog>();
+        Set(director, "_stageFog", fog);
+        var input = Get<Transform>(rig, "target").GetComponent<StarterAssetsInputs>();
+        director.Cancel();
+        director.Settings.stageRevealSettleTime = .2f;
+        Call(spawner, "RecordKingDefeat", 1); Call(director, "Tick", .3f);
+        // A projectile finishes the stage after the victory beat already began.
+        Set(fog, "_revealingStagesMask", 1 << (int)PlanetStageId.B);
+        Call(director, "Tick", .4f);
+        Require(director.CurrentPhase == KingCinematicDirector.Phase.StageReveal && Time.timeScale == 0f
+            && input.GameplayBlocked, "Fog wait did not freeze after the victory beat.");
+        Vector3 shot = rig.transform.position;
+        Call(director, "Tick", 3f); Tick(rig, 0f);
+        Require(director.CurrentPhase == KingCinematicDirector.Phase.StageReveal
+            && Vector3.Distance(shot, rig.transform.position) < .001f, "Camera moved before fog completion.");
+        Set(fog, "_revealingStagesMask", 0);
+        Call(director, "Tick", .19f);
+        Require(director.CurrentPhase == KingCinematicDirector.Phase.StageReveal, "Configured post-fog pause was skipped.");
+        Call(director, "Tick", .011f);
+        Require(director.CurrentPhase == KingCinematicDirector.Phase.Turn, "Fog completion did not release the camera.");
+        director.Cancel();
+        Require(Time.timeScale == 1f && !input.GameplayBlocked, "Fog wait leaked time or input ownership.");
+
+        // Disabling/removing fog while waiting cannot strand the cinematic in a freeze.
+        Set(fog, "_revealingStagesMask", 1 << (int)PlanetStageId.C);
+        director.Settings.stageRevealSettleTime = 0f;
+        Call(spawner, "RecordKingDefeat", 2); Call(director, "Tick", .7f);
+        Require(director.CurrentPhase == KingCinematicDirector.Phase.StageReveal, "Second reveal did not wait.");
+        Call(fog, "OnDisable"); Call(director, "Tick", .01f);
+        Require(!fog.IsRevealing && director.CurrentPhase == KingCinematicDirector.Phase.Turn,
+            "Disabled fog left stale reveal state.");
+        director.Cancel();
+        Set(fog, "_revealingStagesMask", 1 << (int)PlanetStageId.D);
+        Call(spawner, "RecordKingDefeat", 3); Call(director, "Tick", .7f); director.Cancel();
+        Require(Time.timeScale == 1f && !input.GameplayBlocked
+            && director.CurrentPhase == KingCinematicDirector.Phase.Idle, "Cancelling fog wait leaked a freeze.");
     }
 
     static void KingCinematicInputIsolation()

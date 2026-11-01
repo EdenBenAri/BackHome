@@ -30,6 +30,15 @@ public sealed class PlanetStageProgression : MonoBehaviour
     int _completedMask;
     bool _initialized;
 
+#if UNITY_EDITOR
+    // Each Play starts fresh, while death/restart and scene travel in that Play keep progress.
+    // SubsystemRegistration also runs when Enter Play Mode has domain reload disabled.
+    static readonly Dictionary<string, string> EditorPlaySaves = new();
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void BeginEditorPlaySession() => EditorPlaySaves.Clear();
+#endif
+
     public event Action<PlanetStageId> StageUnlocked;
     public event Action ProgressChanged;
     public string SaveKey => "BackHome.Stages.v1." + worldId;
@@ -59,11 +68,12 @@ public sealed class PlanetStageProgression : MonoBehaviour
         BuildStageMap();
         Transform areas = transform.Find("Areas");
         _stages = areas != null ? areas.GetComponentsInChildren<PlanetStage>(true) : Array.Empty<PlanetStage>();
-        if (persistProgress && PlayerPrefs.HasKey(SaveKey))
+        string savedJson = persistProgress ? ReadSave() : null;
+        if (!string.IsNullOrEmpty(savedJson))
         {
             try
             {
-                var saved = JsonUtility.FromJson<SaveData>(PlayerPrefs.GetString(SaveKey));
+                var saved = JsonUtility.FromJson<SaveData>(savedJson);
                 if (saved != null)
                 {
                     // Only a contiguous prefix is valid; corrupt data cannot skip stages.
@@ -122,14 +132,31 @@ public sealed class PlanetStageProgression : MonoBehaviour
         if (HighestUnlocked != previous) StageUnlocked?.Invoke(HighestUnlocked);
     }
 
+    string ReadSave()
+    {
+#if UNITY_EDITOR
+        if (Application.isPlaying)
+            return EditorPlaySaves.TryGetValue(SaveKey, out string saved) ? saved : null;
+#endif
+        return PlayerPrefs.GetString(SaveKey, "");
+    }
+
     void Save()
     {
         if (!persistProgress) return;
-        PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(new SaveData
+        string saved = JsonUtility.ToJson(new SaveData
         {
             completedMask = _completedMask,
             defeatedBosses = new List<string>(_defeatedBosses)
-        }));
+        });
+#if UNITY_EDITOR
+        if (Application.isPlaying)
+        {
+            EditorPlaySaves[SaveKey] = saved;
+            return;
+        }
+#endif
+        PlayerPrefs.SetString(SaveKey, saved);
         PlayerPrefs.Save();
     }
 

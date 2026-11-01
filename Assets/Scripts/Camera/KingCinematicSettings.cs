@@ -21,6 +21,12 @@ public sealed class KingCinematicSettings : ScriptableObject
     [Range(.01f, 1f)] public float slowMotionScale = .04f;
     [Min(.01f)] public float turnDuration = .3f;
 
+    [Header("Stage Unlock")]
+    [Tooltip("Wait for the newly opened stage's clouds to disappear before turning toward its first King.")]
+    public bool waitForStageFog = true;
+    [Tooltip("Optional extra pause after the clouds have completely cleared, in real seconds.")]
+    [Min(0f)] public float stageRevealSettleTime = 0f;
+
     [Header("Reveal")]
     [Min(.01f)] public float zoomInDuration = .65f;
     [Min(.01f)] public float zoomOutDuration = .65f;

@@ -98,8 +98,8 @@ public sealed class StageFogProbeRunner : MonoBehaviour
 
     void Step()
     {
-        // Reveal uses game time; victory cinematics can slow it while real time advances.
-        _elapsed += _phase == 1 || _phase == 2 || _phase == 4 ? Time.deltaTime : Time.unscaledDeltaTime;
+        // Cloud removal keeps real-time timing through victory slow motion and freezes.
+        _elapsed += Time.unscaledDeltaTime;
         if (_phase == 0 && _elapsed > 1.5f)
         {
             _fog = Object.FindAnyObjectByType<PlanetStageFog>();
