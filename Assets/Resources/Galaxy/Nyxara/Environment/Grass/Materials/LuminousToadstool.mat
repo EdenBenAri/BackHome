@@ -27,6 +27,10 @@ Material:
         m_Texture: {fileID: 2800000, guid: 42e150154d267764c81bc5a553525716, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
+    - _BumpMap:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _EmissionMap:
         m_Texture: {fileID: 2800000, guid: 92dfa424963a3f144a2ae2175122b52c, type: 3}
         m_Scale: {x: 1, y: 1}
@@ -34,27 +38,33 @@ Material:
     m_Ints: []
     m_Floats:
     - _AmbientStrength: 1
+    - _Brightness: 1.6
+    - _BumpScale: 1
     - _Contrast: 1.05
     - _Cull: 0
+    - _DstBlend: 0
+    - _Opacity: 1
     - _OutlineWidth: 0.012
+    - _PlayerTouch: 10
     - _RimLightMask: 0.552
     - _RimPower: 1.32
-    - _Saturation: 1.14
+    - _Saturation: 1.22
     - _ShadeFloor: 0.72
     - _ShadeSoftness: 0.35
     - _ShadeSteps: 3.09
     - _SpecularSize: 0.275
     - _SpecularSoftness: 0.5
-    - _PlayerTouch: 10
+    - _SrcBlend: 1
     - _WindDegrees: 6
     - _WindReach: 0.55
+    - _ZWrite: 1
     m_Colors:
     - _AmbientTint: {r: 1, g: 0.96, b: 0.88, a: 1}
     - _BaseColor: {r: 1, g: 1, b: 1, a: 1}
     - _EmissionColor: {r: 1.8, g: 1.8, b: 1.8, a: 1}
-    - _KeyTint: {r: 0.4313725, g: 0.21176466, b: 0.40842363, a: 0.53333336}
+    - _KeyTint: {r: 0.97735846, g: 0.34484154, b: 0.9524212, a: 0.63529414}
     - _OutlineColor: {r: 0.08, g: 0.08, b: 0.12, a: 1}
-    - _RimColor: {r: 0.6947367, g: 0.58947366, b: 1, a: 0.35}
+    - _RimColor: {r: 0.6947367, g: 0.58947366, b: 1, a: 0.7764706}
     - _ShadowColor: {r: 0.55, g: 0.58, b: 0.75, a: 1}
     - _ShadowTint: {r: 0.96, g: 0.91, b: 0.8, a: 1}
     - _SpecularColor: {r: 0.3019608, g: 0.33333334, b: 0.48627454, a: 0.55}
