@@ -14,6 +14,8 @@ public sealed class NyxaraSeaFit : MonoBehaviour
     [SerializeField, Tooltip("World units above the planet surface so ground at height 0 sits just under the water.")]
     float clearance = 0.45f;
 
+    public float Clearance => Mathf.Max(0f, clearance);
+
     static readonly int SeaCenterId = Shader.PropertyToID("_PlanetSeaCenter");
     static readonly int SeaParamsId = Shader.PropertyToID("_PlanetSeaParams");
 

@@ -88,6 +88,8 @@ public class PlanetTileMap : MonoBehaviour
     [SerializeField, HideInInspector] PlanetTileMapPreset lastLoadedPreset;
 
     public const float DefaultGroundHeight = 1f;
+    /// <summary>Sea bed used by the authoring water brush and the reference coastline. Sits under the ocean; land is <see cref="DefaultGroundHeight"/>.</summary>
+    public const float WaterHeight = -1f;
     public const float MinHeight = -2f;
     public const float MaxHeight = 4f;
     const float HeightEpsilon = 0.001f;

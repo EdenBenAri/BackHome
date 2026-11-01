@@ -15,13 +15,23 @@ public static class PlanetReferenceTerrain
     public static float Opacity(PlanetAuthoring owner) =>
         SessionState.GetFloat("PlanetReferenceOpacity." + owner.GetEntityId(), .5f);
 
+    public static bool Visible(PlanetAuthoring owner) =>
+        SessionState.GetBool("PlanetReferenceVisible." + owner.GetEntityId(), true);
+
     public static void DrawInspector(PlanetAuthoring owner)
     {
         var reference = Find(owner);
         if (reference == null) return;
         EditorGUILayout.Space();
         EditorGUILayout.LabelField("Reference / Coastline", EditorStyles.boldLabel);
-        if (!reference.enabled)
+        bool visible = Visible(owner);
+        if (GUILayout.Button(visible ? "Hide Reference" : "Show Reference"))
+        {
+            visible = !visible;
+            SessionState.SetBool("PlanetReferenceVisible." + owner.GetEntityId(), visible);
+            PlanetAuthoringPreview.UpdateReference(owner);
+        }
+        if (!reference.enabled && visible)
         {
             EditorGUI.BeginChangeCheck();
             float opacity = EditorGUILayout.Slider("Reference opacity", Opacity(owner), 0f, 1f);
@@ -31,7 +41,7 @@ public static class PlanetReferenceTerrain
                 PlanetAuthoringPreview.UpdateReference(owner);
             }
         }
-        EditorGUILayout.HelpBox("White = water. Colored areas = land for you to paint. Prepare resets terrain and heights on this world; Undo restores them. Set reference opacity to 0 to see only your tiles.", MessageType.None);
+        EditorGUILayout.HelpBox("White = water. Colored areas = land for you to paint. Prepare resets terrain and heights on this world; Undo restores them. The Water paint tool adds or erases water by hand. Hide Reference shows only your tiles and keeps the current opacity.", MessageType.None);
         if (GUILayout.Button("Prepare Land + Water From Reference (Reset Tiles)"))
         {
             try { Prepare(owner); }
@@ -96,7 +106,7 @@ public static class PlanetReferenceTerrain
     {
         material.SetFloat("_ReferenceOpacity", 0f);
         var reference = Find(owner);
-        if (reference == null || reference.enabled) return;
+        if (reference == null || reference.enabled || !Visible(owner)) return;
         var texture = Texture(reference, out var scale, out var offset);
         if (texture == null) return;
         material.SetTexture("_ReferenceTex", texture);
@@ -158,7 +168,7 @@ public static class PlanetReferenceTerrain
         for (int column = 0; column < map.LongitudeBands; column++)
         {
             map.SetTerrainSilent(row, column, map.Tileset.BaseTerrainIndex);
-            map.SetHeightSilent(row, column, water[row * map.LongitudeBands + column] ? -1f : 1f);
+            map.SetHeightSilent(row, column, water[row * map.LongitudeBands + column] ? PlanetTileMap.WaterHeight : PlanetTileMap.DefaultGroundHeight);
         }
         var data = new SerializedObject(map);
         data.FindProperty("lastLoadedPreset").objectReferenceValue = null;
@@ -181,6 +191,6 @@ public static class PlanetReferenceTerrain
         PlanetAuthoringPreview.Queue(owner);
         Undo.CollapseUndoOperations(group);
         Selection.activeGameObject = owner.gameObject;
-        Debug.Log($"Reference coastline prepared: {waterCount} water cells, {map.CellCount - waterCount} land cells. Paint land with the Terrain tool; reference opacity 0 shows the finished tiles.", owner);
+        Debug.Log($"Reference coastline prepared: {waterCount} water cells, {map.CellCount - waterCount} land cells. Paint land with the Terrain tool and water with the Water tool; reference opacity 0 shows the finished tiles.", owner);
     }
 }

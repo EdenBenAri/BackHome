@@ -260,11 +260,9 @@ public static class PlanetAuthoringPreview
         view.surface.sharedMesh = view.mesh;
 
         // Water is an editor plane; the original sea component still owns runtime water.
-        var water = owner.RuntimePlanet.GetComponentInChildren<NyxaraSeaFit>(true);
-        if (water != null)
+        float seaY = SeaElevation(owner);
+        if (!float.IsNegativeInfinity(seaY))
         {
-            float clearance = new SerializedObject(water).FindProperty("clearance").floatValue;
-            float seaY = owner.RuntimePlanet.GetTerrainRadius(Vector3.up) + Mathf.Max(0, clearance) - owner.Radius;
             float halfW = Mathf.PI * owner.Radius, halfH = halfW * .5f;
             view.seaMesh = new Mesh { name = "Flat ocean preview", hideFlags = HideFlags.HideAndDontSave };
             view.seaMesh.vertices = new[] { new Vector3(-halfW,seaY,-halfH), new Vector3(halfW,seaY,-halfH),
@@ -333,6 +331,15 @@ public static class PlanetAuthoringPreview
         material.SetTexture("_MainTex", tileset.Texture);
         for (int i = 0; i < 4; i++) material.SetTexture("_Splat" + i, tileset.GetSplatAlbedo(i));
         return material;
+    }
+
+    /// <summary>Flat elevation of the ocean sheet. Negative infinity when this world has no sea.</summary>
+    public static float SeaElevation(PlanetAuthoring owner)
+    {
+        var water = owner != null && owner.RuntimePlanet != null
+            ? owner.RuntimePlanet.GetComponentInChildren<NyxaraSeaFit>(true) : null;
+        if (water == null) return float.NegativeInfinity;
+        return owner.RuntimePlanet.GetTerrainRadius(Vector3.up) + water.Clearance - owner.Radius;
     }
 
     public static Mesh BuildMesh(PlanetAuthoring owner)

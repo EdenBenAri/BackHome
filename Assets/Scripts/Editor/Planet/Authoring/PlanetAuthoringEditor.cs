@@ -6,7 +6,8 @@ public sealed class PlanetAuthoringEditor : Editor
 {
     bool paint;
     int paintTool;
-    bool sculpt => paintTool != 0;
+    bool water => paintTool == 4;
+    bool sculpt => paintTool > 0 && paintTool < 4;
     bool eyedropper;
     bool flood;
     bool showGrid;
@@ -64,22 +65,25 @@ public sealed class PlanetAuthoringEditor : Editor
         if (paint)
         {
             placeProp = placeWall = false;
-            paintTool = EditorGUILayout.Popup("Tool", paintTool, new[] { "Terrain", "Raise Height", "Lower Height", "Set Height" });
+            paintTool = EditorGUILayout.Popup("Tool", paintTool, new[] { "Terrain", "Raise Height", "Lower Height", "Set Height", "Water" });
             brush = EditorGUILayout.IntSlider("Brush radius (cells)", brush, 0, 10);
             showGrid = EditorGUILayout.Toggle("Show Cell Grid", showGrid);
             if (paintTool == 3) height = EditorGUILayout.Slider("Height (steps)", height, PlanetTileMap.MinHeight, PlanetTileMap.MaxHeight);
-            else if (!sculpt)
+            else if (!sculpt && !water)
             {
                 var labels = new string[owner.Tiles.Tileset.TerrainCount];
                 for (int i = 0; i < labels.Length; i++) labels[i] = owner.Tiles.Tileset.GetTerrain(i).displayName;
                 terrain = EditorGUILayout.Popup("Terrain", terrain, labels);
             }
+            if (water)
+                EditorGUILayout.HelpBox("Paints cells down to the sea bed so the ocean covers them. Shift restores land height.", MessageType.None);
             eyedropper = EditorGUILayout.Toggle("Pick Terrain / Height", eyedropper);
             flood = EditorGUILayout.Toggle("Flood On Next Click", flood);
-            if (GUILayout.Button(sculpt ? "Fill Set Height" : "Fill Selected Terrain"))
+            if (GUILayout.Button(water ? "Fill Water" : sculpt ? "Fill Set Height" : "Fill Selected Terrain"))
             {
                 Undo.RegisterCompleteObjectUndo(owner.Tiles, "Fill planet terrain");
-                if (sculpt) owner.Tiles.FillHeight(height, false);
+                if (water) owner.Tiles.FillHeight(PlanetTileMap.WaterHeight, false);
+                else if (sculpt) owner.Tiles.FillHeight(height, false);
                 else owner.Tiles.FillTerrain(terrain);
                 PlanetTerrainPresets.MarkDirty(owner.Tiles);
             }
@@ -196,23 +200,28 @@ public sealed class PlanetAuthoringEditor : Editor
         var map = owner.Tiles;
         if (!PlanetProjection.TryCell(point, owner.Radius, map.LatitudeBands, map.LongitudeBands, out int row, out int column)) return;
         float cell = 2f * Mathf.PI * owner.Radius / map.LongitudeBands;
-        Handles.color = Color.yellow;
+        Handles.color = water ? new Color(.2f, .75f, .95f) : Color.yellow;
         Vector3 center = new Vector3((column + .5f) * cell - Mathf.PI * owner.Radius, 0f,
             (row + .5f) * cell - Mathf.PI * owner.Radius * .5f);
-        center.y = map.GetWalkSurfaceRadius(PlanetProjection.ToSphere(center, owner.Radius)) - owner.Radius + .2f;
+        float surface = map.GetWalkSurfaceRadius(PlanetProjection.ToSphere(center, owner.Radius)) - owner.Radius;
+        center.y = Mathf.Max(surface, PlanetAuthoringPreview.SeaElevation(owner)) + .2f;
         Handles.DrawWireDisc(owner.transform.TransformPoint(center), owner.transform.up, cell * (brush + .5f));
-        Handles.Label(owner.transform.TransformPoint(center), $"{column}, {row} · h {map.GetHeight(row,column):0.##}");
+        float cellHeight = map.GetHeight(row, column);
+        string heightLabel = cellHeight <= 0f ? "water" : $"h {cellHeight:0.##}";
+        Handles.Label(owner.transform.TransformPoint(center), $"{column}, {row} · {heightLabel}");
         if (e.type == EventType.MouseMove) SceneView.RepaintAll();
         if (e.alt || e.button != 0) return;
         if (eyedropper && e.type == EventType.MouseDown)
         {
-            if (sculpt) { height = map.GetHeight(row, column); paintTool = 3; }
+            float picked = map.GetHeight(row, column);
+            if (picked <= 0f) paintTool = 4;
+            else if (sculpt || water) { height = picked; paintTool = 3; }
             else terrain = map.GetTerrain(row, column);
             eyedropper = false; Repaint(); e.Use(); return;
         }
         if (e.type == EventType.MouseDown)
         {
-            Undo.RegisterCompleteObjectUndo(map, sculpt ? "Sculpt flat Nyxara" : "Paint flat Nyxara");
+            Undo.RegisterCompleteObjectUndo(map, water ? "Paint flat water" : sculpt ? "Sculpt flat Nyxara" : "Paint flat Nyxara");
             stroke = true; changed = false; lastRow = lastColumn = -1;
             GUIUtility.hotControl = control;
         }
@@ -222,12 +231,15 @@ public sealed class PlanetAuthoringEditor : Editor
             {
                 if (flood)
                 {
-                    if (sculpt) PlanetBlobAutotile.FloodFillHeight(map, row, column, height);
+                    if (water) PlanetBlobAutotile.FloodFillHeight(map, row, column, e.shift ? PlanetTileMap.DefaultGroundHeight : PlanetTileMap.WaterHeight);
+                    else if (sculpt) PlanetBlobAutotile.FloodFillHeight(map, row, column, height);
                     else PlanetBlobAutotile.FloodFill(map, row, column, terrain);
                     flood = false; changed = true; FinishStroke(); GUIUtility.hotControl = 0;
                     Repaint(); e.Use(); return;
                 }
-                if (paintTool == 1 || paintTool == 2)
+                if (water)
+                    changed |= map.PaintHeightBrush(row, column, e.shift ? PlanetTileMap.DefaultGroundHeight : PlanetTileMap.WaterHeight, brush, false);
+                else if (paintTool == 1 || paintTool == 2)
                     changed |= map.PaintHeightDeltaBrush(row, column, (paintTool == 1 ? 1 : -1) * (e.shift ? -1 : 1), brush, false);
                 else changed |= sculpt ? map.PaintHeightBrush(row, column, e.shift ? PlanetTileMap.DefaultGroundHeight : height, brush, false)
                     : map.PaintTerrainBrush(row, column, e.shift ? map.Tileset.BaseTerrainIndex : terrain, brush, false);

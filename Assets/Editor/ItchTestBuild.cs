@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using UnityEditor;
 using UnityEditor.Build.Reporting;
 using UnityEditor.SceneManagement;
@@ -102,11 +103,12 @@ public static class ItchTestBuild
         var previousPower = PlayerSettings.WebGL.powerPreference;
         var previousExceptions = PlayerSettings.WebGL.exceptionSupport;
         var previousSubtarget = EditorUserBuildSettings.webGLBuildSubtarget;
-        var previousOptimization = UnityEditor.WebGL.UserBuildSettings.codeOptimization;
+        var hasOptimization = TryGetWasmCodeOptimization(out var previousOptimization);
         PlayerSettings.WebGL.compressionFormat = WebGLCompressionFormat.Brotli;
         PlayerSettings.WebGL.decompressionFallback = false;
         PlayerSettings.WebGL.powerPreference = WebGLPowerPreference.Default;
-        UnityEditor.WebGL.UserBuildSettings.codeOptimization = UnityEditor.WebGL.WasmCodeOptimization.DiskSizeLTO;
+        if (hasOptimization)
+            SetWasmDiskSizeLto();
         PlayerSettings.WebGL.exceptionSupport = WebGLExceptionSupport.ExplicitlyThrownExceptionsOnly;
         // ASTC is not supported by desktop Chrome, so those textures were unpacked into
         // raw memory and the fixed heap aborted. Generic keeps sizes predictable, and
@@ -171,7 +173,8 @@ public static class ItchTestBuild
             PlayerSettings.WebGL.powerPreference = previousPower;
             PlayerSettings.WebGL.exceptionSupport = previousExceptions;
             EditorUserBuildSettings.webGLBuildSubtarget = previousSubtarget;
-            UnityEditor.WebGL.UserBuildSettings.codeOptimization = previousOptimization;
+            if (hasOptimization)
+                SetWasmCodeOptimization(previousOptimization);
             if (phoneQuality >= 0)
                 QualitySettings.SetQualityLevel(previousQuality, false);
             AssetDatabase.SaveAssets();
@@ -573,6 +576,47 @@ public static class ItchTestBuild
             public int IntValue;
             public float FloatValue;
         }
+    }
+
+    // UnityEditor.WebGL exists only when WebGL Build Support is installed.
+    // Reflection keeps the editor compiling on machines that do not have that module.
+    static bool TryGetWasmCodeOptimization(out object value)
+    {
+        value = null;
+        var property = WasmCodeOptimizationProperty();
+        if (property == null)
+            return false;
+
+        value = property.GetValue(null);
+        return true;
+    }
+
+    static void SetWasmDiskSizeLto()
+    {
+        var property = WasmCodeOptimizationProperty();
+        if (property == null)
+            return;
+
+        property.SetValue(null, System.Enum.Parse(property.PropertyType, "DiskSizeLTO"));
+    }
+
+    static void SetWasmCodeOptimization(object value)
+    {
+        WasmCodeOptimizationProperty()?.SetValue(null, value);
+    }
+
+    static PropertyInfo WasmCodeOptimizationProperty()
+    {
+        foreach (var assembly in System.AppDomain.CurrentDomain.GetAssemblies())
+        {
+            var type = assembly.GetType("UnityEditor.WebGL.UserBuildSettings");
+            if (type == null)
+                continue;
+
+            return type.GetProperty("codeOptimization", BindingFlags.Public | BindingFlags.Static);
+        }
+
+        return null;
     }
 
     static void WriteResult(string message)

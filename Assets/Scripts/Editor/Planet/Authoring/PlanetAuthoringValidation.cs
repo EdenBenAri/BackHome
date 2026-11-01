@@ -86,6 +86,10 @@ public static class PlanetAuthoringValidation
             float oldHeight = map.GetHeight(12,0);
             map.PaintHeightBrush(12,0,oldHeight == 2f ? 1f : 2f,1,false);
             Require(map.GetHeight(12,map.LongitudeBands - 1) == map.GetHeight(12,0), "height brush wraps seam");
+            map.PaintHeightBrush(8, 4, PlanetTileMap.WaterHeight, 0, false);
+            Require(map.GetHeight(8, 4) == PlanetTileMap.WaterHeight, "water brush sets the sea bed");
+            map.PaintHeightBrush(8, 4, PlanetTileMap.DefaultGroundHeight, 0, false);
+            Require(map.GetHeight(8, 4) == PlanetTileMap.DefaultGroundHeight, "water erase restores land");
             Require(map.ComputeContentHash() != hash, "flat terrain changes authoritative data");
             int fallback = (map.GetTerrain(12,0) + 1) % map.Tileset.TerrainCount;
             map.PaintTerrainBrush(12,0,fallback,1,false);
