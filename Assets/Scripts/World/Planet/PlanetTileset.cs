@@ -32,7 +32,11 @@ public class PlanetTileset : ScriptableObject
     public const int TerrainSand = 2;
     public const int TerrainClay = 2;
     public const int TerrainDarkGrass = 3;
-    public const int SplatChannelCount = 4;
+    public const int TerrainVoid = 4;
+    public const int TerrainDarkVoid = 5;
+    public const int TerrainCrimson = 6;
+    public const int TerrainDarkCrimson = 7;
+    public const int SplatChannelCount = 8;
 
     [Serializable]
     public class Entry
@@ -104,14 +108,35 @@ public class PlanetTileset : ScriptableObject
 
     public Color SplatWeight(int terrainIndex)
     {
-        int channel = Mathf.Clamp(terrainIndex, 0, SplatChannelCount - 1);
-        switch (channel)
+        SplitSplatWeight(terrainIndex, out Color low, out _);
+        return low;
+    }
+
+    /// <summary>
+    /// One-hot blend weights. The first four terrains use <paramref name="low"/>
+    /// (mesh vertex color). Void and Crimson use <paramref name="high"/> (mesh UV1).
+    /// </summary>
+    public void SplitSplatWeight(int terrainIndex, out Color low, out Color high)
+    {
+        low = new Color(0f, 0f, 0f, 0f);
+        high = new Color(0f, 0f, 0f, 0f);
+        int channel = terrainIndex < 0 ? 0 : terrainIndex;
+        if (channel >= SplatChannelCount)
+            channel = SplatChannelCount - 1;
+
+        Color weight;
+        switch (channel & 3)
         {
-            case 0: return new Color(1f, 0f, 0f, 0f);
-            case 1: return new Color(0f, 1f, 0f, 0f);
-            case 2: return new Color(0f, 0f, 1f, 0f);
-            default: return new Color(0f, 0f, 0f, 1f);
+            case 0: weight = new Color(1f, 0f, 0f, 0f); break;
+            case 1: weight = new Color(0f, 1f, 0f, 0f); break;
+            case 2: weight = new Color(0f, 0f, 1f, 0f); break;
+            default: weight = new Color(0f, 0f, 0f, 1f); break;
         }
+
+        if (channel < 4)
+            low = weight;
+        else
+            high = weight;
     }
 
     public static int PackVisual(int entryIndex, int transform) =>
@@ -189,6 +214,43 @@ public class PlanetTileset : ScriptableObject
                 return i;
         }
         return -1;
+    }
+
+    /// <summary>
+    /// Brush list order: each ground family sits in a pair, without changing
+    /// the terrain indices already painted on the planet.
+    /// </summary>
+    public int[] GroupedPaintOrder()
+    {
+        string[] preferred =
+        {
+            "Grass", "DarkGrass",
+            "Clay", "Dirt",
+            "Void", "DarkVoid",
+            "Crimson", "DarkCrimson"
+        };
+
+        int count = TerrainCount;
+        var used = new bool[count];
+        var order = new int[count];
+        int write = 0;
+        for (int p = 0; p < preferred.Length; p++)
+        {
+            int index = IndexOfTerrainId(preferred[p]);
+            if (index < 0 || index >= count || used[index])
+                continue;
+            used[index] = true;
+            order[write++] = index;
+        }
+
+        for (int i = 0; i < count; i++)
+        {
+            if (used[i])
+                continue;
+            order[write++] = i;
+        }
+
+        return order;
     }
 
     string DefaultFillAtlasId()

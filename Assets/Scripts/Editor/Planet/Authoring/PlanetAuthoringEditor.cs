@@ -71,9 +71,19 @@ public sealed class PlanetAuthoringEditor : Editor
             if (paintTool == 3) height = EditorGUILayout.Slider("Height (steps)", height, PlanetTileMap.MinHeight, PlanetTileMap.MaxHeight);
             else if (!sculpt && !water)
             {
-                var labels = new string[owner.Tiles.Tileset.TerrainCount];
-                for (int i = 0; i < labels.Length; i++) labels[i] = owner.Tiles.Tileset.GetTerrain(i).displayName;
-                terrain = EditorGUILayout.Popup("Terrain", terrain, labels);
+                int[] order = owner.Tiles.Tileset.GroupedPaintOrder();
+                var labels = new string[order.Length];
+                int selected = 0;
+                for (int i = 0; i < order.Length; i++)
+                {
+                    PlanetTileset.Terrain entry = owner.Tiles.Tileset.GetTerrain(order[i]);
+                    labels[i] = entry != null ? entry.displayName : order[i].ToString();
+                    if (order[i] == terrain)
+                        selected = i;
+                }
+                selected = EditorGUILayout.Popup("Terrain", selected, labels);
+                if (order.Length > 0)
+                    terrain = order[Mathf.Clamp(selected, 0, order.Length - 1)];
             }
             if (water)
                 EditorGUILayout.HelpBox("Paints cells down to the sea bed so the ocean covers them. Shift restores land height.", MessageType.None);

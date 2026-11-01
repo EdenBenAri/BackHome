@@ -14,10 +14,14 @@ public static class NyxaraTileAtlasImporter
 
     static readonly string[] SplatPaths =
     {
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_cartoon.png",
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/dirt_normal.png",
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/dirt_clay.png",
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_darked.png"
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_brightened.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/Dirt_darked.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/Dirt_brightened.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Grass/Grass_darked.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Void/Void_brightened.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Void/Void_darked.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Crimson/Crimson_brightened.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Crimson/Crimson_darked.png"
     };
 
     struct TerrainSpec
@@ -33,30 +37,58 @@ public static class NyxaraTileAtlasImporter
         new TerrainSpec
         {
             id = "Grass",
-            displayName = "Grass",
+            displayName = "Grass_brightened",
             zoneId = "grass",
             previewColor = new Color(0.38f, 0.62f, 0.18f)
         },
         new TerrainSpec
         {
             id = "Dirt",
-            displayName = "Dirt",
+            displayName = "Dirt_darked",
             zoneId = "dirt",
-            previewColor = new Color(0.55f, 0.38f, 0.22f)
+            previewColor = new Color(0.81f, 0.62f, 0.35f)
         },
         new TerrainSpec
         {
             id = "Clay",
-            displayName = "Clay",
+            displayName = "Dirt_brightened",
             zoneId = "clay",
-            previewColor = new Color(0.72f, 0.48f, 0.28f)
+            previewColor = new Color(0.99f, 0.81f, 0.50f)
         },
         new TerrainSpec
         {
             id = "DarkGrass",
-            displayName = "Dark Grass",
+            displayName = "Grass_darked",
             zoneId = "dark_grass",
             previewColor = new Color(0.22f, 0.42f, 0.16f)
+        },
+        new TerrainSpec
+        {
+            id = "Void",
+            displayName = "Void_brightened",
+            zoneId = "void",
+            previewColor = new Color(0.64f, 0.29f, 0.64f)
+        },
+        new TerrainSpec
+        {
+            id = "DarkVoid",
+            displayName = "Void_darked",
+            zoneId = "dark_void",
+            previewColor = new Color(0.45f, 0.20f, 0.45f)
+        },
+        new TerrainSpec
+        {
+            id = "Crimson",
+            displayName = "Crimson_brightened",
+            zoneId = "crimson",
+            previewColor = new Color(1f, 0.30f, 0.33f)
+        },
+        new TerrainSpec
+        {
+            id = "DarkCrimson",
+            displayName = "Crimson_darked",
+            zoneId = "dark_crimson",
+            previewColor = new Color(0.93f, 0.11f, 0.14f)
         }
     };
 
@@ -130,7 +162,7 @@ public static class NyxaraTileAtlasImporter
 
         var summary = new System.Text.StringBuilder();
         summary.AppendLine("Nyxara now splat-blends the handpainted ground pack.");
-        summary.AppendLine("Brushes: Grass, Dirt, Clay, Dark Grass.");
+        summary.AppendLine("Brushes: Grass_brightened, Grass_darked, Dirt_brightened, Dirt_darked, Void_brightened, Void_darked, Crimson_brightened, Crimson_darked.");
         summary.AppendLine("Paint on the 3D authoring plane; the preview refreshes on release.");
         Debug.Log("[BackHome] " + summary.ToString().Replace("\n", " "));
         EditorUtility.DisplayDialog("Nyxara Tileset", summary.ToString(), "OK");

@@ -406,6 +406,7 @@ GameObject:
   - component: {fileID: 8686078795705392709}
   - component: {fileID: 8686078795705392710}
   - component: {fileID: 8686078795705392711}
+  - component: {fileID: 5114493909932819824}
   m_Layer: 0
   m_Name: Hud
   m_TagString: Untagged
@@ -619,6 +620,18 @@ MonoBehaviour:
   fill: {fileID: 9101000000000000032}
   fillImage: {fileID: 9101000000000000034}
   label: {fileID: 9101000000000000044}
+--- !u!114 &5114493909932819824
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8133869685062393850}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 72f9b42b7eed61e4ca2e0edc162b0245, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MiniMap
 --- !u!1 &8152000000000000001
 GameObject:
   m_ObjectHideFlags: 0

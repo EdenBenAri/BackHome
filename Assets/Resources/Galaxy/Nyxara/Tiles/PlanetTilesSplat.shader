@@ -6,6 +6,10 @@ Shader "BackHome/PlanetTilesSplat"
         _Splat1("Splat 1 (G)", 2D) = "white" {}
         _Splat2("Splat 2 (B)", 2D) = "white" {}
         _Splat3("Splat 3 (A)", 2D) = "white" {}
+        _Splat4("Void", 2D) = "white" {}
+        _Splat5("Dark Void", 2D) = "white" {}
+        _Splat6("Crimson", 2D) = "white" {}
+        _Splat7("Dark Crimson", 2D) = "white" {}
         _BaseColor("Color", Color) = (1, 1, 1, 1)
         _BlendSharpness("Blend Sharpness", Range(1, 4)) = 1.65
         _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.96
@@ -40,6 +44,10 @@ Shader "BackHome/PlanetTilesSplat"
             TEXTURE2D(_Splat1);
             TEXTURE2D(_Splat2);
             TEXTURE2D(_Splat3);
+            TEXTURE2D(_Splat4);
+            TEXTURE2D(_Splat5);
+            TEXTURE2D(_Splat6);
+            TEXTURE2D(_Splat7);
             SAMPLER(sampler_Splat0);
 
             CBUFFER_START(UnityPerMaterial)
@@ -56,6 +64,7 @@ Shader "BackHome/PlanetTilesSplat"
                 float3 normalOS : NORMAL;
                 float2 uv : TEXCOORD0;
                 float4 color : COLOR;
+                float4 splatHigh : TEXCOORD1;
             };
 
             struct Varyings
@@ -65,6 +74,7 @@ Shader "BackHome/PlanetTilesSplat"
                 float4 color : COLOR;
                 float3 normalWS : TEXCOORD1;
                 float3 positionWS : TEXCOORD2;
+                float4 splatHigh : TEXCOORD3;
             };
 
             Varyings vert(Attributes input)
@@ -74,6 +84,7 @@ Shader "BackHome/PlanetTilesSplat"
                 o.positionCS = TransformWorldToHClip(posWS);
                 o.uv = TRANSFORM_TEX(input.uv, _Splat0);
                 o.color = input.color;
+                o.splatHigh = input.splatHigh;
                 o.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 o.positionWS = posWS;
                 return o;
@@ -86,23 +97,37 @@ Shader "BackHome/PlanetTilesSplat"
                     return half4(0, 0, 0, 1);
 
                 half4 w = max(input.color, 0);
-                w = pow(w, half4(_BlendSharpness, _BlendSharpness, _BlendSharpness, _BlendSharpness));
-                half sum = w.r + w.g + w.b + w.a + 1e-5;
+                half4 extra = max(input.splatHigh, 0);
+                half4 sharpness = half4(_BlendSharpness, _BlendSharpness, _BlendSharpness, _BlendSharpness);
+                w = pow(w, sharpness);
+                extra = pow(extra, sharpness);
+                half sum = w.r + w.g + w.b + w.a + extra.r + extra.g + extra.b + extra.a + 1e-5;
                 w /= sum;
+                extra /= sum;
 
                 half4 c0 = SAMPLE_TEXTURE2D(_Splat0, sampler_Splat0, input.uv);
                 half4 c1 = SAMPLE_TEXTURE2D(_Splat1, sampler_Splat0, input.uv);
                 half4 c2 = SAMPLE_TEXTURE2D(_Splat2, sampler_Splat0, input.uv);
                 half4 c3 = SAMPLE_TEXTURE2D(_Splat3, sampler_Splat0, input.uv);
-
                 half3 albedo = c0.rgb * w.r + c1.rgb * w.g + c2.rgb * w.b + c3.rgb * w.a;
+
+                half extraWeight = extra.r + extra.g + extra.b + extra.a;
+                [branch]
+                if (extraWeight > 1e-4h)
+                {
+                    half4 c4 = SAMPLE_TEXTURE2D(_Splat4, sampler_Splat0, input.uv);
+                    half4 c5 = SAMPLE_TEXTURE2D(_Splat5, sampler_Splat0, input.uv);
+                    half4 c6 = SAMPLE_TEXTURE2D(_Splat6, sampler_Splat0, input.uv);
+                    half4 c7 = SAMPLE_TEXTURE2D(_Splat7, sampler_Splat0, input.uv);
+                    albedo += c4.rgb * extra.r + c5.rgb * extra.g + c6.rgb * extra.b + c7.rgb * extra.a;
+                }
                 half3 n = normalize(input.normalWS);
                 half3 lightDir = normalize(half3(0.35, 0.9, 0.25));
                 half ndl = dot(n, lightDir);
                 half wrap = 0.85h;
                 half t = saturate((ndl + wrap) / (1.0h + wrap));
                 t = t * t * (3.0h - 2.0h * t);
-                // R is Grass_brightened, A is Grass_darked. Dirt and clay stay flat.
+                // R is Grass_brightened, A is Grass_darked. Dirt, clay, void, and crimson stay flat.
                 half grass = saturate(w.r + w.a);
                 half bevel = lerp(1.0h, PlanetTileBevel(input.uv), grass);
                 half shade = lerp(_ShadeFloor, _ShadeCeil, t) * bevel;

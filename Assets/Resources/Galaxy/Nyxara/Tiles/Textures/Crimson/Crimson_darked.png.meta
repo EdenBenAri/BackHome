@@ -1,12 +1,5 @@
 fileFormatVersion: 2
-guid: 0dd443a2df90ef247be261e60d0ce83b
-AssetOrigin:
-  serializedVersion: 1
-  productId: 187634
-  packageName: "Handpainted Grass & Ground Textures \u2014 Top-Down RPG | Terrain Tool"
-  packageVersion: 1.4.1
-  assetPath: Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Dirt/dirt_normal/dirt_normal_up.png
-  uploadId: 899394
+guid: 181bef9d10695824da6afd99372ba1e0
 TextureImporter:
   internalIDToNameTable: []
   externalObjects: {}
@@ -42,7 +35,7 @@ TextureImporter:
   textureSettings:
     serializedVersion: 2
     filterMode: 1
-    aniso: 8
+    aniso: 1
     mipBias: 0
     wrapU: 0
     wrapV: 0
@@ -74,14 +67,14 @@ TextureImporter:
   ignorePngGamma: 0
   applyGammaDecoding: 0
   swizzle: 50462976
-  cookieLightType: 1
+  cookieLightType: 0
   platformSettings:
   - serializedVersion: 4
     buildTarget: DefaultTexturePlatform
     maxTextureSize: 2048
     resizeAlgorithm: 0
     textureFormat: -1
-    textureCompression: 2
+    textureCompression: 1
     compressionQuality: 50
     crunchedCompression: 0
     allowsAlphaSplitting: 0
@@ -99,19 +92,6 @@ TextureImporter:
     crunchedCompression: 0
     allowsAlphaSplitting: 0
     overridden: 0
-    ignorePlatformSupport: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 4
-    buildTarget: WebGL
-    maxTextureSize: 64
-    resizeAlgorithm: 0
-    textureFormat: 4
-    textureCompression: 0
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 1
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0

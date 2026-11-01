@@ -75,9 +75,69 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: dark_grass
+  - id: Fill_Void
+    column: 0
+    row: 0
+    pixelX: 0
+    pixelY: 0
+    pixelWidth: 0
+    pixelHeight: 0
+    cornerNW: 4
+    cornerNE: 4
+    cornerSW: 4
+    cornerSE: 4
+    flipU: 0
+    flipV: 0
+    walkable: 1
+    zoneId: void
+  - id: Fill_DarkVoid
+    column: 0
+    row: 0
+    pixelX: 0
+    pixelY: 0
+    pixelWidth: 0
+    pixelHeight: 0
+    cornerNW: 5
+    cornerNE: 5
+    cornerSW: 5
+    cornerSE: 5
+    flipU: 0
+    flipV: 0
+    walkable: 1
+    zoneId: dark_void
+  - id: Fill_Crimson
+    column: 0
+    row: 0
+    pixelX: 0
+    pixelY: 0
+    pixelWidth: 0
+    pixelHeight: 0
+    cornerNW: 6
+    cornerNE: 6
+    cornerSW: 6
+    cornerSE: 6
+    flipU: 0
+    flipV: 0
+    walkable: 1
+    zoneId: crimson
+  - id: Fill_DarkCrimson
+    column: 0
+    row: 0
+    pixelX: 0
+    pixelY: 0
+    pixelWidth: 0
+    pixelHeight: 0
+    cornerNW: 7
+    cornerNE: 7
+    cornerSW: 7
+    cornerSE: 7
+    flipU: 0
+    flipV: 0
+    walkable: 1
+    zoneId: dark_crimson
   terrains:
   - id: Grass
-    displayName: Grass
+    displayName: Grass_brightened
     previewColor: {r: 0.38, g: 0.62, b: 0.18, a: 1}
     walkable: 1
     zoneId: grass
@@ -100,8 +160,8 @@ MonoBehaviour:
     - Fill_Grass
     - Fill_Grass
   - id: Dirt
-    displayName: Dirt
-    previewColor: {r: 0.55, g: 0.38, b: 0.22, a: 1}
+    displayName: Dirt_darked
+    previewColor: {r: 0.81, g: 0.62, b: 0.35, a: 1}
     walkable: 1
     zoneId: dirt
     fillAtlasId: Fill_Dirt
@@ -123,8 +183,8 @@ MonoBehaviour:
     - Fill_Dirt
     - Fill_Dirt
   - id: Clay
-    displayName: Clay
-    previewColor: {r: 0.72, g: 0.48, b: 0.28, a: 1}
+    displayName: Dirt_brightened
+    previewColor: {r: 0.99, g: 0.81, b: 0.5, a: 1}
     walkable: 1
     zoneId: clay
     fillAtlasId: Fill_Clay
@@ -146,7 +206,7 @@ MonoBehaviour:
     - Fill_Clay
     - Fill_Clay
   - id: DarkGrass
-    displayName: Dark Grass
+    displayName: Grass_darked
     previewColor: {r: 0.22, g: 0.42, b: 0.16, a: 1}
     walkable: 1
     zoneId: dark_grass
@@ -168,10 +228,106 @@ MonoBehaviour:
     - Fill_DarkGrass
     - Fill_DarkGrass
     - Fill_DarkGrass
+  - id: Void
+    displayName: Void_brightened
+    previewColor: {r: 0.64, g: 0.29, b: 0.64, a: 1}
+    walkable: 1
+    zoneId: void
+    fillAtlasId: Fill_Void
+    maskToAtlasId:
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+    - Fill_Void
+  - id: DarkVoid
+    displayName: Void_darked
+    previewColor: {r: 0.45, g: 0.2, b: 0.45, a: 1}
+    walkable: 1
+    zoneId: dark_void
+    fillAtlasId: Fill_DarkVoid
+    maskToAtlasId:
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+    - Fill_DarkVoid
+  - id: Crimson
+    displayName: Crimson_brightened
+    previewColor: {r: 1, g: 0.3, b: 0.33, a: 1}
+    walkable: 1
+    zoneId: crimson
+    fillAtlasId: Fill_Crimson
+    maskToAtlasId:
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+    - Fill_Crimson
+  - id: DarkCrimson
+    displayName: Crimson_darked
+    previewColor: {r: 0.93, g: 0.11, b: 0.14, a: 1}
+    walkable: 1
+    zoneId: dark_crimson
+    fillAtlasId: Fill_DarkCrimson
+    maskToAtlasId:
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
+    - Fill_DarkCrimson
   splatAlbedos:
   - {fileID: 2800000, guid: 7342991327c6430e9c0f63042a6b46ad, type: 3}
-  - {fileID: 2800000, guid: 0dd443a2df90ef247be261e60d0ce83b, type: 3}
   - {fileID: 2800000, guid: 7334f41aedeae534fb57921b121a9f1f, type: 3}
+  - {fileID: 2800000, guid: 0dd443a2df90ef247be261e60d0ce83b, type: 3}
   - {fileID: 2800000, guid: df73a5b6a8127ff40a8c6840516304de, type: 3}
+  - {fileID: 2800000, guid: 0922e89ab5c59584695f3be1c06286ed, type: 3}
+  - {fileID: 2800000, guid: a99654cd86ea3ba49891e7e93cb44d27, type: 3}
+  - {fileID: 2800000, guid: c02e86f6b1554aa44b43c636f17856b3, type: 3}
+  - {fileID: 2800000, guid: 181bef9d10695824da6afd99372ba1e0, type: 3}
   splatTiling: 1
   splatBlendSharpness: 5

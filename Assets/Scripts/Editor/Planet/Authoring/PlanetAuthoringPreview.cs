@@ -329,7 +329,8 @@ public static class PlanetAuthoringPreview
         material.SetFloat("_UseSplat", tileset.UsesSplatBlending ? 1f : 0f);
         material.SetFloat("_Sharpness", tileset.SplatBlendSharpness);
         material.SetTexture("_MainTex", tileset.Texture);
-        for (int i = 0; i < 4; i++) material.SetTexture("_Splat" + i, tileset.GetSplatAlbedo(i));
+        for (int i = 0; i < PlanetTileset.SplatChannelCount; i++)
+            material.SetTexture("_Splat" + i, tileset.GetSplatAlbedo(i));
         return material;
     }
 
@@ -350,6 +351,7 @@ public static class PlanetAuthoringPreview
         var vertices = new Vector3[rows * columns * 4];
         var uv = new Vector2[vertices.Length];
         var colors = new Color[vertices.Length];
+        var highs = new Vector4[vertices.Length];
         var indices = new int[rows * columns * 6];
         var heights = new float[(rows + 1) * (columns + 1)];
         float width = 2f * Mathf.PI * owner.Radius, depth = width * .5f;
@@ -370,7 +372,9 @@ public static class PlanetAuthoringPreview
                 vertices[v + corner] = new Vector3((cx / (float)columns - .5f) * width,
                     heights[cy * (columns + 1) + cx], (cy / (float)rows - .5f) * depth);
                 uv[v + corner] = new Vector2(cx, cy) * tileset.SplatTiling;
-                colors[v + corner] = tileset.SplatWeight(map.GetTerrain(Mathf.Min(cy, rows - 1), cx));
+                tileset.SplitSplatWeight(map.GetTerrain(Mathf.Min(cy, rows - 1), cx), out Color low, out Color high);
+                colors[v + corner] = low;
+                highs[v + corner] = new Vector4(high.r, high.g, high.b, high.a);
             }
             if (!tileset.UsesSplatBlending)
             {
@@ -382,7 +386,7 @@ public static class PlanetAuthoringPreview
         }
         var mesh = new Mesh { name = "Nyxara editor grid", hideFlags = HideFlags.HideAndDontSave,
             indexFormat = vertices.Length > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16 };
-        mesh.vertices = vertices; mesh.uv = uv; mesh.colors = colors; mesh.triangles = indices;
+        mesh.vertices = vertices; mesh.uv = uv; mesh.colors = colors; mesh.SetUVs(1, highs); mesh.triangles = indices;
         mesh.RecalculateNormals(); mesh.RecalculateBounds();
         return mesh;
     }

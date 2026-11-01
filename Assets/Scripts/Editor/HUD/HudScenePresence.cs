@@ -124,6 +124,8 @@ public static class HudScenePresence
                 changed = true;
             if (EnsureDeathCameraLockOnHud(root))
                 changed = true;
+            if (EnsureMiniMap(root))
+                changed = true;
             if (RestyleJoystick(canvasTransform))
                 changed = true;
 
@@ -392,6 +394,15 @@ public static class HudScenePresence
             so.ApplyModifiedPropertiesWithoutUndo();
 
         return changed;
+    }
+
+    static bool EnsureMiniMap(GameObject root)
+    {
+        if (root.GetComponent<MiniMap>() != null)
+            return false;
+
+        root.AddComponent<MiniMap>();
+        return true;
     }
 
     static bool AssignIfDifferent(SerializedObject so, string propertyName, Object value)
