@@ -36,12 +36,14 @@ public class PlanetTileset : ScriptableObject
     public const int TerrainDarkVoid = 5;
     public const int TerrainCrimson = 6;
     public const int TerrainDarkCrimson = 7;
-    public const int SplatChannelCount = 8;
+    public const int TerrainGlowingMushroom = 8;
+    public const int TerrainDarkGlowingMushroom = 9;
+    public const int SplatChannelCount = 10;
 
     [Serializable]
     public class Entry
     {
-        public string id = "Fill_Grass";
+        public string id = "Grass_brightened";
         [Tooltip("Atlas cell column (0 = left).")]
         public int column;
         [Tooltip("Atlas cell row from top of the PNG (0 = top).")]
@@ -71,7 +73,7 @@ public class PlanetTileset : ScriptableObject
         public bool walkable = true;
         public string zoneId = "default";
         [Tooltip("Atlas id used when this is the base terrain, or fallback fill.")]
-        public string fillAtlasId = "Fill_Grass";
+        public string fillAtlasId = "Grass_brightened";
         [Tooltip("Length 16. mask[i] = atlas id for neighbor bitmask i. Empty = use fillAtlasId.")]
         public string[] maskToAtlasId = new string[MaskCount];
     }
@@ -108,18 +110,19 @@ public class PlanetTileset : ScriptableObject
 
     public Color SplatWeight(int terrainIndex)
     {
-        SplitSplatWeight(terrainIndex, out Color low, out _);
+        SplitSplatWeight(terrainIndex, out Color low, out _, out _);
         return low;
     }
 
     /// <summary>
-    /// One-hot blend weights. The first four terrains use <paramref name="low"/>
-    /// (mesh vertex color). Void and Crimson use <paramref name="high"/> (mesh UV1).
+    /// One-hot blend weights. Terrains 0-3 use <paramref name="low"/> (vertex color),
+    /// 4-7 use <paramref name="high"/> (mesh UV1), and Glowing Mushroom uses <paramref name="top"/> (mesh UV2).
     /// </summary>
-    public void SplitSplatWeight(int terrainIndex, out Color low, out Color high)
+    public void SplitSplatWeight(int terrainIndex, out Color low, out Color high, out Color top)
     {
         low = new Color(0f, 0f, 0f, 0f);
         high = new Color(0f, 0f, 0f, 0f);
+        top = new Color(0f, 0f, 0f, 0f);
         int channel = terrainIndex < 0 ? 0 : terrainIndex;
         if (channel >= SplatChannelCount)
             channel = SplatChannelCount - 1;
@@ -133,10 +136,13 @@ public class PlanetTileset : ScriptableObject
             default: weight = new Color(0f, 0f, 0f, 1f); break;
         }
 
-        if (channel < 4)
+        int group = channel / 4;
+        if (group == 0)
             low = weight;
-        else
+        else if (group == 1)
             high = weight;
+        else
+            top = weight;
     }
 
     public static int PackVisual(int entryIndex, int transform) =>
@@ -227,7 +233,8 @@ public class PlanetTileset : ScriptableObject
             "Grass", "DarkGrass",
             "Clay", "Dirt",
             "Void", "DarkVoid",
-            "Crimson", "DarkCrimson"
+            "Crimson", "DarkCrimson",
+            "GlowingMushroom", "DarkGlowingMushroom"
         };
 
         int count = TerrainCount;
@@ -260,7 +267,7 @@ public class PlanetTileset : ScriptableObject
             return baseTerrain.fillAtlasId;
         if (entries != null && entries.Length > 0 && entries[0] != null)
             return entries[0].id;
-        return "Fill_Grass";
+        return "Grass_brightened";
     }
 
     public string ResolveAtlasId(int terrainIndex, int neighborMask)

@@ -15,7 +15,7 @@ MonoBehaviour:
   texture: {fileID: 2800000, guid: 7342991327c6430e9c0f63042a6b46ad, type: 3}
   tileSize: 2048
   entries:
-  - id: Fill_Grass
+  - id: Grass_brightened
     column: 0
     row: 0
     pixelX: 0
@@ -30,7 +30,7 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: grass
-  - id: Fill_Dirt
+  - id: Dirt_darked
     column: 0
     row: 0
     pixelX: 0
@@ -45,7 +45,7 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: dirt
-  - id: Fill_Clay
+  - id: Dirt_brightened
     column: 0
     row: 0
     pixelX: 0
@@ -60,7 +60,7 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: clay
-  - id: Fill_DarkGrass
+  - id: Grass_darked
     column: 0
     row: 0
     pixelX: 0
@@ -75,7 +75,7 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: dark_grass
-  - id: Fill_Void
+  - id: Void_brightened
     column: 0
     row: 0
     pixelX: 0
@@ -90,7 +90,7 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: void
-  - id: Fill_DarkVoid
+  - id: Void_darked
     column: 0
     row: 0
     pixelX: 0
@@ -105,7 +105,7 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: dark_void
-  - id: Fill_Crimson
+  - id: Crimson_brightened
     column: 0
     row: 0
     pixelX: 0
@@ -120,7 +120,7 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: crimson
-  - id: Fill_DarkCrimson
+  - id: Crimson_darked
     column: 0
     row: 0
     pixelX: 0
@@ -135,191 +135,267 @@ MonoBehaviour:
     flipV: 0
     walkable: 1
     zoneId: dark_crimson
+  - id: GlowingMushroom_brightened
+    column: 0
+    row: 0
+    pixelX: 0
+    pixelY: 0
+    pixelWidth: 0
+    pixelHeight: 0
+    cornerNW: 8
+    cornerNE: 8
+    cornerSW: 8
+    cornerSE: 8
+    flipU: 0
+    flipV: 0
+    walkable: 1
+    zoneId: glowing_mushroom
+  - id: GlowingMushroom_darked
+    column: 0
+    row: 0
+    pixelX: 0
+    pixelY: 0
+    pixelWidth: 0
+    pixelHeight: 0
+    cornerNW: 9
+    cornerNE: 9
+    cornerSW: 9
+    cornerSE: 9
+    flipU: 0
+    flipV: 0
+    walkable: 1
+    zoneId: dark_glowing_mushroom
   terrains:
   - id: Grass
     displayName: Grass_brightened
     previewColor: {r: 0.38, g: 0.62, b: 0.18, a: 1}
     walkable: 1
     zoneId: grass
-    fillAtlasId: Fill_Grass
+    fillAtlasId: Grass_brightened
     maskToAtlasId:
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
-    - Fill_Grass
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
+    - Grass_brightened
   - id: Dirt
     displayName: Dirt_darked
     previewColor: {r: 0.81, g: 0.62, b: 0.35, a: 1}
     walkable: 1
     zoneId: dirt
-    fillAtlasId: Fill_Dirt
+    fillAtlasId: Dirt_darked
     maskToAtlasId:
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
-    - Fill_Dirt
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
+    - Dirt_darked
   - id: Clay
     displayName: Dirt_brightened
     previewColor: {r: 0.99, g: 0.81, b: 0.5, a: 1}
     walkable: 1
     zoneId: clay
-    fillAtlasId: Fill_Clay
+    fillAtlasId: Dirt_brightened
     maskToAtlasId:
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
-    - Fill_Clay
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
+    - Dirt_brightened
   - id: DarkGrass
     displayName: Grass_darked
     previewColor: {r: 0.22, g: 0.42, b: 0.16, a: 1}
     walkable: 1
     zoneId: dark_grass
-    fillAtlasId: Fill_DarkGrass
+    fillAtlasId: Grass_darked
     maskToAtlasId:
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
-    - Fill_DarkGrass
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
+    - Grass_darked
   - id: Void
     displayName: Void_brightened
     previewColor: {r: 0.64, g: 0.29, b: 0.64, a: 1}
     walkable: 1
     zoneId: void
-    fillAtlasId: Fill_Void
+    fillAtlasId: Void_brightened
     maskToAtlasId:
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
-    - Fill_Void
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
+    - Void_brightened
   - id: DarkVoid
     displayName: Void_darked
     previewColor: {r: 0.45, g: 0.2, b: 0.45, a: 1}
     walkable: 1
     zoneId: dark_void
-    fillAtlasId: Fill_DarkVoid
+    fillAtlasId: Void_darked
     maskToAtlasId:
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
-    - Fill_DarkVoid
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
+    - Void_darked
   - id: Crimson
     displayName: Crimson_brightened
     previewColor: {r: 1, g: 0.3, b: 0.33, a: 1}
     walkable: 1
     zoneId: crimson
-    fillAtlasId: Fill_Crimson
+    fillAtlasId: Crimson_brightened
     maskToAtlasId:
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
-    - Fill_Crimson
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
+    - Crimson_brightened
   - id: DarkCrimson
     displayName: Crimson_darked
     previewColor: {r: 0.93, g: 0.11, b: 0.14, a: 1}
     walkable: 1
     zoneId: dark_crimson
-    fillAtlasId: Fill_DarkCrimson
+    fillAtlasId: Crimson_darked
     maskToAtlasId:
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
-    - Fill_DarkCrimson
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+    - Crimson_darked
+  - id: GlowingMushroom
+    displayName: GlowingMushroom_brightened
+    previewColor: {r: 0, g: 0.5, b: 0.5, a: 1}
+    walkable: 1
+    zoneId: glowing_mushroom
+    fillAtlasId: GlowingMushroom_brightened
+    maskToAtlasId:
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+    - GlowingMushroom_brightened
+  - id: DarkGlowingMushroom
+    displayName: GlowingMushroom_darked
+    previewColor: {r: 0, g: 0.39, b: 0.39, a: 1}
+    walkable: 1
+    zoneId: dark_glowing_mushroom
+    fillAtlasId: GlowingMushroom_darked
+    maskToAtlasId:
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
+    - GlowingMushroom_darked
   splatAlbedos:
   - {fileID: 2800000, guid: 7342991327c6430e9c0f63042a6b46ad, type: 3}
   - {fileID: 2800000, guid: 7334f41aedeae534fb57921b121a9f1f, type: 3}
@@ -329,5 +405,7 @@ MonoBehaviour:
   - {fileID: 2800000, guid: a99654cd86ea3ba49891e7e93cb44d27, type: 3}
   - {fileID: 2800000, guid: c02e86f6b1554aa44b43c636f17856b3, type: 3}
   - {fileID: 2800000, guid: 181bef9d10695824da6afd99372ba1e0, type: 3}
+  - {fileID: 2800000, guid: 1b61f62d71bcdd443a533d363d3eea58, type: 3}
+  - {fileID: 2800000, guid: 74d4d4075d0532c4fad270c8068c6a4d, type: 3}
   splatTiling: 1
   splatBlendSharpness: 5

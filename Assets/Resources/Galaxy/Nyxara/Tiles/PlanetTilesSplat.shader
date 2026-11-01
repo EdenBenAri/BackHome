@@ -10,6 +10,8 @@ Shader "BackHome/PlanetTilesSplat"
         _Splat5("Dark Void", 2D) = "white" {}
         _Splat6("Crimson", 2D) = "white" {}
         _Splat7("Dark Crimson", 2D) = "white" {}
+        _Splat8("Glowing Mushroom", 2D) = "white" {}
+        _Splat9("Dark Glowing Mushroom", 2D) = "white" {}
         _BaseColor("Color", Color) = (1, 1, 1, 1)
         _BlendSharpness("Blend Sharpness", Range(1, 4)) = 1.65
         _ShadeFloor("Shade Floor", Range(0.3, 1)) = 0.96
@@ -48,6 +50,8 @@ Shader "BackHome/PlanetTilesSplat"
             TEXTURE2D(_Splat5);
             TEXTURE2D(_Splat6);
             TEXTURE2D(_Splat7);
+            TEXTURE2D(_Splat8);
+            TEXTURE2D(_Splat9);
             SAMPLER(sampler_Splat0);
 
             CBUFFER_START(UnityPerMaterial)
@@ -65,6 +69,7 @@ Shader "BackHome/PlanetTilesSplat"
                 float2 uv : TEXCOORD0;
                 float4 color : COLOR;
                 float4 splatHigh : TEXCOORD1;
+                float4 splatTop : TEXCOORD2;
             };
 
             struct Varyings
@@ -75,6 +80,7 @@ Shader "BackHome/PlanetTilesSplat"
                 float3 normalWS : TEXCOORD1;
                 float3 positionWS : TEXCOORD2;
                 float4 splatHigh : TEXCOORD3;
+                float4 splatTop : TEXCOORD4;
             };
 
             Varyings vert(Attributes input)
@@ -85,6 +91,7 @@ Shader "BackHome/PlanetTilesSplat"
                 o.uv = TRANSFORM_TEX(input.uv, _Splat0);
                 o.color = input.color;
                 o.splatHigh = input.splatHigh;
+                o.splatTop = input.splatTop;
                 o.normalWS = TransformObjectToWorldNormal(input.normalOS);
                 o.positionWS = posWS;
                 return o;
@@ -98,12 +105,17 @@ Shader "BackHome/PlanetTilesSplat"
 
                 half4 w = max(input.color, 0);
                 half4 extra = max(input.splatHigh, 0);
+                half4 mushroom = max(input.splatTop, 0);
                 half4 sharpness = half4(_BlendSharpness, _BlendSharpness, _BlendSharpness, _BlendSharpness);
                 w = pow(w, sharpness);
                 extra = pow(extra, sharpness);
-                half sum = w.r + w.g + w.b + w.a + extra.r + extra.g + extra.b + extra.a + 1e-5;
+                mushroom = pow(mushroom, sharpness);
+                half sum = w.r + w.g + w.b + w.a
+                    + extra.r + extra.g + extra.b + extra.a
+                    + mushroom.r + mushroom.g + mushroom.b + mushroom.a + 1e-5;
                 w /= sum;
                 extra /= sum;
+                mushroom /= sum;
 
                 half4 c0 = SAMPLE_TEXTURE2D(_Splat0, sampler_Splat0, input.uv);
                 half4 c1 = SAMPLE_TEXTURE2D(_Splat1, sampler_Splat0, input.uv);
@@ -121,13 +133,21 @@ Shader "BackHome/PlanetTilesSplat"
                     half4 c7 = SAMPLE_TEXTURE2D(_Splat7, sampler_Splat0, input.uv);
                     albedo += c4.rgb * extra.r + c5.rgb * extra.g + c6.rgb * extra.b + c7.rgb * extra.a;
                 }
+                half mushroomWeight = mushroom.r + mushroom.g;
+                [branch]
+                if (mushroomWeight > 1e-4h)
+                {
+                    half4 c8 = SAMPLE_TEXTURE2D(_Splat8, sampler_Splat0, input.uv);
+                    half4 c9 = SAMPLE_TEXTURE2D(_Splat9, sampler_Splat0, input.uv);
+                    albedo += c8.rgb * mushroom.r + c9.rgb * mushroom.g;
+                }
                 half3 n = normalize(input.normalWS);
                 half3 lightDir = normalize(half3(0.35, 0.9, 0.25));
                 half ndl = dot(n, lightDir);
                 half wrap = 0.85h;
                 half t = saturate((ndl + wrap) / (1.0h + wrap));
                 t = t * t * (3.0h - 2.0h * t);
-                // R is Grass_brightened, A is Grass_darked. Dirt, clay, void, and crimson stay flat.
+                // R is Grass_brightened, A is Grass_darked. Dirt, void, crimson, and glowing mushroom stay flat.
                 half grass = saturate(w.r + w.a);
                 half bevel = lerp(1.0h, PlanetTileBevel(input.uv), grass);
                 half shade = lerp(_ShadeFloor, _ShadeCeil, t) * bevel;

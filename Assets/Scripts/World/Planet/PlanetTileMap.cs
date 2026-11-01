@@ -897,20 +897,22 @@ public class PlanetTileMap : MonoBehaviour
     {
         public Color low;
         public Color high;
+        public Color top;
 
         public static SplatSample Tint(Color color) => new SplatSample { low = color };
 
         public static SplatSample FromTerrain(PlanetTileset tileset, int terrain)
         {
-            tileset.SplitSplatWeight(terrain, out Color low, out Color high);
-            return new SplatSample { low = low, high = high };
+            tileset.SplitSplatWeight(terrain, out Color low, out Color high, out Color top);
+            return new SplatSample { low = low, high = high, top = top };
         }
 
         public static SplatSample Lerp(SplatSample a, SplatSample b, float t) =>
             new SplatSample
             {
                 low = Color.Lerp(a.low, b.low, t),
-                high = Color.Lerp(a.high, b.high, t)
+                high = Color.Lerp(a.high, b.high, t),
+                top = Color.Lerp(a.top, b.top, t)
             };
     }
 
@@ -930,6 +932,7 @@ public class PlanetTileMap : MonoBehaviour
         var uvs = new List<Vector2>(CellCount * vertsPerCell);
         var colors = new List<Color>(CellCount * vertsPerCell);
         var highs = new List<Color>(CellCount * vertsPerCell);
+        var tops = new List<Color>(CellCount * vertsPerCell);
         var triangles = new List<int>(CellCount * trisPerCell);
 
         EnsureHeights();
@@ -1004,7 +1007,7 @@ public class PlanetTileMap : MonoBehaviour
                         liftNW, liftNE, 0.5f * (liftSW + liftSE),
                         uvSW, uvSE, uvNE, uvNW,
                         sSW, sSE, sNE, sNW,
-                        vertices, normals, uvs, colors, highs, triangles);
+                        vertices, normals, uvs, colors, highs, tops, triangles);
                     continue;
                 }
 
@@ -1015,7 +1018,7 @@ public class PlanetTileMap : MonoBehaviour
                         liftSW, liftSE, 0.5f * (liftNW + liftNE),
                         uvSW, uvSE, uvNE, uvNW,
                         sSW, sSE, sNE, sNW,
-                        vertices, normals, uvs, colors, highs, triangles);
+                        vertices, normals, uvs, colors, highs, tops, triangles);
                     continue;
                 }
 
@@ -1024,7 +1027,7 @@ public class PlanetTileMap : MonoBehaviour
                     liftSW, liftSE, liftNE, liftNW,
                     uvSW, uvSE, uvNE, uvNW,
                     sSW, sSE, sNE, sNW, subdiv,
-                    vertices, normals, uvs, colors, highs, triangles);
+                    vertices, normals, uvs, colors, highs, tops, triangles);
             }
         }
 
@@ -1033,7 +1036,7 @@ public class PlanetTileMap : MonoBehaviour
         // splat weights must match exactly, so the walk collider and the shoreline
         // stay on the same surface. Normals are rebuilt afterwards, which smooths
         // the 4% shade band instead of leaving one flat normal per quad.
-        WeldCoincidentVertices(vertices, uvs, colors, highs, triangles);
+        WeldCoincidentVertices(vertices, uvs, colors, highs, tops, triangles);
 
         if (_runtimeMesh == null)
             _runtimeMesh = new Mesh();
@@ -1053,6 +1056,13 @@ public class PlanetTileMap : MonoBehaviour
             highUv.Add(new Vector4(high.r, high.g, high.b, high.a));
         }
         _runtimeMesh.SetUVs(1, highUv);
+        var topUv = new List<Vector4>(tops.Count);
+        for (int i = 0; i < tops.Count; i++)
+        {
+            Color top = tops[i];
+            topUv.Add(new Vector4(top.r, top.g, top.b, top.a));
+        }
+        _runtimeMesh.SetUVs(2, topUv);
         _runtimeMesh.SetTriangles(triangles, 0, true);
         _runtimeMesh.RecalculateBounds();
         _runtimeMesh.RecalculateNormals();
@@ -1104,6 +1114,7 @@ public class PlanetTileMap : MonoBehaviour
         List<Vector2> uvs,
         List<Color> colors,
         List<Color> highs,
+        List<Color> tops,
         List<int> triangles)
     {
         subdiv = Mathf.Max(2, subdiv);
@@ -1148,7 +1159,7 @@ public class PlanetTileMap : MonoBehaviour
                     SplatSample.Lerp(colW1, colE1, tx1),
                     SplatSample.Lerp(colW1, colE1, tx0),
                     true,
-                    vertices, normals, uvs, colors, highs, triangles);
+                    vertices, normals, uvs, colors, highs, tops, triangles);
             }
         }
     }
@@ -1174,6 +1185,7 @@ public class PlanetTileMap : MonoBehaviour
         List<Vector2> uvs,
         List<Color> colors,
         List<Color> highs,
+        List<Color> tops,
         List<int> triangles)
     {
         float poleLat = northPole ? 90f : -90f;
@@ -1191,9 +1203,9 @@ public class PlanetTileMap : MonoBehaviour
             return;
 
         if (northPole)
-            AddTri(pole, r0, r1, uvPole, uvRing0, uvRing1, sPole, sRing0, sRing1, true, vertices, normals, uvs, colors, highs, triangles);
+            AddTri(pole, r0, r1, uvPole, uvRing0, uvRing1, sPole, sRing0, sRing1, true, vertices, normals, uvs, colors, highs, tops, triangles);
         else
-            AddTri(pole, r1, r0, uvPole, uvRing1, uvRing0, sPole, sRing1, sRing0, true, vertices, normals, uvs, colors, highs, triangles);
+            AddTri(pole, r1, r0, uvPole, uvRing1, uvRing0, sPole, sRing1, sRing0, true, vertices, normals, uvs, colors, highs, tops, triangles);
     }
 
     static bool IsUsableFace(Vector3 a, Vector3 b, Vector3 c, Vector3 d)
@@ -1225,6 +1237,7 @@ public class PlanetTileMap : MonoBehaviour
         List<Vector2> uvs,
         List<Color> colors,
         List<Color> highs,
+        List<Color> tops,
         List<int> triangles)
     {
         Vector3 center = (a + b + c) / 3f;
@@ -1272,6 +1285,9 @@ public class PlanetTileMap : MonoBehaviour
         highs.Add(sampleA.high);
         highs.Add(sampleB.high);
         highs.Add(sampleC.high);
+        tops.Add(sampleA.top);
+        tops.Add(sampleB.top);
+        tops.Add(sampleC.top);
         triangles.Add(start + 0);
         triangles.Add(start + 1);
         triangles.Add(start + 2);
@@ -1296,6 +1312,7 @@ public class PlanetTileMap : MonoBehaviour
         List<Vector2> uvs,
         List<Color> colors,
         List<Color> highs,
+        List<Color> tops,
         List<int> triangles)
     {
         if (!IsUsableFace(a, b, c, d))
@@ -1353,6 +1370,10 @@ public class PlanetTileMap : MonoBehaviour
         highs.Add(sampleB.high);
         highs.Add(sampleC.high);
         highs.Add(sampleD.high);
+        tops.Add(sampleA.top);
+        tops.Add(sampleB.top);
+        tops.Add(sampleC.top);
+        tops.Add(sampleD.top);
         triangles.Add(start + 0);
         triangles.Add(start + 1);
         triangles.Add(start + 2);
@@ -1363,9 +1384,9 @@ public class PlanetTileMap : MonoBehaviour
 
     readonly struct VertexWeldKey : IEquatable<VertexWeldKey>
     {
-        readonly int _px, _py, _pz, _u, _v, _r, _g, _b, _a, _hr, _hg, _hb, _ha;
+        readonly int _px, _py, _pz, _u, _v, _r, _g, _b, _a, _hr, _hg, _hb, _ha, _tr, _tg, _tb, _ta;
 
-        public VertexWeldKey(Vector3 position, Vector2 uv, Color color, Color high)
+        public VertexWeldKey(Vector3 position, Vector2 uv, Color color, Color high, Color top)
         {
             _px = Bit(position.x);
             _py = Bit(position.y);
@@ -1380,6 +1401,10 @@ public class PlanetTileMap : MonoBehaviour
             _hg = Bit(high.g);
             _hb = Bit(high.b);
             _ha = Bit(high.a);
+            _tr = Bit(top.r);
+            _tg = Bit(top.g);
+            _tb = Bit(top.b);
+            _ta = Bit(top.a);
         }
 
         static int Bit(float value)
@@ -1393,7 +1418,8 @@ public class PlanetTileMap : MonoBehaviour
             _px == other._px && _py == other._py && _pz == other._pz
             && _u == other._u && _v == other._v
             && _r == other._r && _g == other._g && _b == other._b && _a == other._a
-            && _hr == other._hr && _hg == other._hg && _hb == other._hb && _ha == other._ha;
+            && _hr == other._hr && _hg == other._hg && _hb == other._hb && _ha == other._ha
+            && _tr == other._tr && _tg == other._tg && _tb == other._tb && _ta == other._ta;
 
         public override bool Equals(object obj) => obj is VertexWeldKey other && Equals(other);
 
@@ -1414,6 +1440,10 @@ public class PlanetTileMap : MonoBehaviour
                 hash = (hash * 397) ^ _hg;
                 hash = (hash * 397) ^ _hb;
                 hash = (hash * 397) ^ _ha;
+                hash = (hash * 397) ^ _tr;
+                hash = (hash * 397) ^ _tg;
+                hash = (hash * 397) ^ _tb;
+                hash = (hash * 397) ^ _ta;
                 return hash;
             }
         }
@@ -1424,6 +1454,7 @@ public class PlanetTileMap : MonoBehaviour
         List<Vector2> uvs,
         List<Color> colors,
         List<Color> highs,
+        List<Color> tops,
         List<int> triangles)
     {
         int count = vertices.Count;
@@ -1436,10 +1467,11 @@ public class PlanetTileMap : MonoBehaviour
         var weldedUvs = new List<Vector2>(count / 3);
         var weldedColors = new List<Color>(count / 3);
         var weldedHighs = new List<Color>(count / 3);
+        var weldedTops = new List<Color>(count / 3);
 
         for (int i = 0; i < count; i++)
         {
-            var key = new VertexWeldKey(vertices[i], uvs[i], colors[i], highs[i]);
+            var key = new VertexWeldKey(vertices[i], uvs[i], colors[i], highs[i], tops[i]);
             if (!keyToIndex.TryGetValue(key, out int compact))
             {
                 compact = weldedPositions.Count;
@@ -1448,6 +1480,7 @@ public class PlanetTileMap : MonoBehaviour
                 weldedUvs.Add(uvs[i]);
                 weldedColors.Add(colors[i]);
                 weldedHighs.Add(highs[i]);
+                weldedTops.Add(tops[i]);
             }
 
             remap[i] = compact;
@@ -1481,6 +1514,8 @@ public class PlanetTileMap : MonoBehaviour
         colors.AddRange(weldedColors);
         highs.Clear();
         highs.AddRange(weldedHighs);
+        tops.Clear();
+        tops.AddRange(weldedTops);
     }
 
     Material BuildTileMaterial()

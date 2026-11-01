@@ -828,12 +828,23 @@ public class PlanetWalker : MonoBehaviour
         if (!TryRaycastPlanetGround(origin, -radial, maxDist, out RaycastHit hit))
             return false;
 
-        normal = hit.normal.sqrMagnitude > 0.001f ? hit.normal.normalized : radial;
-        // Keep normal roughly outward so the character doesn't flip under the mesh.
-        if (Vector3.Dot(normal, radial) < 0f)
-            normal = -normal;
+        // Keep the step's radial direction. Sliding the pivot along the slope normal
+        // pushes it back downhill by clearance * sin(slope) every frame, which eats
+        // the whole step on hills and leaves the body planted in the slope.
+        float surfaceRadius = Vector3.Dot(hit.point - _planet.Center, radial);
+        if (surfaceRadius < 0.01f)
+            surfaceRadius = (hit.point - _planet.Center).magnitude;
 
-        feetPosition = hit.point + normal * GetPivotClearance(normal);
+        float slopeLift = 0f;
+        if (hit.normal.sqrMagnitude > 0.001f)
+        {
+            float align = Mathf.Clamp(Vector3.Dot(hit.normal.normalized, radial), 0.4f, 1f);
+            float footRadius = _controller != null ? Mathf.Max(0.15f, _controller.radius) : 0.25f;
+            // Radial-up feet sink into the uphill side of a slope. Lift just enough to clear it.
+            slopeLift = Mathf.Min(footRadius, footRadius * (1f / align - 1f));
+        }
+
+        feetPosition = _planet.Center + radial * (surfaceRadius + GetPivotClearance(radial) + slopeLift);
         return true;
     }
 

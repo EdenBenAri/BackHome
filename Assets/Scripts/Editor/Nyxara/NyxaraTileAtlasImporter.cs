@@ -21,7 +21,9 @@ public static class NyxaraTileAtlasImporter
         "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Void/Void_brightened.png",
         "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Void/Void_darked.png",
         "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Crimson/Crimson_brightened.png",
-        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Crimson/Crimson_darked.png"
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/Crimson/Crimson_darked.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/GlowingMushroom/GlowingMushroom_brightened.png",
+        "Assets/Resources/Galaxy/Nyxara/Tiles/Textures/GlowingMushroom/GlowingMushroom_darked.png"
     };
 
     struct TerrainSpec
@@ -89,6 +91,20 @@ public static class NyxaraTileAtlasImporter
             displayName = "Crimson_darked",
             zoneId = "dark_crimson",
             previewColor = new Color(0.93f, 0.11f, 0.14f)
+        },
+        new TerrainSpec
+        {
+            id = "GlowingMushroom",
+            displayName = "GlowingMushroom_brightened",
+            zoneId = "glowing_mushroom",
+            previewColor = new Color(0f, 0.50f, 0.50f)
+        },
+        new TerrainSpec
+        {
+            id = "DarkGlowingMushroom",
+            displayName = "GlowingMushroom_darked",
+            zoneId = "dark_glowing_mushroom",
+            previewColor = new Color(0f, 0.39f, 0.39f)
         }
     };
 
@@ -115,7 +131,7 @@ public static class NyxaraTileAtlasImporter
         for (int t = 0; t < TerrainSpecs.Length; t++)
         {
             TerrainSpec spec = TerrainSpecs[t];
-            string fillId = "Fill_" + spec.id;
+            string fillId = spec.displayName;
             entries[t] = new PlanetTileset.Entry
             {
                 id = fillId,
@@ -162,7 +178,7 @@ public static class NyxaraTileAtlasImporter
 
         var summary = new System.Text.StringBuilder();
         summary.AppendLine("Nyxara now splat-blends the handpainted ground pack.");
-        summary.AppendLine("Brushes: Grass_brightened, Grass_darked, Dirt_brightened, Dirt_darked, Void_brightened, Void_darked, Crimson_brightened, Crimson_darked.");
+        summary.AppendLine("Brushes: Grass_brightened, Grass_darked, Dirt_brightened, Dirt_darked, Void_brightened, Void_darked, Crimson_brightened, Crimson_darked, GlowingMushroom_brightened, GlowingMushroom_darked.");
         summary.AppendLine("Paint on the 3D authoring plane; the preview refreshes on release.");
         Debug.Log("[BackHome] " + summary.ToString().Replace("\n", " "));
         EditorUtility.DisplayDialog("Nyxara Tileset", summary.ToString(), "OK");

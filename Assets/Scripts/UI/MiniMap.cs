@@ -43,6 +43,9 @@ public class MiniMap : MonoBehaviour
     static readonly Color VoidLight = new Color(0.64f, 0.29f, 0.64f, 1f);
     static readonly Color CrimsonDark = new Color(0.55f, 0.06f, 0.08f, 1f);
     static readonly Color CrimsonLight = new Color(1f, 0.30f, 0.33f, 1f);
+    static readonly Color MushroomDark = new Color(0f, 0.22f, 0.22f, 1f);
+    static readonly Color MushroomMid = new Color(0f, 0.39f, 0.39f, 1f);
+    static readonly Color MushroomLight = new Color(0f, 0.50f, 0.50f, 1f);
     static readonly Color ShoreColor = new Color(0.91f, 0.80f, 0.55f, 1f);
     static readonly Color ShallowColor = new Color(0.36f, 0.70f, 0.88f, 1f);
     static readonly Color DeepColor = new Color(0.16f, 0.46f, 0.78f, 1f);
@@ -422,6 +425,10 @@ public class MiniMap : MonoBehaviour
                 return Color.Lerp(CrimsonDark, CrimsonLight, n);
             case PlanetTileset.TerrainDarkCrimson:
                 return Color.Lerp(CrimsonDark, new Color(0.93f, 0.11f, 0.14f, 1f), n);
+            case PlanetTileset.TerrainGlowingMushroom:
+                return Color.Lerp(MushroomMid, MushroomLight, n);
+            case PlanetTileset.TerrainDarkGlowingMushroom:
+                return Color.Lerp(MushroomDark, MushroomMid, n);
             default:
                 PlanetTileset.Terrain entry = tileset != null ? tileset.GetTerrain(terrain) : null;
                 Color fallback = entry != null ? entry.previewColor : GrassLight;

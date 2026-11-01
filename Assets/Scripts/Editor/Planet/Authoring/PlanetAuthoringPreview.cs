@@ -352,6 +352,7 @@ public static class PlanetAuthoringPreview
         var uv = new Vector2[vertices.Length];
         var colors = new Color[vertices.Length];
         var highs = new Vector4[vertices.Length];
+        var tops = new Vector4[vertices.Length];
         var indices = new int[rows * columns * 6];
         var heights = new float[(rows + 1) * (columns + 1)];
         float width = 2f * Mathf.PI * owner.Radius, depth = width * .5f;
@@ -372,9 +373,10 @@ public static class PlanetAuthoringPreview
                 vertices[v + corner] = new Vector3((cx / (float)columns - .5f) * width,
                     heights[cy * (columns + 1) + cx], (cy / (float)rows - .5f) * depth);
                 uv[v + corner] = new Vector2(cx, cy) * tileset.SplatTiling;
-                tileset.SplitSplatWeight(map.GetTerrain(Mathf.Min(cy, rows - 1), cx), out Color low, out Color high);
+                tileset.SplitSplatWeight(map.GetTerrain(Mathf.Min(cy, rows - 1), cx), out Color low, out Color high, out Color top);
                 colors[v + corner] = low;
                 highs[v + corner] = new Vector4(high.r, high.g, high.b, high.a);
+                tops[v + corner] = new Vector4(top.r, top.g, top.b, top.a);
             }
             if (!tileset.UsesSplatBlending)
             {
@@ -386,7 +388,7 @@ public static class PlanetAuthoringPreview
         }
         var mesh = new Mesh { name = "Nyxara editor grid", hideFlags = HideFlags.HideAndDontSave,
             indexFormat = vertices.Length > 65535 ? UnityEngine.Rendering.IndexFormat.UInt32 : UnityEngine.Rendering.IndexFormat.UInt16 };
-        mesh.vertices = vertices; mesh.uv = uv; mesh.colors = colors; mesh.SetUVs(1, highs); mesh.triangles = indices;
+        mesh.vertices = vertices; mesh.uv = uv; mesh.colors = colors; mesh.SetUVs(1, highs); mesh.SetUVs(2, tops); mesh.triangles = indices;
         mesh.RecalculateNormals(); mesh.RecalculateBounds();
         return mesh;
     }
