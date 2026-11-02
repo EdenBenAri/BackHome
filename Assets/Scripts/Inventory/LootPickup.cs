@@ -3,7 +3,7 @@ using UnityEngine;
 /// <summary>
 /// World-space loot pickup. Pops up along planet-up, lands, then idles.
 /// Item identity is applied at spawn via <see cref="Configure"/> so one prefab can serve many items.
-/// Items bob along their local Y axis while idle; sprites keep facing the camera.
+/// Items can gently bob with occasional hops along planet-up; sprites keep facing the camera.
 /// Nearby drops arc toward the player and shrink into the cargo pocket on arrival.
 /// A full cargo leaves the drop on the ground. Camp moves cargo into the bank.
 /// Uncollected drops return to the pool after <see cref="lifetimeSeconds"/>.
@@ -28,6 +28,10 @@ public class LootPickup : MonoBehaviour
     [Header("Idle")]
     [SerializeField, Min(0f)] float idleBobHeight = 0.2f;
     [SerializeField, Min(0f)] float idleBobFrequency = 1f;
+    [Tooltip("Seconds before the first hop and between hop starts. Hops add to the idle bob; zero disables hops.")]
+    [SerializeField, Min(0f)] float idleHopInterval;
+    [SerializeField, Min(0f)] float idleHopHeight = 0.5f;
+    [SerializeField, Min(0.05f)] float idleHopDuration = 0.25f;
     [SerializeField] string dropState = "Drop";
     [SerializeField] string idleState = "Idle";
     [Header("Magnet")]
@@ -206,6 +210,14 @@ public class LootPickup : MonoBehaviour
         _idleElapsed += Time.deltaTime;
         float height = idleBobHeight * 0.5f
             * (1f - Mathf.Cos(_idleElapsed * idleBobFrequency * 2f * Mathf.PI));
+        if (idleHopInterval > 0f && _idleElapsed >= idleHopInterval)
+        {
+            float duration = Mathf.Max(0.05f, idleHopDuration);
+            float hopTime = Mathf.Repeat(_idleElapsed - idleHopInterval, Mathf.Max(idleHopInterval, duration));
+            float t = Mathf.Clamp01(hopTime / duration);
+            // Layer the hop over the ongoing bob, easing out of rest and back into it.
+            height += idleHopHeight * 0.5f * (1f - Mathf.Cos(t * 2f * Mathf.PI));
+        }
         // The pickup's local Y axis follows planet-up, just like the initial drop.
         transform.position = _groundPosition + _up * height;
     }

@@ -73,8 +73,11 @@ MonoBehaviour:
   jumpHeight: 1.15
   dropDuration: 0.55
   bounceHeightRatio: 0.18
-  idleBobHeight: 0.2
-  idleBobFrequency: 1
+  idleBobHeight: 0.04
+  idleBobFrequency: 0.25
+  idleHopInterval: 4
+  idleHopHeight: 2
+  idleHopDuration: 0.18
   dropState: Drop
   idleState: Idle
   magnetRadius: 5
