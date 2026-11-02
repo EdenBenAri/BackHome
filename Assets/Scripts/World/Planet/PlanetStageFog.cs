@@ -70,6 +70,18 @@ public sealed class PlanetStageFog : MonoBehaviour
     /// <summary>True until all currently opening banks have been hidden and released.</summary>
     public bool IsRevealing => _revealingStagesMask != 0;
 
+    /// <summary>Includes banks that are still dissolving, so HUD fog reveals with the world.</summary>
+    public int CoveredStagesMask
+    {
+        get
+        {
+            int mask = 0;
+            for (int stage = 2; stage <= 4; stage++)
+                if (_banks[stage] != null) mask |= 1 << stage;
+            return mask;
+        }
+    }
+
     void OnEnable()
     {
         if (Application.isPlaying) Rebuild();

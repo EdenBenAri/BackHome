@@ -398,11 +398,7 @@ public static class HudScenePresence
 
     static bool EnsureMiniMap(GameObject root)
     {
-        if (root.GetComponent<MiniMap>() != null)
-            return false;
-
-        root.AddComponent<MiniMap>();
-        return true;
+        return MiniMapPrefabAuthoring.EnsureOnHud(root);
     }
 
     static bool AssignIfDifferent(SerializedObject so, string propertyName, Object value)

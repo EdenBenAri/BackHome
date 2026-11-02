@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// Pocket the player carries while out on the planet. Each unit takes one space.
+/// Pocket the player carries while out on the planet. Each item defines its space per unit.
 /// Capacity starts small (<see cref="DefaultCapacity"/>); raise it later with <see cref="SetCapacity"/>.
 /// Returning to camp moves everything into <see cref="PlayerInventory"/>.
 /// </summary>
@@ -36,7 +36,11 @@ public class PlayerCargo : MonoBehaviour
         {
             int total = 0;
             for (int i = 0; i < _slots.Count; i++)
-                total += _slots[i].count;
+            {
+                Slot slot = _slots[i];
+                if (slot.item != null)
+                    total += slot.count * slot.item.CargoSpace;
+            }
             return total;
         }
     }
@@ -75,7 +79,7 @@ public class PlayerCargo : MonoBehaviour
         if (stackRoom <= 0)
             return 0;
 
-        return Mathf.Min(Free, stackRoom);
+        return Mathf.Min(Free / item.CargoSpace, stackRoom);
     }
 
     public static PlayerCargo EnsureExists()

@@ -15,7 +15,7 @@ public sealed class KingCinematicSettings : ScriptableObject
 
     [Header("Victory")]
     public bool playVictoryReveals = true;
-    [Tooltip("Replay once per King on each chapter visit, even if that King was defeated in the saved progression. Respawns in the same visit do not replay it.")]
+    [Tooltip("Replay once per King on each chapter entry, even if already defeated in saved progression. Returning after player death continues from the next undefeated King; defeated Kings do not replay reveals.")]
     public bool replayVictoriesOnChapterEntry = true;
     [Min(0f)] public float slowMotionDuration = .7f;
     [Range(.01f, 1f)] public float slowMotionScale = .04f;

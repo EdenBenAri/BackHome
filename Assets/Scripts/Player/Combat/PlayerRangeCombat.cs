@@ -195,7 +195,10 @@ public class PlayerRangeCombat : MonoBehaviour
 
         int hitIndex = _queue.IndexOf(target);
         if (_weapon == null || !_weapon.TryFire(slot, target, damage, transform.position))
+        {
             target.TakeDamage(damage, transform.position);
+            MobileHaptics.Attack();
+        }
 
         if (_queue.Count == 0)
         {

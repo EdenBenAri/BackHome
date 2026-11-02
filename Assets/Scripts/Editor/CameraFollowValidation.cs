@@ -54,6 +54,7 @@ public static class CameraFollowValidation
         Check("Planet attachment preserves the player's initial king-facing heading", SpawnHeading);
         Check("King cinematic intro, lethal-hit timing, freeze, minimum hold and seamless return", KingCinematicTiming);
         Check("Saved victories replay once per chapter visit without resetting saved progress", KingCinematicVisitReplay);
+        Check("Death reload preserves partial/open stages and resumes the undefeated king without replaying old victories", KingCinematicDeathResume);
         Check("King reveals advance A3 to B1, B3 to C1 and onward in numeric order", KingCinematicStageOrder);
         Check("Camera waits for fog completion; freeze, optional pause and cancellation restore safely", KingCinematicFogWait);
         Check("Input and combat activity cannot interrupt any King cinematic phase", KingCinematicInputIsolation);
@@ -564,6 +565,66 @@ public static class CameraFollowValidation
                 "The external replay option did not preserve first-saved-defeat mode.");
         }
         finally { PlayerPrefs.DeleteKey(key); PlayerPrefs.Save(); }
+    }
+
+    static void KingCinematicDeathResume()
+    {
+        string[] areas = { "first", "second", "last", "next-stage" };
+        for (int defeated = 0; defeated <= areas.Length; defeated++)
+        {
+            string world = "CameraRespawnValidation-" + Guid.NewGuid().ToString("N");
+            var source = KingFixture(world, out var sourceProgress);
+            Set(sourceProgress, "persistProgress", false);
+            for (int i = 0; i < defeated; i++)
+                sourceProgress.RecordBossDefeat(i < 3 ? PlanetStageId.A : PlanetStageId.B, areas[i]);
+            sourceProgress.PrepareForRespawn();
+            Object.DestroyImmediate(source.gameObject);
+
+            // A different chapter cannot take this chapter's one-shot checkpoint.
+            var other = KingFixture(world + "-other", out var otherProgress);
+            Require(!otherProgress.IsResumingAfterDeath && otherProgress.HighestUnlocked == PlanetStageId.A,
+                "Respawn progress leaked into a different chapter.");
+            Object.DestroyImmediate(other.gameObject);
+
+            var spawner = KingFixture(world, out var progress);
+            Set(progress, "persistProgress", false);
+            Require(progress.IsResumingAfterDeath && progress.DefeatedBossCount(PlanetStageId.A) == Mathf.Min(3, defeated)
+                && progress.IsUnlocked(PlanetStageId.B) == (defeated >= 3), "Death lost partial or unlocked stage progress.");
+            var kings = new Creature[areas.Length];
+            for (int i = 0; i < areas.Length; i++) kings[i] = AddLiveKing(spawner, (i + 1) % 4, areas[i]);
+            var rig = Rig(out var player);
+            player.position = Origin + Vector3.up * 80f; rig.SetTarget(player); Tick(rig);
+            rig.BindKingGuidance(spawner);
+            var director = rig.GetComponent<KingCinematicDirector>();
+            director.Settings.firstKingArea = "first";
+            Call(director, "Tick", .31f);
+            if (defeated < kings.Length)
+            {
+                Require(Get<Creature>(director, "_featured") == kings[defeated]
+                    && director.CurrentPhase == KingCinematicDirector.Phase.ZoomIn,
+                    $"Death introduction selected the wrong king: defeats={defeated}, phase={director.CurrentPhase}, "
+                    + $"featured={Get<Creature>(director, "_featured")}, expected={kings[defeated]}, "
+                    + $"boundProgress={Get<PlanetStageProgression>(director, "_stageProgression") == progress}.");
+                Call(director, "Tick", .65f); Call(director, "Tick", .5f); Call(director, "Tick", .65f);
+            }
+            else Call(director, "Tick", director.Settings.spawnAvailabilityTimeout);
+            Require(director.CurrentPhase == KingCinematicDirector.Phase.Idle && Time.timeScale == 1f
+                && !player.GetComponent<StarterAssetsInputs>().GameplayBlocked,
+                "Respawn introduction or completed chapter left time/input locked.");
+            for (int i = 0; i < defeated; i++) Call(spawner, "RecordKingDefeat", (i + 1) % 4);
+            Require(director.CurrentPhase == KingCinematicDirector.Phase.Idle, "Old king replayed a reveal after death.");
+            if (defeated < kings.Length)
+            {
+                Call(spawner, "RecordKingDefeat", (defeated + 1) % 4);
+                Require(director.CurrentPhase == KingCinematicDirector.Phase.SlowMotion,
+                    "A new victory after respawn did not advance presentation.");
+                director.Cancel();
+            }
+            Object.DestroyImmediate(rig.gameObject); Object.DestroyImmediate(spawner.gameObject);
+            var entry = KingFixture(world, out var entryProgress);
+            Require(!entryProgress.IsResumingAfterDeath, "An ordinary chapter entry reused the death checkpoint.");
+            Object.DestroyImmediate(entry.gameObject);
+        }
     }
 
     static void KingCinematicStageOrder()

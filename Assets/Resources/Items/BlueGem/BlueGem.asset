@@ -16,4 +16,5 @@ MonoBehaviour:
   icon: {fileID: 21300000, guid: 8ae8b8883c057439a8d70c9e953dcb22, type: 3}
   category: 0
   maxStack: 999
+  cargoSpace: 3
   worldDropPrefab: {fileID: 100001, guid: 5e6f7081920a3b4c5d6e7f8012345678, type: 3}

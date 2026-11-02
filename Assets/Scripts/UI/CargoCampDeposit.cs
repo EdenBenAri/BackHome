@@ -9,6 +9,9 @@ using UnityEngine.UI;
 public class CargoCampDeposit : MonoBehaviour
 {
     PlayerVitals _vitals;
+    int _depositId;
+    int _pendingFlyers;
+    bool _depositInterrupted;
 
     void LateUpdate()
     {
@@ -37,11 +40,40 @@ public class CargoCampDeposit : MonoBehaviour
     void Deposit(PlayerCargo cargo)
     {
         PlayerCargo.Slot[] taken = cargo.TakeAll();
+        if (taken.Length == 0)
+            return;
+
+        _depositId++;
+        _pendingFlyers = 0;
+        _depositInterrupted = false;
+        bool deposited = false;
         for (int i = 0; i < taken.Length; i++)
         {
-            if (!CargoDepositFlyer.TryLaunch(taken[i].item, taken[i].count, i))
+            if (taken[i].item == null || taken[i].count <= 0)
+                continue;
+            deposited = true;
+            if (!CargoDepositFlyer.TryLaunch(taken[i].item, taken[i].count, i, this, _depositId))
                 Bank(taken[i].item, taken[i].count);
         }
+
+        if (_pendingFlyers > 0)
+            MobileHaptics.CargoStart();
+        else if (deposited)
+            MobileHaptics.CargoComplete(); // No HUD/icon: the bank already received the cargo.
+    }
+
+    internal void RegisterFlyer() => _pendingFlyers++;
+
+    internal void FlyerCommitted(int depositId, bool arrived)
+    {
+        // A newer deposit owns feedback; older flyers still bank their contents normally.
+        if (depositId != _depositId || _pendingFlyers <= 0)
+            return;
+        if (!arrived)
+            _depositInterrupted = true;
+        _pendingFlyers--;
+        if (_pendingFlyers == 0 && !_depositInterrupted)
+            MobileHaptics.CargoComplete();
     }
 
     public static void Bank(ItemDefinition item, int amount)
@@ -75,8 +107,11 @@ public class CargoDepositFlyer : MonoBehaviour
     float _delay;
     float _age;
     bool _committed;
+    CargoCampDeposit _depositOwner;
+    int _depositId;
 
-    public static bool TryLaunch(ItemDefinition item, int amount, int stackIndex)
+    public static bool TryLaunch(ItemDefinition item, int amount, int stackIndex,
+        CargoCampDeposit depositOwner = null, int depositId = 0)
     {
         if (item == null || amount <= 0)
             return true;
@@ -105,6 +140,10 @@ public class CargoDepositFlyer : MonoBehaviour
             go.layer = canvas.gameObject.layer;
             go.transform.SetParent(canvas, false);
             var flyer = go.AddComponent<CargoDepositFlyer>();
+            flyer._depositOwner = depositOwner;
+            flyer._depositId = depositId;
+            if (depositOwner != null)
+                depositOwner.RegisterFlyer();
             Vector2 jitter = new Vector2(Random.Range(-22f, 22f), Random.Range(-8f, 14f));
             float bend = (i % 2 == 0 ? 1f : -1f) * Random.Range(110f, 190f);
             float delay = stackIndex * 0.028f + i * 0.03f;
@@ -229,22 +268,24 @@ public class CargoDepositFlyer : MonoBehaviour
 
     void Finish()
     {
-        Commit();
+        Commit(_canvas != null && _target != null && _target.gameObject.activeInHierarchy);
         if (this != null)
             Destroy(gameObject);
     }
 
     void OnDestroy()
     {
-        Commit();
+        Commit(false);
     }
 
-    void Commit()
+    void Commit(bool arrived)
     {
         if (_committed || !Application.isPlaying)
             return;
 
         _committed = true;
         CargoCampDeposit.Bank(_item, _amount);
+        if (_depositOwner != null)
+            _depositOwner.FlyerCommitted(_depositId, arrived);
     }
 }

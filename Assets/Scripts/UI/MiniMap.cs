@@ -2,467 +2,204 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Circular local map in the top-right corner, in the Skull Hero style.
-/// Thick navy bezel, soft painted ground, a green facing arrow at the center,
-/// red dots for living creatures, and a white house for camp.
-/// The level and coin chips drop to sit just under the disc.
-/// The player stays in the middle. Up on the disc is up on the screen.
+/// Authored HUD widget. Flat terrain colors and opaque stage fog share a small CPU texture;
+/// the player and pooled markers remain smooth without a second camera or render texture.
 /// </summary>
-[DisallowMultipleComponent]
-[DefaultExecutionOrder(1200)]
-public class MiniMap : MonoBehaviour
+[DisallowMultipleComponent, DefaultExecutionOrder(1200)]
+public sealed class MiniMap : MonoBehaviour
 {
-    const float Diameter = 208f;
-    const float Border = 16f;
-    const float ScreenMargin = 28f;
-    const float XpGap = 12f;
-    const float ViewRadius = 42f;
-    const float ArriveHide = 2.4f;
-    const int Resolution = 128;
+    [Header("Prefab references")]
+    [SerializeField] RectTransform viewport;
+    [SerializeField] RawImage terrainImage;
+    [SerializeField] CanvasGroup visibility;
+    [SerializeField] RectTransform playerMarker;
+    [SerializeField] Image homeMarker;
+    [Tooltip("Inactive template; copies are pooled once, underneath the home and player icons.")]
+    [SerializeField] Image enemyTemplate;
+
+    [Header("Map")]
+    [SerializeField, Range(16f, 80f)] float viewRadius = 42f;
+    [SerializeField, Range(64, 192)] int textureResolution = 128;
+    [Tooltip("Maximum terrain uploads per second. Markers still move every frame.")]
+    [SerializeField, Range(4f, 15f)] float terrainUpdatesPerSecond = 10f;
+    [SerializeField] bool respectSafeArea = true;
+    [SerializeField] MiniMapPalette palette = new MiniMapPalette();
+
     const int DotCapacity = 36;
-    const float DotSize = 8f;
-    const float HouseSize = 20f;
-    const float ArrowSize = 22f;
-    const float WaterLine = 0.02f;
-
-    const float MoveRebuild = 0.12f;
-    const float TurnRebuild = 0.9995f;
-
-    static readonly Color BezelColor = new Color(0.055f, 0.078f, 0.137f, 1f);
-    static readonly Color ShadowColor = new Color(0f, 0f, 0f, 0.42f);
-    static readonly Color DotColor = new Color(0.90f, 0.16f, 0.14f, 1f);
-    static readonly Color GrassDark = new Color(0.30f, 0.58f, 0.20f, 1f);
-    static readonly Color GrassLight = new Color(0.56f, 0.84f, 0.33f, 1f);
-    static readonly Color Canopy = new Color(0.20f, 0.46f, 0.16f, 1f);
-    static readonly Color CanopyLight = new Color(0.34f, 0.60f, 0.22f, 1f);
-    static readonly Color DirtDark = new Color(0.62f, 0.44f, 0.22f, 1f);
-    static readonly Color DirtLight = new Color(0.81f, 0.62f, 0.35f, 1f);
-    static readonly Color SandDark = new Color(0.81f, 0.62f, 0.35f, 1f);
-    static readonly Color SandLight = new Color(0.99f, 0.81f, 0.50f, 1f);
-    static readonly Color VoidDark = new Color(0.45f, 0.20f, 0.45f, 1f);
-    static readonly Color VoidLight = new Color(0.64f, 0.29f, 0.64f, 1f);
-    static readonly Color CrimsonDark = new Color(0.55f, 0.06f, 0.08f, 1f);
-    static readonly Color CrimsonLight = new Color(1f, 0.30f, 0.33f, 1f);
-    static readonly Color MushroomDark = new Color(0f, 0.22f, 0.22f, 1f);
-    static readonly Color MushroomMid = new Color(0f, 0.39f, 0.39f, 1f);
-    static readonly Color MushroomLight = new Color(0f, 0.50f, 0.50f, 1f);
-    static readonly Color ShoreColor = new Color(0.91f, 0.80f, 0.55f, 1f);
-    static readonly Color ShallowColor = new Color(0.36f, 0.70f, 0.88f, 1f);
-    static readonly Color DeepColor = new Color(0.16f, 0.46f, 0.78f, 1f);
-
+    const float ArriveHide = 2.4f;
+    const float MoveRebuild = .3f;
+    const float TurnRebuild = .9995f;
     RectTransform _root;
-    RectTransform _arrow;
-    RectTransform _house;
-    RawImage _map;
-    Image[] _dots;
     Canvas _canvas;
-    CanvasGroup _group;
-    RectTransform _xp;
-    RectTransform _coin;
-    Vector2 _xpHome;
-    Vector2 _coinHome;
-    bool _rowStored;
-    bool _rowShifted;
-
-    Texture2D _texture;
-    Color32[] _pixels;
-    Color32[] _swap;
-    Sprite _circle;
-    Sprite _softCircle;
-    Sprite _arrowSprite;
-    Sprite _houseSprite;
-    Sprite _dotSprite;
-
+    Vector2 _authoredPosition;
+    Image[] _dots;
     PlayerVitals _player;
+    SphericalPlanet _planet;
+    PlanetTileMap _tiles;
+    PlanetStageProgression _progress;
+    PlanetStageFog _fog;
     CampRadiusRing _camp;
     SphereCollider _campVolume;
-    float _nextCampSearch;
-
-    Vector3 _up;
-    Vector3 _right;
-    Vector3 _forward;
-    Vector3 _playerDir;
-    Vector3 _center;
-    float _planetRadius;
-    float _inner;
-
-    Vector3 _bakedPos;
-    Vector3 _bakedForward;
-    int _bakedVersion = -1;
-    bool _hasBake;
-
-    float _arrowAngle;
-    float _arrowVelocity;
-    bool _hasArrow;
-
+    float _nextCampSearch, _nextPlayerSearch, _nextBake;
+    Vector3 _up, _right, _forward, _playerDir, _center;
+    Vector3 _bakedPos, _bakedUp, _bakedRight, _bakedForward;
+    float _planetRadius, _inner;
+    int _bakedVersion = -1, _bakedFogMask = -1;
+    bool _hasBake, _hasArrow;
+    float _arrowAngle, _arrowVelocity;
+    MiniMapRaster _raster;
     readonly Creature[] _picked = new Creature[DotCapacity];
     readonly float[] _pickedArc = new float[DotCapacity];
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
     static void EnsureInScene()
     {
-        if (FindAnyObjectByType<MiniMap>(FindObjectsInactive.Include) != null)
-            return;
-
-        PlayerDeathUI hud = FindAnyObjectByType<PlayerDeathUI>(FindObjectsInactive.Include);
-        if (hud == null)
-            return;
-
-        hud.gameObject.AddComponent<MiniMap>();
+        if (FindAnyObjectByType<MiniMap>(FindObjectsInactive.Include) != null) return;
+        var hud = FindAnyObjectByType<PlayerDeathUI>(FindObjectsInactive.Include);
+        Canvas canvas = hud != null ? hud.GetComponentInChildren<Canvas>(true) : null;
+        var prefab = Resources.Load<GameObject>("HUD/MiniMap/MiniMap");
+        if (canvas != null && prefab != null) Instantiate(prefab, canvas.transform, false);
     }
 
     void Awake()
     {
-        Build();
+        _root = transform as RectTransform;
+        _canvas = GetComponentInParent<Canvas>();
+        if (_root == null || viewport == null || terrainImage == null || visibility == null
+            || playerMarker == null || homeMarker == null || enemyTemplate == null)
+        {
+            Debug.LogError("MiniMap needs the references authored in HUD/MiniMap/MiniMap.prefab.", this);
+            enabled = false;
+            return;
+        }
+        _authoredPosition = _root.anchoredPosition;
+        visibility.alpha = 0f;
+        visibility.blocksRaycasts = visibility.interactable = false;
+        _raster = new MiniMapRaster(Mathf.Clamp(textureResolution, 64, 192));
+        terrainImage.texture = _raster.Texture;
+        _dots = new Image[DotCapacity];
+        for (int i = 0; i < _dots.Length; i++)
+        {
+            Image dot = Instantiate(enemyTemplate, enemyTemplate.transform.parent, false);
+            dot.name = "Enemy " + (i + 1);
+            dot.transform.SetSiblingIndex(enemyTemplate.transform.GetSiblingIndex());
+            dot.enabled = false;
+            dot.gameObject.SetActive(true);
+            _dots[i] = dot;
+        }
+        enemyTemplate.gameObject.SetActive(false);
     }
 
-    void OnDestroy()
+    void OnEnable() { _hasBake = _hasArrow = false; }
+    void OnDisable()
     {
-        RestoreRow();
-        DestroySprite(_circle);
-        DestroySprite(_softCircle);
-        DestroySprite(_arrowSprite);
-        DestroySprite(_houseSprite);
-        DestroySprite(_dotSprite);
-        DestroyAsset(_texture);
+        if (visibility != null) visibility.alpha = 0f;
+        if (_root != null) _root.anchoredPosition = _authoredPosition;
     }
+    void OnDestroy() { _raster?.Dispose(); }
+    void OnValidate() { _hasBake = false; _raster?.Invalidate(); }
 
     void LateUpdate()
     {
-        if (_root == null && !Build())
-            return;
-
         bool show = TryBindFrame();
-        _group.alpha = show ? 1f : 0f;
-        if (!show)
-        {
-            _hasArrow = false;
-            _hasBake = false;
-            RestoreRow();
-            return;
-        }
-
+        visibility.alpha = show ? 1f : 0f;
+        if (!show) { _hasArrow = _hasBake = false; return; }
         LayoutCorner();
         BakeIfNeeded();
         PlaceMarkers();
     }
 
-    bool Build()
-    {
-        if (_root != null)
-            return true;
-
-        _canvas = GetComponentInChildren<Canvas>(true);
-        if (_canvas == null)
-            return false;
-
-        _circle = CircleSprite(128, false);
-        _softCircle = CircleSprite(128, true);
-        _arrowSprite = ArrowSprite(64);
-        _houseSprite = HouseSprite(64);
-        _dotSprite = DotSprite(32);
-
-        Transform parent = _canvas.transform;
-        Transform xp = FindNamed(parent, "XpBar");
-        if (xp != null)
-            parent = xp.parent;
-        _xp = xp as RectTransform;
-
-        var rootGo = new GameObject("MiniMap", typeof(RectTransform), typeof(CanvasGroup));
-        rootGo.layer = 5;
-        rootGo.transform.SetParent(parent, false);
-        _root = rootGo.GetComponent<RectTransform>();
-        _root.anchorMin = _root.anchorMax = new Vector2(1f, 1f);
-        _root.pivot = new Vector2(1f, 1f);
-        _root.sizeDelta = new Vector2(Diameter, Diameter);
-        _root.anchoredPosition = CornerPosition();
-        _group = rootGo.GetComponent<CanvasGroup>();
-        _group.alpha = 0f;
-        _group.blocksRaycasts = false;
-        _group.interactable = false;
-
-        if (xp != null)
-            _root.SetSiblingIndex(xp.GetSiblingIndex() + 1);
-
-        Image shadow = CreateImage(_root, "Shadow", _softCircle, ShadowColor);
-        RectTransform shadowRect = shadow.rectTransform;
-        shadowRect.anchorMin = shadowRect.anchorMax = new Vector2(0.5f, 0.5f);
-        shadowRect.pivot = new Vector2(0.5f, 0.5f);
-        shadowRect.sizeDelta = new Vector2(Diameter + 18f, Diameter + 18f);
-        shadowRect.anchoredPosition = new Vector2(0f, -5f);
-
-        Image bezel = CreateImage(_root, "Bezel", _circle, BezelColor);
-        HudChrome.Stretch(bezel.rectTransform, 0f);
-
-        _inner = Diameter - Border * 2f;
-        var viewGo = new GameObject("Viewport", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Mask));
-        viewGo.layer = 5;
-        viewGo.transform.SetParent(_root, false);
-        RectTransform view = viewGo.GetComponent<RectTransform>();
-        view.anchorMin = view.anchorMax = new Vector2(0.5f, 0.5f);
-        view.pivot = new Vector2(0.5f, 0.5f);
-        view.sizeDelta = new Vector2(_inner, _inner);
-        view.anchoredPosition = Vector2.zero;
-        Image viewImage = viewGo.GetComponent<Image>();
-        viewImage.sprite = _circle;
-        viewImage.color = Color.white;
-        viewImage.raycastTarget = false;
-        viewGo.GetComponent<Mask>().showMaskGraphic = false;
-
-        _texture = new Texture2D(Resolution, Resolution, TextureFormat.RGBA32, false, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            name = "MiniMapTerrain"
-        };
-        _pixels = new Color32[Resolution * Resolution];
-        _swap = new Color32[Resolution * Resolution];
-        Fill(GrassLight);
-        _texture.SetPixels32(_pixels);
-        _texture.Apply(false, false);
-
-        var mapGo = new GameObject("Terrain", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
-        mapGo.layer = 5;
-        mapGo.transform.SetParent(view, false);
-        _map = mapGo.GetComponent<RawImage>();
-        _map.texture = _texture;
-        _map.raycastTarget = false;
-        _map.color = Color.white;
-        HudChrome.Stretch(_map.rectTransform, 0f);
-
-        _dots = new Image[DotCapacity];
-        for (int i = 0; i < _dots.Length; i++)
-        {
-            _dots[i] = CreateImage(view, "Foe", _dotSprite, DotColor);
-            SetSize(_dots[i].rectTransform, DotSize);
-            _dots[i].enabled = false;
-        }
-
-        _house = CreateImage(view, "Home", _houseSprite, Color.white).rectTransform;
-        SetSize(_house, HouseSize);
-        _house.GetComponent<Image>().enabled = false;
-
-        _arrow = CreateImage(view, "Player", _arrowSprite, Color.white).rectTransform;
-        SetSize(_arrow, ArrowSize);
-        return true;
-    }
-
     bool TryBindFrame()
     {
-        if (_player == null)
+        if (_player == null && Time.unscaledTime >= _nextPlayerSearch)
+        {
             _player = FindAnyObjectByType<PlayerVitals>();
-
+            _nextPlayerSearch = Time.unscaledTime + 1f;
+        }
         SphericalPlanet planet = SphericalPlanet.Instance;
-        Camera cam = Camera.main;
-        if (_player == null || !_player.isActiveAndEnabled || !_player.IsAlive || planet == null || cam == null)
+        Camera camera = Camera.main;
+        if (_player == null || !_player.isActiveAndEnabled || !_player.IsAlive || planet == null || camera == null)
             return false;
-
-        Vector3 playerPos = _player.transform.position;
+        if (_planet != planet)
+        {
+            _planet = planet;
+            _tiles = planet.GetComponent<PlanetTileMap>();
+            _progress = planet.GetComponent<PlanetStageProgression>();
+            _fog = planet.GetComponent<PlanetStageFog>();
+            _hasBake = false;
+            _raster.Invalidate();
+        }
         _center = planet.Center;
         _planetRadius = Mathf.Max(1f, planet.Radius);
-        _up = planet.GetUpAt(playerPos);
-        _playerDir = _up;
-
-        _forward = Vector3.ProjectOnPlane(cam.transform.forward, _up);
-        if (_forward.sqrMagnitude < 0.0001f)
-            _forward = Vector3.ProjectOnPlane(cam.transform.up, _up);
-        if (_forward.sqrMagnitude < 0.0001f)
-            _forward = Vector3.ProjectOnPlane(Vector3.forward, _up);
-        if (_forward.sqrMagnitude < 0.0001f)
-            return false;
-
+        _up = _playerDir = planet.GetUpAt(_player.transform.position);
+        _forward = Vector3.ProjectOnPlane(camera.transform.forward, _up);
+        if (_forward.sqrMagnitude < .0001f) _forward = Vector3.ProjectOnPlane(camera.transform.up, _up);
+        if (_forward.sqrMagnitude < .0001f) return false;
         _forward.Normalize();
-        _right = Vector3.Cross(_up, _forward);
-        if (_right.sqrMagnitude < 0.0001f)
-            return false;
-        _right.Normalize();
-        return true;
+        _right = Vector3.Cross(_up, _forward).normalized;
+        _inner = Mathf.Min(viewport.rect.width, viewport.rect.height);
+        return _tiles != null && _tiles.HasValidMap();
     }
 
     void LayoutCorner()
     {
-        RememberRow();
-        _root.anchoredPosition = CornerPosition();
-
-        if (!_rowStored)
-            return;
-
-        float top = -_root.anchoredPosition.y;
-        float rowTop = -top - Diameter - XpGap;
-        if (_xp != null)
-            _xp.anchoredPosition = new Vector2(_xpHome.x, rowTop);
-        if (_coin != null)
-            _coin.anchoredPosition = _coinHome + new Vector2(0f, rowTop - _xpHome.y);
-        _rowShifted = true;
-    }
-
-    void RememberRow()
-    {
-        if (_canvas == null)
-            return;
-        if (_xp == null)
-            _xp = FindNamed(_canvas.transform, "XpBar") as RectTransform;
-        if (_coin == null)
-            _coin = FindNamed(_canvas.transform, "CoinCounter") as RectTransform;
-        if (_rowStored)
-            return;
-
-        if (_xp != null)
-            _xpHome = _xp.anchoredPosition;
-        if (_coin != null)
-            _coinHome = _coin.anchoredPosition;
-        _rowStored = _xp != null || _coin != null;
-    }
-
-    void RestoreRow()
-    {
-        if (!_rowShifted)
-            return;
-
-        if (_xp != null)
-            _xp.anchoredPosition = _xpHome;
-        if (_coin != null)
-            _coin.anchoredPosition = _coinHome;
-        _rowShifted = false;
-    }
-
-    Vector2 CornerPosition()
-    {
-        Vector2 inset = SafeInset();
-        float right = ScreenMargin + inset.x;
-        float top = ScreenMargin + inset.y;
-        if (_rowStored && _xp != null)
+        // Keep the prefab's placement editable; only apply the device's right/top cutout.
+        Vector2 inset = Vector2.zero;
+        if (respectSafeArea && _canvas != null && Screen.width > 0 && Screen.height > 0)
         {
-            right = Mathf.Max(right, -_xpHome.x + inset.x);
-            top = Mathf.Max(top, -_xpHome.y + inset.y);
+            var canvasRect = _canvas.rootCanvas.transform as RectTransform;
+            Rect safe = Screen.safeArea;
+            inset = new Vector2((Screen.width - safe.xMax) / Screen.width * canvasRect.rect.width,
+                (Screen.height - safe.yMax) / Screen.height * canvasRect.rect.height);
         }
+        Vector2 position = _authoredPosition - inset;
+        if (_root.anchoredPosition != position) _root.anchoredPosition = position;
+    }
 
-        return new Vector2(-right, -top);
+    int FogMask()
+    {
+        int mask = _fog != null ? _fog.CoveredStagesMask : 0;
+        if (_progress != null)
+            for (int stage = 2; stage <= 4; stage++)
+                if (!_progress.IsUnlocked((PlanetStageId)stage)) mask |= 1 << stage;
+        return mask;
     }
 
     void BakeIfNeeded()
     {
-        PlanetTileMap map = SphericalPlanet.Instance != null
-            ? SphericalPlanet.Instance.GetComponent<PlanetTileMap>()
-            : null;
-        int version = map != null ? map.SurfaceVersion : 0;
-        Vector3 pos = _player.transform.position;
-        bool moved = (pos - _bakedPos).sqrMagnitude > MoveRebuild * MoveRebuild;
+        int mask = FogMask();
+        bool worldChanged = _tiles.SurfaceVersion != _bakedVersion || mask != _bakedFogMask;
+        Vector3 position = _player.transform.position;
+        bool moved = (position - _bakedPos).sqrMagnitude > MoveRebuild * MoveRebuild;
         bool turned = Vector3.Dot(_forward, _bakedForward) < TurnRebuild;
-        if (_hasBake && !moved && !turned && version == _bakedVersion)
-            return;
-
-        PlanetTileset tileset = map != null ? map.Tileset : null;
-        float span = ViewRadius * 2f;
-        for (int y = 0; y < Resolution; y++)
-        {
-            float ny = ((y + 0.5f) / Resolution - 0.5f) * span;
-            for (int x = 0; x < Resolution; x++)
-            {
-                float nx = ((x + 0.5f) / Resolution - 0.5f) * span;
-                _pixels[y * Resolution + x] = Sample(map, tileset, nx, ny);
-            }
-        }
-
-        // Two wide box blurs. Cell tiles become the soft painted regions of the reference.
-        Blur(_pixels, _swap, 3, true);
-        Blur(_swap, _pixels, 3, false);
-        Blur(_pixels, _swap, 2, true);
-        Blur(_swap, _pixels, 2, false);
-        Vignette(_pixels);
-
-        _texture.SetPixels32(_pixels);
-        _texture.Apply(false, false);
-        _bakedPos = pos;
+        if (_hasBake && !worldChanged && ((!moved && !turned) || Time.unscaledTime < _nextBake)) return;
+        _raster.Bake(_tiles, _progress, mask, palette, _center, _playerDir, _right, _forward, _planetRadius, viewRadius);
+        _bakedPos = position;
+        _bakedUp = _playerDir;
+        _bakedRight = _right;
         _bakedForward = _forward;
-        _bakedVersion = version;
+        _bakedVersion = _tiles.SurfaceVersion;
+        _bakedFogMask = mask;
         _hasBake = true;
+        _nextBake = Time.unscaledTime + 1f / Mathf.Max(1f, terrainUpdatesPerSecond);
     }
 
-    Color32 Sample(PlanetTileMap map, PlanetTileset tileset, float arcX, float arcY)
+    bool IsMarkerVisible(Vector3 position)
     {
-        if (map == null || !map.HasValidMap())
-            return To32(Color.Lerp(GrassDark, GrassLight, 0.5f));
-
-        Vector3 dir = DirectionOnSurface(arcX, arcY);
-        if (!map.WorldToCell(_center + dir, out int lat, out int lon))
-            return To32(GrassDark);
-
-        float height = map.GetHeight(lat, lon);
-        float n = Hash01(lat, lon);
-        if (height <= WaterLine)
-        {
-            float depth = Mathf.InverseLerp(WaterLine, -1.15f, height);
-            Color water = Color.Lerp(ShallowColor, DeepColor, Mathf.Clamp01(depth));
-            water = Color.Lerp(water, Color.white, (n - 0.5f) * 0.1f);
-            return To32(water);
-        }
-
-        int terrain = map.GetTerrain(lat, lon);
-        Color ground = GroundColor(tileset, terrain, n);
-        if (height < 1.2f && NearWater(map, lat, lon))
-            ground = Color.Lerp(ground, ShoreColor, 0.82f);
-        return To32(ground);
+        // Stage ownership also covers ocean; hidden encounters must never leak through fog.
+        if (_progress != null && (_bakedFogMask & (1 << (int)_progress.StageAt(position))) != 0) return false;
+        return !TrySurfacePoint(position, out Vector2 point, out _) || !IsFogAtPoint(point);
     }
 
-    Color GroundColor(PlanetTileset tileset, int terrain, float n)
-    {
-        switch (terrain)
-        {
-            case PlanetTileset.TerrainLightGrass:
-                return Color.Lerp(GrassDark, GrassLight, n);
-            case PlanetTileset.TerrainDirt:
-                return Color.Lerp(DirtDark, DirtLight, n);
-            case PlanetTileset.TerrainSand:
-                return Color.Lerp(SandDark, SandLight, n);
-            case PlanetTileset.TerrainDarkGrass:
-                return Color.Lerp(Canopy, CanopyLight, n);
-            case PlanetTileset.TerrainVoid:
-                return Color.Lerp(VoidDark, VoidLight, n);
-            case PlanetTileset.TerrainDarkVoid:
-                return Color.Lerp(VoidDark * 0.62f, VoidDark, n);
-            case PlanetTileset.TerrainCrimson:
-                return Color.Lerp(CrimsonDark, CrimsonLight, n);
-            case PlanetTileset.TerrainDarkCrimson:
-                return Color.Lerp(CrimsonDark, new Color(0.93f, 0.11f, 0.14f, 1f), n);
-            case PlanetTileset.TerrainGlowingMushroom:
-                return Color.Lerp(MushroomMid, MushroomLight, n);
-            case PlanetTileset.TerrainDarkGlowingMushroom:
-                return Color.Lerp(MushroomDark, MushroomMid, n);
-            default:
-                PlanetTileset.Terrain entry = tileset != null ? tileset.GetTerrain(terrain) : null;
-                Color fallback = entry != null ? entry.previewColor : GrassLight;
-                return Color.Lerp(fallback, Color.white, (n - 0.5f) * 0.18f);
-        }
-    }
-
-    static bool NearWater(PlanetTileMap map, int lat, int lon)
-    {
-        return map.GetHeight(lat + 1, lon) <= WaterLine
-            || map.GetHeight(lat - 1, lon) <= WaterLine
-            || map.GetHeight(lat, lon + 1) <= WaterLine
-            || map.GetHeight(lat, lon - 1) <= WaterLine;
-    }
-
-    Vector3 DirectionOnSurface(float arcX, float arcY)
-    {
-        float dist = Mathf.Sqrt(arcX * arcX + arcY * arcY);
-        if (dist < 0.0001f)
-            return _playerDir;
-
-        float angle = dist / _planetRadius;
-        Vector3 axis = _right * (arcX / dist) + _forward * (arcY / dist);
-        return (_playerDir * Mathf.Cos(angle) + axis * Mathf.Sin(angle)).normalized;
-    }
-
+    bool IsFogAtPoint(Vector2 point) => _inner > 0f && _raster.IsFogAt(point / (_inner * .5f));
     void PlaceMarkers()
     {
         Vector3 face = Vector3.ProjectOnPlane(_player.transform.forward, _up);
         if (face.sqrMagnitude < 0.0001f)
             face = _forward;
         face.Normalize();
-        float x = Vector3.Dot(face, _right);
-        float y = Vector3.Dot(face, _forward);
+        float x = Vector3.Dot(face, _bakedRight);
+        float y = Vector3.Dot(face, _bakedForward);
         float target = -Mathf.Atan2(x, y) * Mathf.Rad2Deg;
         if (!_hasArrow)
         {
@@ -475,8 +212,9 @@ public class MiniMap : MonoBehaviour
             _arrowAngle = Mathf.SmoothDampAngle(_arrowAngle, target, ref _arrowVelocity, 0.07f, Mathf.Infinity, Time.unscaledDeltaTime);
         }
 
-        _arrow.anchoredPosition = Vector2.zero;
-        _arrow.localRotation = Quaternion.Euler(0f, 0f, _arrowAngle);
+        TrySurfacePoint(_player.transform.position, out Vector2 playerPoint, out _);
+        playerMarker.anchoredPosition = playerPoint;
+        playerMarker.localRotation = Quaternion.Euler(0f, 0f, _arrowAngle);
 
         PlaceFoes();
         PlaceHome();
@@ -491,11 +229,11 @@ public class MiniMap : MonoBehaviour
         for (int i = 0; i < creatures.Count; i++)
         {
             Creature creature = creatures[i];
-            if (creature == null || !creature.IsAlive)
+            if (creature == null || !creature.IsAlive || !IsMarkerVisible(creature.transform.position))
                 continue;
             if (!TrySurfacePoint(creature.transform.position, out Vector2 point, out float arc))
                 continue;
-            if (arc > ViewRadius)
+            if (arc > viewRadius)
                 continue;
 
             if (shown < picked.Length)
@@ -542,8 +280,8 @@ public class MiniMap : MonoBehaviour
 
     void PlaceHome()
     {
-        Image house = _house.GetComponent<Image>();
-        if (!ResolveCamp() || !TrySurfacePoint(_campVolume.bounds.center, out Vector2 point, out float arc))
+        Image house = homeMarker;
+        if (!ResolveCamp() || !IsMarkerVisible(_campVolume.bounds.center) || !TrySurfacePoint(_campVolume.bounds.center, out Vector2 point, out float arc))
         {
             house.enabled = false;
             return;
@@ -555,13 +293,13 @@ public class MiniMap : MonoBehaviour
             return;
         }
 
-        float reach = _inner * 0.5f - HouseSize * 0.55f;
+        float reach = _inner * 0.5f - homeMarker.rectTransform.rect.width * 0.55f;
         if (point.sqrMagnitude > reach * reach)
             point = point.normalized * reach;
 
-        house.enabled = true;
-        _house.anchoredPosition = point;
-        _house.localRotation = Quaternion.identity;
+        house.enabled = !IsFogAtPoint(point);
+        homeMarker.rectTransform.anchoredPosition = point;
+        homeMarker.rectTransform.localRotation = Quaternion.identity;
     }
 
     bool TrySurfacePoint(Vector3 world, out Vector2 ui, out float arc)
@@ -573,15 +311,15 @@ public class MiniMap : MonoBehaviour
             return false;
 
         Vector3 dir = from.normalized;
-        float angle = Vector3.Angle(_playerDir, dir) * Mathf.Deg2Rad;
+        float angle = Vector3.Angle(_bakedUp, dir) * Mathf.Deg2Rad;
         arc = angle * _planetRadius;
-        Vector3 bearing = Vector3.ProjectOnPlane(dir, _up);
+        Vector3 bearing = Vector3.ProjectOnPlane(dir, _bakedUp);
         if (bearing.sqrMagnitude < 0.000001f)
             return false;
 
         bearing.Normalize();
-        float scale = (_inner * 0.5f) / ViewRadius;
-        ui = new Vector2(Vector3.Dot(bearing, _right), Vector3.Dot(bearing, _forward)) * (arc * scale);
+        float scale = (_inner * 0.5f) / viewRadius;
+        ui = new Vector2(Vector3.Dot(bearing, _bakedRight), Vector3.Dot(bearing, _bakedForward)) * (arc * scale);
         return true;
     }
 
@@ -623,311 +361,4 @@ public class MiniMap : MonoBehaviour
         return _camp != null;
     }
 
-    Vector2 SafeInset()
-    {
-        if (_canvas == null || Screen.width <= 0 || Screen.height <= 0)
-            return Vector2.zero;
-
-        RectTransform canvasRect = _canvas.transform as RectTransform;
-        if (canvasRect == null)
-            return Vector2.zero;
-
-        Rect safe = Screen.safeArea;
-        Vector2 size = canvasRect.rect.size;
-        float right = (Screen.width - safe.xMax) / Screen.width * size.x;
-        float top = (Screen.height - safe.yMax) / Screen.height * size.y;
-        return new Vector2(Mathf.Max(0f, right), Mathf.Max(0f, top));
-    }
-
-    void Fill(Color color)
-    {
-        Color32 px = To32(color);
-        for (int i = 0; i < _pixels.Length; i++)
-            _pixels[i] = px;
-    }
-
-    static void Vignette(Color32[] pixels)
-    {
-        float half = (Resolution - 1) * 0.5f;
-        for (int y = 0; y < Resolution; y++)
-        {
-            float dy = (y - half) / half;
-            for (int x = 0; x < Resolution; x++)
-            {
-                float dx = (x - half) / half;
-                float d = Mathf.Sqrt(dx * dx + dy * dy);
-                float shade = 1f - 0.32f * Mathf.SmoothStep(0.42f, 1.05f, d);
-                int i = y * Resolution + x;
-                Color32 c = pixels[i];
-                pixels[i] = new Color32(
-                    (byte)(c.r * shade),
-                    (byte)(c.g * shade),
-                    (byte)(c.b * shade),
-                    255);
-            }
-        }
-    }
-
-    static void Blur(Color32[] src, Color32[] dst, int radius, bool horizontal)
-    {
-        int window = radius * 2 + 1;
-        for (int y = 0; y < Resolution; y++)
-        {
-            for (int x = 0; x < Resolution; x++)
-            {
-                int r = 0;
-                int g = 0;
-                int b = 0;
-                for (int k = -radius; k <= radius; k++)
-                {
-                    int xx = horizontal ? Mathf.Clamp(x + k, 0, Resolution - 1) : x;
-                    int yy = horizontal ? y : Mathf.Clamp(y + k, 0, Resolution - 1);
-                    Color32 c = src[yy * Resolution + xx];
-                    r += c.r;
-                    g += c.g;
-                    b += c.b;
-                }
-
-                dst[y * Resolution + x] = new Color32(
-                    (byte)(r / window),
-                    (byte)(g / window),
-                    (byte)(b / window),
-                    255);
-            }
-        }
-    }
-
-    static float Hash01(int lat, int lon)
-    {
-        unchecked
-        {
-            uint h = (uint)(lat * 374761393 + lon * 668265263);
-            h = (h ^ (h >> 13)) * 1274126177u;
-            return (h & 1023u) / 1023f;
-        }
-    }
-
-    static Color32 To32(Color c)
-    {
-        return new Color32(
-            (byte)(Mathf.Clamp01(c.r) * 255f),
-            (byte)(Mathf.Clamp01(c.g) * 255f),
-            (byte)(Mathf.Clamp01(c.b) * 255f),
-            255);
-    }
-
-    static Image CreateImage(Transform parent, string name, Sprite sprite, Color color)
-    {
-        var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        go.layer = 5;
-        go.transform.SetParent(parent, false);
-        var image = go.GetComponent<Image>();
-        image.sprite = sprite;
-        image.color = color;
-        image.raycastTarget = false;
-        image.preserveAspect = true;
-        return image;
-    }
-
-    static void SetSize(RectTransform rect, float size)
-    {
-        rect.anchorMin = rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(size, size);
-        rect.anchoredPosition = Vector2.zero;
-        rect.localScale = Vector3.one;
-        rect.localRotation = Quaternion.identity;
-    }
-
-    static Transform FindNamed(Transform root, string childName)
-    {
-        if (root == null)
-            return null;
-        if (root.name == childName)
-            return root;
-
-        for (int i = 0; i < root.childCount; i++)
-        {
-            Transform found = FindNamed(root.GetChild(i), childName);
-            if (found != null)
-                return found;
-        }
-
-        return null;
-    }
-
-    static void DestroySprite(Sprite sprite)
-    {
-        if (sprite == null)
-            return;
-
-        Texture texture = sprite.texture;
-        DestroyAsset(sprite);
-        if (texture != null)
-            DestroyAsset(texture);
-    }
-
-    static void DestroyAsset(Object asset)
-    {
-        if (asset == null)
-            return;
-        if (Application.isPlaying)
-            UnityEngine.Object.Destroy(asset);
-        else
-            UnityEngine.Object.DestroyImmediate(asset);
-    }
-
-    static Sprite CircleSprite(int size, bool soft)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            name = soft ? "MiniMapShadow" : "MiniMapCircle"
-        };
-        var pixels = new Color32[size * size];
-        float center = (size - 1) * 0.5f;
-        float radius = center;
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float d = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
-                float alpha = soft
-                    ? 1f - Mathf.SmoothStep(radius * 0.62f, radius, d)
-                    : Mathf.Clamp01(radius - d + 0.85f);
-                pixels[y * size + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(alpha) * 255f));
-            }
-        }
-
-        tex.SetPixels32(pixels);
-        tex.Apply(false, true);
-        return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
-    }
-
-    static Sprite DotSprite(int size)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            name = "MiniMapDot"
-        };
-        var pixels = new Color32[size * size];
-        float center = (size - 1) * 0.5f;
-        float radius = center - 0.5f;
-        var clear = new Color32(0, 0, 0, 0);
-        var ink = new Color32(92, 16, 14, 255);
-        var fill = new Color32(255, 255, 255, 255);
-        for (int y = 0; y < size; y++)
-        {
-            for (int x = 0; x < size; x++)
-            {
-                float d = Vector2.Distance(new Vector2(x, y), new Vector2(center, center));
-                if (d > radius + 0.6f)
-                    pixels[y * size + x] = clear;
-                else if (d > radius - 1.35f)
-                    pixels[y * size + x] = ink;
-                else
-                    pixels[y * size + x] = fill;
-            }
-        }
-
-        tex.SetPixels32(pixels);
-        tex.Apply(false, true);
-        return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
-    }
-
-    static Sprite ArrowSprite(int size)
-    {
-        var pixels = new Color32[size * size];
-        Clear(pixels);
-        var ink = new Color32(16, 62, 22, 255);
-        var fill = new Color32(58, 214, 72, 255);
-        // Texture row 0 is the bottom, so the tip sits on the high row and points up.
-        FillTriangle(pixels, size, new Vector2(size * 0.5f, size - 5f), new Vector2(7f, 7f), new Vector2(size - 7f, 7f), ink);
-        FillTriangle(pixels, size, new Vector2(size * 0.5f, size - 11f), new Vector2(14f, 12f), new Vector2(size - 14f, 12f), fill);
-        return FinishSprite(pixels, size, "MiniMapArrow");
-    }
-
-    static Sprite HouseSprite(int size)
-    {
-        var pixels = new Color32[size * size];
-        Clear(pixels);
-        var ink = new Color32(16, 26, 46, 255);
-        var paper = new Color32(255, 255, 255, 255);
-        float s = size;
-        FillRect(pixels, size, s * 0.18f, s * 0.08f, s * 0.82f, s * 0.52f, ink);
-        FillTriangle(pixels, size, new Vector2(s * 0.5f, s * 0.94f), new Vector2(s * 0.08f, s * 0.50f), new Vector2(s * 0.92f, s * 0.50f), ink);
-        FillRect(pixels, size, s * 0.26f, s * 0.14f, s * 0.74f, s * 0.50f, paper);
-        FillTriangle(pixels, size, new Vector2(s * 0.5f, s * 0.86f), new Vector2(s * 0.16f, s * 0.52f), new Vector2(s * 0.84f, s * 0.52f), paper);
-        FillRect(pixels, size, s * 0.42f, s * 0.14f, s * 0.58f, s * 0.38f, ink);
-        return FinishSprite(pixels, size, "MiniMapHouse");
-    }
-
-    static Sprite FinishSprite(Color32[] pixels, int size, string spriteName)
-    {
-        var tex = new Texture2D(size, size, TextureFormat.RGBA32, false, false)
-        {
-            wrapMode = TextureWrapMode.Clamp,
-            filterMode = FilterMode.Bilinear,
-            name = spriteName
-        };
-        tex.SetPixels32(pixels);
-        tex.Apply(false, true);
-        return Sprite.Create(tex, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect);
-    }
-
-    static void Clear(Color32[] pixels)
-    {
-        var clear = new Color32(0, 0, 0, 0);
-        for (int i = 0; i < pixels.Length; i++)
-            pixels[i] = clear;
-    }
-
-    static void FillRect(Color32[] pixels, int size, float x0, float y0, float x1, float y1, Color32 color)
-    {
-        int left = Mathf.Clamp(Mathf.FloorToInt(x0), 0, size - 1);
-        int right = Mathf.Clamp(Mathf.CeilToInt(x1), 0, size);
-        int bottom = Mathf.Clamp(Mathf.FloorToInt(y0), 0, size - 1);
-        int top = Mathf.Clamp(Mathf.CeilToInt(y1), 0, size);
-        for (int y = bottom; y < top; y++)
-        {
-            for (int x = left; x < right; x++)
-                pixels[y * size + x] = color;
-        }
-    }
-
-    static void FillTriangle(Color32[] pixels, int size, Vector2 a, Vector2 b, Vector2 c, Color32 color)
-    {
-        int minX = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(a.x, Mathf.Min(b.x, c.x))), 0, size - 1);
-        int maxX = Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(a.x, Mathf.Max(b.x, c.x))), 0, size - 1);
-        int minY = Mathf.Clamp(Mathf.FloorToInt(Mathf.Min(a.y, Mathf.Min(b.y, c.y))), 0, size - 1);
-        int maxY = Mathf.Clamp(Mathf.CeilToInt(Mathf.Max(a.y, Mathf.Max(b.y, c.y))), 0, size - 1);
-        for (int y = minY; y <= maxY; y++)
-        {
-            for (int x = minX; x <= maxX; x++)
-            {
-                var p = new Vector2(x + 0.5f, y + 0.5f);
-                if (!PointInTriangle(p, a, b, c))
-                    continue;
-                pixels[y * size + x] = color;
-            }
-        }
-    }
-
-    static bool PointInTriangle(Vector2 p, Vector2 a, Vector2 b, Vector2 c)
-    {
-        float d1 = Edge(p, a, b);
-        float d2 = Edge(p, b, c);
-        float d3 = Edge(p, c, a);
-        bool neg = d1 < 0f || d2 < 0f || d3 < 0f;
-        bool pos = d1 > 0f || d2 > 0f || d3 > 0f;
-        return !(neg && pos);
-    }
-
-    static float Edge(Vector2 p, Vector2 a, Vector2 b)
-    {
-        return (p.x - b.x) * (a.y - b.y) - (a.x - b.x) * (p.y - b.y);
-    }
 }

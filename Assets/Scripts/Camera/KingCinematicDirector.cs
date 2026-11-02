@@ -49,6 +49,7 @@ public sealed class KingCinematicDirector : MonoBehaviour
     PlayerVitals _vitals;
     StarterAssetsInputs _input;
     SphericalPlanet _planet;
+    PlanetStageProgression _stageProgression;
     PlanetStageFog _stageFog;
     bool _waitForStageReveal;
     Creature _featured;
@@ -70,8 +71,9 @@ public sealed class KingCinematicDirector : MonoBehaviour
         _player = player;
         _follow = GetComponent<CameraFollow>();
         _camera = GetComponent<Camera>();
-        _planet = spawner != null ? spawner.GetComponentInParent<SphericalPlanet>() : null;
+        _planet = spawner != null ? spawner.GetComponentInParent<SphericalPlanet>(true) : null;
         if (_planet == null) _planet = SphericalPlanet.Instance;
+        _stageProgression = _planet != null ? _planet.GetComponent<PlanetStageProgression>() : null;
         _stageFog = _planet != null ? _planet.GetComponent<PlanetStageFog>() : null;
         _input = player != null ? player.GetComponent<StarterAssetsInputs>() : null;
         _vitals = player != null ? player.GetComponent<PlayerVitals>() : null;
@@ -106,14 +108,17 @@ public sealed class KingCinematicDirector : MonoBehaviour
     void OnEnable() { if (_spawner != null) Subscribe(); }
     void OnDisable() { Unsubscribe(); Cancel(); }
 
+    bool ReplayVictoriesThisVisit => settings.replayVictoriesOnChapterEntry
+        && (_stageProgression == null || !_stageProgression.IsResumingAfterDeath);
+
     void OnFirstSavedVictory()
     {
-        if (!settings.replayVictoriesOnChapterEntry) OnVictory();
+        if (!ReplayVictoriesThisVisit) OnVictory();
     }
 
     void OnFirstVisitVictory()
     {
-        if (settings.replayVictoriesOnChapterEntry) OnVictory();
+        if (ReplayVictoriesThisVisit) OnVictory();
     }
 
     void OnVictory()
@@ -158,7 +163,7 @@ public sealed class KingCinematicDirector : MonoBehaviour
         {
             case Phase.IntroGrace:
                 if (_elapsed < settings.initialFreeMovement) break;
-                if (_spawner.TryGetKingForPresentation(settings.firstKingArea, out var first))
+                if (TryGetIntroductionKing(out var first))
                 {
                     AcquireTimeAndInput();
                     StartPresentation(first, false);
@@ -219,9 +224,17 @@ public sealed class KingCinematicDirector : MonoBehaviour
 
     void PresentNextKing()
     {
-        if (_spawner.TryGetNextKingForPresentation(out var next, settings.replayVictoriesOnChapterEntry))
+        if (_spawner.TryGetNextKingForPresentation(out var next, ReplayVictoriesThisVisit))
             StartPresentation(next, true);
         else Cancel(); // Last king: finish the victory beat and return control.
+    }
+
+    bool TryGetIntroductionKing(out Creature king)
+    {
+        // Death continues the saved objective; an ordinary chapter entry can still replay its intro.
+        return _stageProgression != null && _stageProgression.IsResumingAfterDeath
+            ? _spawner.TryGetNextKingForPresentation(out king)
+            : _spawner.TryGetKingForPresentation(settings.firstKingArea, out king);
     }
 
     void StartPresentation(Creature king, bool turn)

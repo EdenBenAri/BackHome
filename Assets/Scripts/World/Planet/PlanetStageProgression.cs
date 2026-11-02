@@ -29,15 +29,24 @@ public sealed class PlanetStageProgression : MonoBehaviour
     PlanetStageId[] _cellStages;
     int _completedMask;
     bool _initialized;
+    static string _respawnSaveKey, _respawnScenePath, _respawnSave;
+
+    public bool IsResumingAfterDeath { get; private set; }
 
 #if UNITY_EDITOR
     // Each Play starts fresh, while death/restart and scene travel in that Play keep progress.
     // SubsystemRegistration also runs when Enter Play Mode has domain reload disabled.
     static readonly Dictionary<string, string> EditorPlaySaves = new();
+#endif
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void BeginEditorPlaySession() => EditorPlaySaves.Clear();
+    static void BeginPlaySession()
+    {
+        _respawnSaveKey = _respawnScenePath = _respawnSave = null;
+#if UNITY_EDITOR
+        EditorPlaySaves.Clear();
 #endif
+    }
 
     public event Action<PlanetStageId> StageUnlocked;
     public event Action ProgressChanged;
@@ -68,7 +77,9 @@ public sealed class PlanetStageProgression : MonoBehaviour
         BuildStageMap();
         Transform areas = transform.Find("Areas");
         _stages = areas != null ? areas.GetComponentsInChildren<PlanetStage>(true) : Array.Empty<PlanetStage>();
-        string savedJson = persistProgress ? ReadSave() : null;
+        IsResumingAfterDeath = _respawnSaveKey == SaveKey && _respawnScenePath == gameObject.scene.path;
+        string savedJson = IsResumingAfterDeath ? _respawnSave : persistProgress ? ReadSave() : null;
+        if (IsResumingAfterDeath) _respawnSaveKey = _respawnScenePath = _respawnSave = null;
         if (!string.IsNullOrEmpty(savedJson))
         {
             try
@@ -141,14 +152,25 @@ public sealed class PlanetStageProgression : MonoBehaviour
         return PlayerPrefs.GetString(SaveKey, "");
     }
 
+    /// <summary>Carry this chapter through the death reload, including when disk saves are disabled.</summary>
+    public void PrepareForRespawn()
+    {
+        Initialize();
+        _respawnSaveKey = SaveKey;
+        _respawnScenePath = gameObject.scene.path;
+        _respawnSave = CreateSaveJson();
+    }
+
+    string CreateSaveJson() => JsonUtility.ToJson(new SaveData
+    {
+        completedMask = _completedMask,
+        defeatedBosses = new List<string>(_defeatedBosses)
+    });
+
     void Save()
     {
         if (!persistProgress) return;
-        string saved = JsonUtility.ToJson(new SaveData
-        {
-            completedMask = _completedMask,
-            defeatedBosses = new List<string>(_defeatedBosses)
-        });
+        string saved = CreateSaveJson();
 #if UNITY_EDITOR
         if (Application.isPlaying)
         {

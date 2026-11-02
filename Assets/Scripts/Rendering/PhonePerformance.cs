@@ -157,7 +157,9 @@ sealed class PhonePerformanceDriver : MonoBehaviour
             if (cam == null)
                 continue;
             cam.allowHDR = false;
-            cam.allowMSAA = false;
+            // Keep the mobile pipeline's MSAA for the thin geometry/stencil outline.
+            // Disabling it here makes both silhouette edges alias at phone resolution.
+            cam.allowMSAA = true;
             if (Application.platform != RuntimePlatform.WebGLPlayer)
                 continue;
             UniversalAdditionalCameraData extra = cam.GetUniversalAdditionalCameraData();

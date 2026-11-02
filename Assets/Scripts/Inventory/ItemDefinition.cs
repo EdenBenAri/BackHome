@@ -19,6 +19,8 @@ public class ItemDefinition : ScriptableObject
     [SerializeField] Sprite icon;
     [SerializeField] ItemCategory category = ItemCategory.Material;
     [SerializeField, Min(1)] int maxStack = 999;
+    [Tooltip("Cargo spaces occupied by one unit of this item.")]
+    [SerializeField, Min(1)] int cargoSpace = 1;
     [Tooltip("Pooled world pickup spawned when this item drops.")]
     [SerializeField] GameObject worldDropPrefab;
 
@@ -26,10 +28,12 @@ public class ItemDefinition : ScriptableObject
     public Sprite Icon => icon;
     public ItemCategory Category => category;
     public int MaxStack => Mathf.Max(1, maxStack);
+    public int CargoSpace => Mathf.Max(1, cargoSpace);
     public GameObject WorldDropPrefab => worldDropPrefab;
 
     void OnValidate()
     {
         maxStack = Mathf.Max(1, maxStack);
+        cargoSpace = Mathf.Max(1, cargoSpace);
     }
 }

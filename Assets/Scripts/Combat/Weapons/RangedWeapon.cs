@@ -102,6 +102,9 @@ public class RangedWeapon : EquippedWeapon
         if (target == null || !target.IsAlive || damage <= 0f)
             return;
 
+        // FireNow is reached after any charge, and only if the target still exists.
+        MobileHaptics.Attack();
+
         bool isProjectile = delivery == WeaponDeliveryKind.Projectile && projectile.BulletPrefab != null;
         Vector3 hit = AimPoint(target);
 

@@ -317,6 +317,15 @@ public class PlayerDeathUI : MonoBehaviour
         Time.timeScale = 1f;
 
         string scene = string.IsNullOrWhiteSpace(restartSceneName) ? "Galaxy" : restartSceneName;
+        var planet = SphericalPlanet.Instance;
+        var progress = planet != null ? planet.GetComponent<PlanetStageProgression>() : null;
+        if (progress != null)
+        {
+            progress.PrepareForRespawn();
+            // The chapter's authored spawn point is the camp. Reload this chapter,
+            // even if the HUD prefab's fallback still names the first chapter.
+            scene = progress.gameObject.scene.path;
+        }
         SceneManager.LoadScene(scene);
     }
 
