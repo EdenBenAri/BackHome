@@ -119,14 +119,14 @@ public class CreatureAilments : MonoBehaviour
         ActiveDot dot = FindDot(settings);
         if (dot == null)
         {
-            dot = new ActiveDot { Settings = settings };
+            dot = new ActiveDot { Settings = settings, TickTimer = settings.TickInterval };
             _dots.Add(dot);
             dot.Vfx = SpawnVfx(settings.DebuffVFX, settings.DebuffEuler);
         }
 
         dot.DamagePerSecond = dps;
         dot.TickInterval = settings.TickInterval;
-        dot.TickTimer = settings.TickInterval;
+        // Refresh duration, not the next tick: rapid fire must not postpone poison forever.
         dot.Remaining = settings.Duration;
         if (dot.Vfx == null)
             dot.Vfx = SpawnVfx(settings.DebuffVFX, settings.DebuffEuler);

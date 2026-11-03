@@ -48,7 +48,7 @@ public class PlayerStatsEditor : Editor
         EditorGUILayout.Space(8f);
         EditorGUILayout.LabelField("By Account Level", EditorStyles.boldLabel);
         EditorGUILayout.HelpBox(
-            "Level 1 is this asset. Health grows 4% per level. Attack gains a flat +3 per level. " +
+            $"Level 1 is this asset. Health grows {LevelTable.HealthGrowthPercent:0.#}% and complete weapon damage grows {LevelTable.AttackGrowthPercent:0.#}% per level, compounded. " +
             "Oxygen, attack speed, range, and move speed stay as written.",
             MessageType.Info);
         DrawLevelRow(stats, 1);

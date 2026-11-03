@@ -47,9 +47,9 @@ public class CreatureStats : ScriptableObject
     [SerializeField, Min(0.1f)] float movementSpeed = 4f;
 
     [Header("Progression")]
-    [Tooltip("XP granted when this creature dies. Scale it with difficulty: a weak mob is a few points, a king is a hunt.")]
+    [Tooltip("Level-1 XP reward. Scales with the encounter's threat level, independently of the player's level.")]
     [SerializeField, Min(0)] int experience;
-    [Tooltip("Threat level on the same curve as the player. Health and attack damage on this asset are the level-1 body; play mode multiplies them by this level. A player at this level fights the body as written. Attack speed, range, and move speed are not scaled.")]
+    [Tooltip("Default threat level for standalone spawns. An area's Creature Level / King Level overrides it. HP and damage above are level-1 budgets; attack speed, range and movement stay fixed.")]
     [SerializeField, Min(1)] int level = 1;
 
     [Header("Loot")]

@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: SlimeStats
   m_EditorClassIdentifier: Assembly-CSharp::CreatureStats
   displayName: Slime
-  attackDamage: 8
-  attackSpeed: 2
+  attackDamage: 5
+  attackSpeed: 0.8
   attackRange: 2
-  maxHealth: 80
+  maxHealth: 90
   visionRange: 12
   movementSpeed: 8
   experience: 8

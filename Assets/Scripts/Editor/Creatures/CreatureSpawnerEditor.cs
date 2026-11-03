@@ -191,6 +191,8 @@ public sealed class CreatureSpawnerEditor : Editor
         var point = points.GetArrayElementAtIndex(index);
         // Unity duplicates the last array element on insertion; start with a clean den.
         point.FindPropertyRelative("areaId").stringValue = areaId;
+        point.FindPropertyRelative("creatureLevel").intValue = 0;
+        point.FindPropertyRelative("kingLevel").intValue = 0;
         point.FindPropertyRelative("radius").floatValue = 12f;
         point.FindPropertyRelative("creatures").ClearArray();
         var king = point.FindPropertyRelative("king");

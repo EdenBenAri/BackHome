@@ -14,6 +14,7 @@ public class WeaponDotSettings
     [Tooltip("Seconds allowed between hits while building the DoT. Waiting longer resets the count.")]
     [SerializeField, Min(0.05f)] float hitWindow = 2f;
     [SerializeField, Min(0.05f)] float duration = 2f;
+    [Tooltip("Fixed DPS. 0 uses 25% of the triggering hit per second, so the poison grows with the weapon.")]
     [SerializeField, Min(0f)] float damagePerSecond = 10f;
     [SerializeField, Min(0.05f)] float tickInterval = 0.5f;
     [SerializeField] GameObject debuffVFX;

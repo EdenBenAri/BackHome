@@ -19,17 +19,21 @@ public class Creature : MonoBehaviour, IVitalsReadable
 
     float _currentHealth;
     bool _dying;
+    int _encounterLevel;
     Action _diedNoArg;
     CreatureChase _chase;
     CreatureAnimator _anim;
 
     public CreatureStats Stats => stats;
     public string DisplayName => stats != null ? stats.DisplayName : name;
-    public int Level => stats != null ? stats.Level : 1;
-    public float MaxHealth => ScaleBody(stats != null ? stats.MaxHealth : 0f);
+    public int Level => _encounterLevel > 0 ? _encounterLevel : stats != null ? stats.Level : 1;
+    public float MaxHealth => stats == null ? 0f : Application.isPlaying
+        ? LevelTable.ScaleEnemyHealth(stats.MaxHealth, Level) : stats.MaxHealth;
     public float VisionRange => stats != null ? stats.VisionRange : 0f;
     public float MovementSpeed => stats != null ? stats.MovementSpeed : 0f;
-    public float AttackDamage => ScaleBody(stats != null ? stats.AttackDamage : 0f);
+    public float AttackDamage => stats == null ? 0f : Application.isPlaying
+        ? LevelTable.ScaleEnemyDamage(stats.AttackDamage, Level) : stats.AttackDamage;
+    public int Experience => stats == null ? 0 : LevelTable.ScaleExperience(stats.Experience, Level);
     public float AttackSpeed => stats != null ? stats.AttackSpeed : 0f;
     public float AttackRange => stats != null ? stats.AttackRange : 0f;
     public float CurrentHealth => _currentHealth;
@@ -112,6 +116,13 @@ public class Creature : MonoBehaviour, IVitalsReadable
         RaiseVitalsChanged();
     }
 
+    /// <summary>Called once on spawn, including respawns. Never mutates the shared stats asset.</summary>
+    public void SetEncounterLevel(int level)
+    {
+        _encounterLevel = level > 0 ? LevelTable.ClampLevel(level) : 0;
+        ResetHealth();
+    }
+
     public void TakeDamage(float amount)
     {
         ApplyDamage(amount);
@@ -188,23 +199,11 @@ public class Creature : MonoBehaviour, IVitalsReadable
 
     void GrantExperience()
     {
-        int xp = stats != null ? stats.Experience : 0;
+        int xp = Experience;
         if (xp <= 0)
             return;
 
         PlayerLevel.EnsureExists()?.AddExperience(xp);
-    }
-
-    /// <summary>
-    /// Authored health and damage are the level-1 body. Play mode raises them with this creature's level.
-    /// Editor keeps the body so prefabs don't bake the multiplier.
-    /// </summary>
-    float ScaleBody(float body)
-    {
-        if (stats == null || body <= 0f || !Application.isPlaying)
-            return body;
-
-        return LevelTable.ScalePower(body, stats.Level);
     }
 
     void RaiseVitalsChanged()

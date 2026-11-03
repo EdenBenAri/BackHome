@@ -10,18 +10,17 @@ public class CreatureStatsEditor : Editor
 
         var stats = (CreatureStats)target;
         int level = stats.Level;
-        float hp = LevelTable.ScalePower(stats.MaxHealth, level);
-        float damage = LevelTable.ScalePower(stats.AttackDamage, level);
-        float power = LevelTable.PowerMultiplier(level);
+        float hp = LevelTable.ScaleEnemyHealth(stats.MaxHealth, level);
+        float damage = LevelTable.ScaleEnemyDamage(stats.AttackDamage, level);
 
         EditorGUILayout.Space(8f);
         EditorGUILayout.HelpBox(
-            "Health and attack damage above are the level-1 body. Play mode multiplies them by this level " +
-            "on the same curve as the player. A player at this level fights the body as written. " +
+            "Health, damage and XP above are level-1 budgets. A spawn area's levels override this default without changing the asset. " +
+            $"Enemy HP grows {LevelTable.AttackGrowthPercent:0.#}% and damage grows {LevelTable.HealthGrowthPercent:0.#}% per threat level. " +
             "Attack speed, range, and move speed are not scaled.",
             MessageType.Info);
         EditorGUILayout.LabelField(
             "In play",
-            $"Lv{level}   ×{power:0.00}   {hp:0.#} HP   {damage:0.#} dmg");
+            $"Lv{level}   {hp:0.#} HP   {damage:0.#} dmg   {LevelTable.ScaleExperience(stats.Experience, level)} XP");
     }
 }

@@ -151,9 +151,9 @@ public class LevelUpStatsBanner : MonoBehaviour
         _healthFrom = healthNow - healthGain;
         SetCurrent(_attackFrom, _healthFrom);
         if (attackBonus != null)
-            attackBonus.text = "+" + attackGain;
+            attackBonus.text = $"+{LevelTable.AttackGrowthPercent:0.#}%";
         if (healthBonus != null)
-            healthBonus.text = "+" + healthGain;
+            healthBonus.text = $"+{LevelTable.HealthGrowthPercent:0.#}%";
     }
 
     void SetCurrent(int attack, int health)

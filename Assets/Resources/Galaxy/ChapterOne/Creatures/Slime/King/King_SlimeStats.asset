@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: King_SlimeStats
   m_EditorClassIdentifier: Assembly-CSharp::CreatureStats
   displayName: King Slime
-  attackDamage: 26
-  attackSpeed: 1.1
+  attackDamage: 14
+  attackSpeed: 0.7
   attackRange: 4.5
-  maxHealth: 1200
+  maxHealth: 650
   visionRange: 18
   movementSpeed: 3.2
-  experience: 160
-  level: 6
+  experience: 45
+  level: 3
   loot:
   - item: {fileID: 11400000, guid: a7c3e91b4d2f48a6b0e5c8d1f7a3b901, type: 2}
     minAmount: 5

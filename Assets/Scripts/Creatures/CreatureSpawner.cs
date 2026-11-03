@@ -53,6 +53,12 @@ public class CreatureSpawner : MonoBehaviour
             "spawn around that volume and are parented under it.")]
         public string areaId;
 
+        [Tooltip("Fixed threat level for this area's mobs. 0 uses the creature asset's default. Does not chase the player's level.")]
+        [Range(0, LevelTable.MaxLevel)] public int creatureLevel;
+
+        [Tooltip("Fixed threat level for this area's king. 0 uses the creature asset's default.")]
+        [Range(0, LevelTable.MaxLevel)] public int kingLevel;
+
         [Tooltip("Max distance (world units) from the area creatures can land. Small = a tight, dense cluster.")]
         [Min(0.1f)]
         public float radius;
@@ -551,7 +557,10 @@ public class CreatureSpawner : MonoBehaviour
         live.feet = position;
         live.up = rotation * Vector3.up;
         if (creature != null)
+        {
+            creature.SetEncounterLevel(point.kingLevel);
             creature.Died += OnKingDied;
+        }
 
         ApplyLeash(instance, live.spawnPointIndex);
         EnsureKingCountdown(live, area);
@@ -789,7 +798,11 @@ public class CreatureSpawner : MonoBehaviour
         };
 
         if (creatureComp != null)
+        {
+            int level = resolved.spawnPointIndex >= 0 ? spawnPoints[resolved.spawnPointIndex].creatureLevel : 0;
+            creatureComp.SetEncounterLevel(level);
             creatureComp.Died += OnCreatureDied;
+        }
 
         ApplyLeash(creature, resolved.spawnPointIndex);
         _tracked.Add(tracked);

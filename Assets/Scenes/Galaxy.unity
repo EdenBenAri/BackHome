@@ -1843,6 +1843,8 @@ MonoBehaviour:
   spawnEntries: []
   spawnPoints:
   - areaId: A1
+    creatureLevel: 1
+    kingLevel: 3
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -1853,6 +1855,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingA1
+    creatureLevel: 1
+    kingLevel: 3
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -1863,6 +1867,8 @@ MonoBehaviour:
       prefab: {fileID: 202015356711912051, guid: 04690b2de08995141ae3a8185b580fc6, type: 3}
       respawnSeconds: 40
   - areaId: A2
+    creatureLevel: 3
+    kingLevel: 5
     radius: 10
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -1873,6 +1879,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingA2
+    creatureLevel: 3
+    kingLevel: 5
     radius: 12
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -1883,6 +1891,8 @@ MonoBehaviour:
       prefab: {fileID: 8108090093416353532, guid: 5a22e372a6c6ac148b3940fad2719cdd, type: 3}
       respawnSeconds: 40
   - areaId: A3
+    creatureLevel: 5
+    kingLevel: 7
     radius: 12
     creatures:
     - prefab: {fileID: 1093679255119258297, guid: c60b7a11b4d2b84458df7cbf8a822cf5, type: 3}
@@ -1893,6 +1903,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingA3
+    creatureLevel: 5
+    kingLevel: 7
     radius: 8
     creatures:
     - prefab: {fileID: 1093679255119258297, guid: c60b7a11b4d2b84458df7cbf8a822cf5, type: 3}
@@ -1903,6 +1915,8 @@ MonoBehaviour:
       prefab: {fileID: 2554616567144931755, guid: 7442317b075a59f4fa7c20488bdaa985, type: 3}
       respawnSeconds: 40
   - areaId: B1
+    creatureLevel: 8
+    kingLevel: 10
     radius: 12
     creatures:
     - prefab: {fileID: 298907369705953505, guid: ecd4ccd7bfa05be48b31cc5ec062f55a, type: 3}
@@ -1913,6 +1927,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingB1
+    creatureLevel: 8
+    kingLevel: 10
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -1923,6 +1939,8 @@ MonoBehaviour:
       prefab: {fileID: 202015356711912051, guid: 04690b2de08995141ae3a8185b580fc6, type: 3}
       respawnSeconds: 40
   - areaId: B2
+    creatureLevel: 10
+    kingLevel: 12
     radius: 10
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -1933,6 +1951,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingB2
+    creatureLevel: 10
+    kingLevel: 12
     radius: 12
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -1943,6 +1963,8 @@ MonoBehaviour:
       prefab: {fileID: 8108090093416353532, guid: 5a22e372a6c6ac148b3940fad2719cdd, type: 3}
       respawnSeconds: 40
   - areaId: B3
+    creatureLevel: 12
+    kingLevel: 14
     radius: 12
     creatures:
     - prefab: {fileID: 1093679255119258297, guid: c60b7a11b4d2b84458df7cbf8a822cf5, type: 3}
@@ -1953,6 +1975,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingB3
+    creatureLevel: 12
+    kingLevel: 14
     radius: 8
     creatures:
     - prefab: {fileID: 1093679255119258297, guid: c60b7a11b4d2b84458df7cbf8a822cf5, type: 3}
@@ -1963,6 +1987,8 @@ MonoBehaviour:
       prefab: {fileID: 2554616567144931755, guid: 7442317b075a59f4fa7c20488bdaa985, type: 3}
       respawnSeconds: 40
   - areaId: C1
+    creatureLevel: 15
+    kingLevel: 17
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -1973,6 +1999,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingC1
+    creatureLevel: 15
+    kingLevel: 17
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -1983,6 +2011,8 @@ MonoBehaviour:
       prefab: {fileID: 202015356711912051, guid: 04690b2de08995141ae3a8185b580fc6, type: 3}
       respawnSeconds: 40
   - areaId: C2
+    creatureLevel: 17
+    kingLevel: 19
     radius: 10
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -1993,6 +2023,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingC2
+    creatureLevel: 17
+    kingLevel: 19
     radius: 12
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -2003,6 +2035,8 @@ MonoBehaviour:
       prefab: {fileID: 8108090093416353532, guid: 5a22e372a6c6ac148b3940fad2719cdd, type: 3}
       respawnSeconds: 40
   - areaId: C3
+    creatureLevel: 19
+    kingLevel: 21
     radius: 12
     creatures:
     - prefab: {fileID: 1093679255119258297, guid: c60b7a11b4d2b84458df7cbf8a822cf5, type: 3}
@@ -2013,6 +2047,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingC3
+    creatureLevel: 19
+    kingLevel: 21
     radius: 8
     creatures:
     - prefab: {fileID: 1093679255119258297, guid: c60b7a11b4d2b84458df7cbf8a822cf5, type: 3}
@@ -2023,6 +2059,8 @@ MonoBehaviour:
       prefab: {fileID: 2554616567144931755, guid: 7442317b075a59f4fa7c20488bdaa985, type: 3}
       respawnSeconds: 40
   - areaId: D1
+    creatureLevel: 22
+    kingLevel: 24
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -2033,6 +2071,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingD1
+    creatureLevel: 22
+    kingLevel: 24
     radius: 12
     creatures:
     - prefab: {fileID: 2944286430114931793, guid: 86cc123df81469f458b5b9821ff3d0bb, type: 3}
@@ -2043,6 +2083,8 @@ MonoBehaviour:
       prefab: {fileID: 202015356711912051, guid: 04690b2de08995141ae3a8185b580fc6, type: 3}
       respawnSeconds: 40
   - areaId: D2
+    creatureLevel: 25
+    kingLevel: 27
     radius: 10
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}
@@ -2053,6 +2095,8 @@ MonoBehaviour:
       prefab: {fileID: 0}
       respawnSeconds: 40
   - areaId: KingD2
+    creatureLevel: 25
+    kingLevel: 27
     radius: 12
     creatures:
     - prefab: {fileID: 3706573998827518873, guid: 999c9df1ae9ff0641a8369f4be6b7ed5, type: 3}

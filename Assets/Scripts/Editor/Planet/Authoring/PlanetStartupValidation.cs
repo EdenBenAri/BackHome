@@ -55,6 +55,8 @@ public static class PlanetStartupValidation
         {
             SessionState.SetBool(Key + ".kingRing", File.ReadAllText(Trigger).Trim() == "king-ring");
             SessionState.SetBool(Key + ".kingObjective", File.ReadAllText(Trigger).Trim() == "king-objective");
+            SessionState.SetBool(Key + ".balance", File.ReadAllText(Trigger).Trim() == "balance");
+            SessionState.SetBool(Key + ".balancePrepared", false);
             SessionState.SetBool(Key + ".kingRingPrepared", false);
             SessionState.SetBool(Key + ".kingObjectivePrepared", false);
             File.Delete(Trigger);
@@ -66,7 +68,7 @@ public static class PlanetStartupValidation
             SetPersistence(progress, false);
             Application.runInBackground = true;
             Directory.CreateDirectory("Logs");
-            File.WriteAllText(Report, "Live Galaxy startup; no combat or saved progression changes.\n");
+            File.WriteAllText(Report, "Live Galaxy validation; saved progression is isolated.\n");
             SessionState.SetBool(Key + ".error", false);
             SessionState.SetBool(Key, true);
             SessionState.SetFloat(Key + ".started", (float)EditorApplication.timeSinceStartup);
@@ -74,7 +76,14 @@ public static class PlanetStartupValidation
         }
         if (!SessionState.GetBool(Key, false)) return;
         float elapsed = (float)EditorApplication.timeSinceStartup - SessionState.GetFloat(Key + ".started", 0f);
-        if (elapsed > 30f) { Finish("FAIL startup timeout"); return; }
+        if (elapsed > (SessionState.GetBool(Key + ".balance", false) ? 120f : 30f)) { Finish("FAIL startup timeout"); return; }
+        if (EditorApplication.isPlaying && elapsed >= 3f && SessionState.GetBool(Key + ".balance", false)
+            && !SessionState.GetBool(Key + ".balancePrepared", false))
+        {
+            BalancePlayValidation.Prepare();
+            SessionState.SetBool(Key + ".balancePrepared", true);
+            return;
+        }
         if (EditorApplication.isPlaying && elapsed >= 3f && SessionState.GetBool(Key + ".kingObjective", false)
             && !SessionState.GetBool(Key + ".kingObjectivePrepared", false))
         {
@@ -99,11 +108,12 @@ public static class PlanetStartupValidation
             Require(SphericalPlanet.Instance == owner.RuntimePlanet, "No live spherical planet.");
             var player = Object.FindAnyObjectByType<PlayerVitals>();
             Require(player != null && player.IsAlive, "Player did not spawn.");
-            Require(Creature.ActiveCreatures.Count > 0, "Creatures did not spawn.");
+            Require(Creature.ActiveCreatures.Count > 0 || SessionState.GetBool(Key + ".balance", false), "Creatures did not spawn.");
             if (SessionState.GetBool(Key + ".kingRing", false))
                 KingLeashIndicatorValidation.Run();
             if (SessionState.GetBool(Key + ".kingObjective", false))
                 KingObjectiveMarkerValidation.Run();
+            if (SessionState.GetBool(Key + ".balance", false) && !BalancePlayValidation.Tick()) return;
             Require(!SessionState.GetBool(Key + ".error", false), "Startup logged an error or missing-world warning.");
             Finish($"PASS planet active; {owner.ProjectedObjectCount} unique placements; player alive; {Creature.ActiveCreatures.Count} creatures spawned; no startup errors/warnings.");
         }

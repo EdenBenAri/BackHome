@@ -4,7 +4,7 @@ using UnityEngine;
 
 /// <summary>
 /// Runtime vitals. Level 1 HP / oxygen / damage come from <see cref="PlayerStats"/>.
-/// <see cref="LevelTable"/> then raises health by 4% per account level and attack by a flat +3.
+/// <see cref="LevelTable"/> compounds health and complete weapon damage on each account level.
 /// The oxygen tank stays at the authored size. Weapons are copied at spawn (up to <see cref="CombatLoadout.MaxWeapons"/>)
 /// so play mode can swap guns without dirtying the shared asset. Each gun fights with base + itself,
 /// and that hit damage scales with level. Attack speed, range, move speed, and oxygen stay as authored.
@@ -18,8 +18,8 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     [Header("Drain Rates")]
     [Tooltip("Oxygen lost per second.")]
     [SerializeField] float oxygenDrainPerSecond = 4f;
-    [Tooltip("HP lost per second while oxygen is empty.")]
-    [SerializeField] float healthDrainPerSecond = 5f;
+    [Tooltip("Percent of maximum HP lost per second while oxygen is empty. Keeps the return-to-camp grace period consistent across levels.")]
+    [SerializeField, Range(0f, 100f)] float healthDrainPercentPerSecond = 6.25f;
 
     readonly List<WeaponDefinition> _loadout = new();
     bool _loadoutReady;
@@ -105,7 +105,7 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
     void OnValidate()
     {
         oxygenDrainPerSecond = Mathf.Max(0f, oxygenDrainPerSecond);
-        healthDrainPerSecond = Mathf.Max(0f, healthDrainPerSecond);
+        healthDrainPercentPerSecond = Mathf.Clamp(healthDrainPercentPerSecond, 0f, 100f);
 
         if (!Application.isPlaying && stats != null)
         {
@@ -133,9 +133,9 @@ public class PlayerVitals : MonoBehaviour, IVitalsReadable
                 RaiseChanged();
             }
         }
-        else if (_currentHealth > 0f && healthDrainPerSecond > 0f)
+        else if (_currentHealth > 0f && healthDrainPercentPerSecond > 0f)
         {
-            float next = Mathf.Max(0f, _currentHealth - healthDrainPerSecond * Time.deltaTime);
+            float next = Mathf.Max(0f, _currentHealth - MaxHealth * healthDrainPercentPerSecond / 100f * Time.deltaTime);
             if (!Mathf.Approximately(next, _currentHealth))
             {
                 _currentHealth = next;

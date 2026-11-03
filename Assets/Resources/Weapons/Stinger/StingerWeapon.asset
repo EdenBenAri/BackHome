@@ -15,8 +15,8 @@ MonoBehaviour:
   displayName: Stinger
   icon: {fileID: 21300000, guid: 9253f2f689be14f49aa82284799a6196, type: 3}
   prefab: {fileID: 540212191312792610, guid: fa3056935ba76dd4f820202c099579a3, type: 3}
-  attackDamage: 40
-  attackSpeed: 0.25
+  attackDamage: 20
+  attackSpeed: 0
   attackRange: 8
   hitEffect: 3
   dotSettings:
@@ -34,7 +34,7 @@ MonoBehaviour:
     beamVFX: {fileID: 0}
   areaBlastSettings:
     radius: 5
-    damageMultiplier: 2.5
+    damageMultiplier: 1.5
     blastVFX: {fileID: 1703217192903793943, guid: b5cce2b1b398f2f46aa66bd49325ca53, type: 3}
     vfxLifetime: 2
     vfxRadius: 5
