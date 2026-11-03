@@ -126,6 +126,8 @@ public static class HudScenePresence
                 changed = true;
             if (EnsureMiniMap(root))
                 changed = true;
+            if (DragToMoveTutorialAuthoring.EnsureOnHud(root))
+                changed = true;
             if (RestyleJoystick(canvasTransform))
                 changed = true;
 

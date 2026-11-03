@@ -28,6 +28,7 @@ Material:
     - _FadeEnd: 160
     - _FadeStart: 90
     - _OutlinePixels: 1
+    - _ObjectiveOutlinePixels: 3
     - _PlayerOutlinePixels: 1.5
     - _UseKing: 0
     - _UsePlayer: 0

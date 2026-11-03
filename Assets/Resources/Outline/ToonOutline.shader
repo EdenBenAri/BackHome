@@ -7,6 +7,7 @@ Shader "BackHome/ToonOutline"
         _KingOutlineColor("King Ink", Color) = (0.86, 0.09, 0.12, 1)
         _OutlinePixels("Mob Thickness (pixels)", Range(1, 8)) = 4
         _PlayerOutlinePixels("Player Thickness (pixels)", Range(1, 8)) = 2
+        _ObjectiveOutlinePixels("Objective Thickness (pixels)", Range(1, 8)) = 3
         [HideInInspector] _UseKing("Use King Ink", Float) = 0
         [HideInInspector] _UsePlayer("Use Player Thickness", Float) = 0
 

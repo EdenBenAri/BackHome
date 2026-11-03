@@ -5,7 +5,7 @@ using UnityEngine.Rendering.RenderGraphModule;
 using UnityEngine.Rendering.Universal;
 
 /// <summary>
-/// Thin silhouette around creature bodies, the player, and the player's weapons.
+/// Silhouettes around creature bodies, the player, weapons, and objective markers.
 /// Mobs and the player are black, area kings are red. Player thickness is its own
 /// slider and covers both the body and the weapons. The line is drawn with its own
 /// shader on those meshes. It does not add a fullscreen pass or an extra color target.
@@ -50,6 +50,7 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
     {
         static readonly int MaterialPixelsId = Shader.PropertyToID("_OutlinePixels");
         static readonly int PlayerPixelsId = Shader.PropertyToID("_PlayerOutlinePixels");
+        static readonly int ObjectivePixelsId = Shader.PropertyToID("_ObjectiveOutlinePixels");
         static readonly int MaterialFadeStartId = Shader.PropertyToID("_FadeStart");
         static readonly int MaterialFadeEndId = Shader.PropertyToID("_FadeEnd");
         static readonly int OutlineColorId = Shader.PropertyToID("_OutlineColor");
@@ -60,12 +61,14 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
         readonly List<Renderer> _mobs = new List<Renderer>(64);
         readonly List<Renderer> _kings = new List<Renderer>(8);
         readonly List<Renderer> _players = new List<Renderer>(16);
+        readonly List<Renderer> _objectives = new List<Renderer>(2);
         readonly Plane[] _frustum = new Plane[6];
 
         Material _source;
         Material _mobMaterial;
         Material _kingMaterial;
         Material _playerMaterial;
+        Material _objectiveMaterial;
 
         public ToonOutlinePass()
         {
@@ -82,9 +85,11 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
             CoreUtils.Destroy(_mobMaterial);
             CoreUtils.Destroy(_kingMaterial);
             CoreUtils.Destroy(_playerMaterial);
+            CoreUtils.Destroy(_objectiveMaterial);
             _mobMaterial = null;
             _kingMaterial = null;
             _playerMaterial = null;
+            _objectiveMaterial = null;
         }
 
         class PassData
@@ -92,9 +97,11 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
             public Renderer[] mobs;
             public Renderer[] kings;
             public Renderer[] players;
+            public Renderer[] objectives;
             public Material mobMaterial;
             public Material kingMaterial;
             public Material playerMaterial;
+            public Material objectiveMaterial;
         }
 
         public override void RecordRenderGraph(RenderGraph renderGraph, ContextContainer frameData)
@@ -106,13 +113,14 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
             if (!resources.activeColorTexture.IsValid() || !resources.activeDepthTexture.IsValid())
                 return;
 
-            ToonOutlineSubjects.Copy(_mobs, _kings, _players);
+            ToonOutlineSubjects.Copy(_mobs, _kings, _players, _objectives);
             Camera camera = frameData.Get<UniversalCameraData>().camera;
             GeometryUtility.CalculateFrustumPlanes(camera, _frustum);
             CullInvisible(_mobs, camera);
             CullInvisible(_kings, camera);
             CullInvisible(_players, camera);
-            if (_mobs.Count == 0 && _kings.Count == 0 && _players.Count == 0)
+            CullInvisible(_objectives, camera);
+            if (_mobs.Count == 0 && _kings.Count == 0 && _players.Count == 0 && _objectives.Count == 0)
                 return;
 
             ApplySettings(_source);
@@ -122,9 +130,11 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                 passData.mobs = _mobs.ToArray();
                 passData.kings = _kings.ToArray();
                 passData.players = _players.ToArray();
+                passData.objectives = _objectives.ToArray();
                 passData.mobMaterial = _mobMaterial;
                 passData.kingMaterial = _kingMaterial;
                 passData.playerMaterial = _playerMaterial;
+                passData.objectiveMaterial = _objectiveMaterial;
 
                 builder.SetRenderAttachment(resources.activeColorTexture, 0, AccessFlags.ReadWrite);
                 builder.SetRenderAttachmentDepth(resources.activeDepthTexture, AccessFlags.ReadWrite);
@@ -134,18 +144,21 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                     DrawBodies(context.cmd, data.mobs, data.mobMaterial);
                     DrawBodies(context.cmd, data.kings, data.kingMaterial);
                     DrawBodies(context.cmd, data.players, data.playerMaterial);
+                    DrawBodies(context.cmd, data.objectives, data.objectiveMaterial);
                 });
             }
         }
 
         void ApplySettings(Material source)
         {
-            if (_mobMaterial == null || _kingMaterial == null || _playerMaterial == null || _mobMaterial.shader != source.shader)
+            if (_mobMaterial == null || _kingMaterial == null || _playerMaterial == null || _objectiveMaterial == null
+                || _mobMaterial.shader != source.shader)
             {
                 DestroyMaterials();
                 _mobMaterial = new Material(source) { name = "ToonOutline Mob", hideFlags = HideFlags.HideAndDontSave };
                 _kingMaterial = new Material(source) { name = "ToonOutline King", hideFlags = HideFlags.HideAndDontSave };
                 _playerMaterial = new Material(source) { name = "ToonOutline Player", hideFlags = HideFlags.HideAndDontSave };
+                _objectiveMaterial = new Material(source) { name = "ToonOutline Objective", hideFlags = HideFlags.HideAndDontSave };
             }
 
             Color mob = source.GetColor(OutlineColorId);
@@ -167,6 +180,8 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
             Apply(_mobMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 0f, 0f);
             Apply(_kingMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 1f, 0f);
             Apply(_playerMaterial, mob, king, pixels, playerPixels, fadeStart, fadeEnd, 0f, 1f);
+            float objectivePixels = source.HasProperty(ObjectivePixelsId) ? source.GetFloat(ObjectivePixelsId) : 3f;
+            Apply(_objectiveMaterial, Color.black, king, Mathf.Max(1f, objectivePixels), playerPixels, fadeStart, fadeEnd, 0f, 0f);
         }
 
         void CullInvisible(List<Renderer> renderers, Camera camera)
@@ -250,8 +265,17 @@ public static class ToonOutlineSubjects
     static readonly List<Renderer> Mobs = new List<Renderer>(64);
     static readonly List<Renderer> Kings = new List<Renderer>(8);
     static readonly List<Renderer> Players = new List<Renderer>(16);
+    static readonly List<Renderer> Objectives = new List<Renderer>(2);
 
-    public static bool Any => Mobs.Count > 0 || Kings.Count > 0 || Players.Count > 0;
+    public static bool Any => Mobs.Count > 0 || Kings.Count > 0 || Players.Count > 0 || Objectives.Count > 0;
+
+    /// <summary>Black, independently sized ink for the current king's exclamation mark.</summary>
+    public static void MarkObjective(Component root)
+    {
+        RemoveRoot(root, Kings);
+        RemoveRoot(root, Players);
+        Move(root, Objectives, Mobs);
+    }
 
     public static void Mark(Component root)
     {
@@ -285,13 +309,15 @@ public static class ToonOutlineSubjects
         RemoveRoot(root, Mobs);
         RemoveRoot(root, Kings);
         RemoveRoot(root, Players);
+        RemoveRoot(root, Objectives);
     }
 
-    public static void Copy(List<Renderer> mobs, List<Renderer> kings, List<Renderer> players)
+    public static void Copy(List<Renderer> mobs, List<Renderer> kings, List<Renderer> players, List<Renderer> objectives = null)
     {
         CopyEnabled(Mobs, mobs);
         CopyEnabled(Kings, kings);
         CopyEnabled(Players, players);
+        if (objectives != null) CopyEnabled(Objectives, objectives);
     }
 
     static void Move(Component root, List<Renderer> add, List<Renderer> remove)

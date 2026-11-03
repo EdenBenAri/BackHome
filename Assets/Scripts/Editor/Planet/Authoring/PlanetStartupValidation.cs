@@ -54,7 +54,9 @@ public static class PlanetStartupValidation
         if (File.Exists(Trigger) && !EditorApplication.isPlayingOrWillChangePlaymode)
         {
             SessionState.SetBool(Key + ".kingRing", File.ReadAllText(Trigger).Trim() == "king-ring");
+            SessionState.SetBool(Key + ".kingObjective", File.ReadAllText(Trigger).Trim() == "king-objective");
             SessionState.SetBool(Key + ".kingRingPrepared", false);
+            SessionState.SetBool(Key + ".kingObjectivePrepared", false);
             File.Delete(Trigger);
             var progress = Object.FindAnyObjectByType<PlanetStageProgression>(FindObjectsInactive.Include);
             if (progress == null) throw new InvalidOperationException("Open Galaxy before the startup check.");
@@ -73,6 +75,13 @@ public static class PlanetStartupValidation
         if (!SessionState.GetBool(Key, false)) return;
         float elapsed = (float)EditorApplication.timeSinceStartup - SessionState.GetFloat(Key + ".started", 0f);
         if (elapsed > 30f) { Finish("FAIL startup timeout"); return; }
+        if (EditorApplication.isPlaying && elapsed >= 3f && SessionState.GetBool(Key + ".kingObjective", false)
+            && !SessionState.GetBool(Key + ".kingObjectivePrepared", false))
+        {
+            KingObjectiveMarkerValidation.Prepare();
+            SessionState.SetBool(Key + ".kingObjectivePrepared", true);
+            return;
+        }
         if (EditorApplication.isPlaying && elapsed >= 3f && SessionState.GetBool(Key + ".kingRing", false)
             && !SessionState.GetBool(Key + ".kingRingPrepared", false))
         {
@@ -93,6 +102,8 @@ public static class PlanetStartupValidation
             Require(Creature.ActiveCreatures.Count > 0, "Creatures did not spawn.");
             if (SessionState.GetBool(Key + ".kingRing", false))
                 KingLeashIndicatorValidation.Run();
+            if (SessionState.GetBool(Key + ".kingObjective", false))
+                KingObjectiveMarkerValidation.Run();
             Require(!SessionState.GetBool(Key + ".error", false), "Startup logged an error or missing-world warning.");
             Finish($"PASS planet active; {owner.ProjectedObjectCount} unique placements; player alive; {Creature.ActiveCreatures.Count} creatures spawned; no startup errors/warnings.");
         }

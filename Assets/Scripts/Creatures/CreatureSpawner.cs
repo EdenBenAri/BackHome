@@ -165,6 +165,10 @@ public class CreatureSpawner : MonoBehaviour
         return true;
     }
 
+    /// <summary>The living instance of the same unfinished king used by navigation.</summary>
+    public bool TryGetCurrentKingObjective(out Creature king) =>
+        TryGetLiveKing(FindNextKingIndex(), out king);
+
     int FindNextKingIndex(bool thisVisitOnly = false, int afterIndex = -1)
     {
         if (!TryResolvePlanet() || spawnPoints == null) return -1;
@@ -327,6 +331,7 @@ public class CreatureSpawner : MonoBehaviour
     {
         if (spawnOnStart)
             SpawnAll();
+        KingObjectiveMarker.CreateFor(this);
     }
 
     void Update()

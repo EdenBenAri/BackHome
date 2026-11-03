@@ -1197,6 +1197,10 @@ PrefabInstance:
       propertyPath: m_ActiveFontFeatures.Array.size
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4460210289938428938, guid: 6f5cc733040770e4185166a9281c264a, type: 3}
+      propertyPath: m_TextStyleHashCode
+      value: -1183493901
+      objectReference: {fileID: 0}
     - target: {fileID: 4603745744613591517, guid: 6f5cc733040770e4185166a9281c264a, type: 3}
       propertyPath: m_AnchorMax.x
       value: 1
