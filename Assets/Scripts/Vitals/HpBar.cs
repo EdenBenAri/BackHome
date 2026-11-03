@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -44,6 +45,7 @@ public class HpBar : MonoBehaviour
     bool _fullFading;
     float _fullHoldTimer;
     float _damageShakeRemaining;
+    readonly List<Renderer> _barRenderers = new List<Renderer>(8);
 
     public void SetWorldScale(float scale)
     {
@@ -67,7 +69,7 @@ public class HpBar : MonoBehaviour
 
     bool HideUntilDamaged => hideUntilDamaged || _source is Creature;
 
-    bool IsPlayer => GetComponent<PlayerVitals>() != null;
+    bool IsPlayer => _source is PlayerVitals;
 
     bool HealthIsFull =>
         _source != null
@@ -120,7 +122,7 @@ public class HpBar : MonoBehaviour
     void BindLevel()
     {
         UnbindLevel();
-        if (GetComponent<PlayerVitals>() == null)
+        if (!IsPlayer)
             return;
 
         _level = PlayerLevel.EnsureExists();
@@ -157,6 +159,13 @@ public class HpBar : MonoBehaviour
             return;
         }
 
+        // Visibility timers still tick every frame. Position hidden creature bars
+        // only when they become visible, before the camera renders that frame.
+        UpdateDamageReveal();
+        UpdatePlayerFullDismiss();
+        if (!bars.gameObject.activeInHierarchy)
+            return;
+
         Transform root = bars.transform;
         Vector3 lossy = transform.lossyScale;
         float s = worldScale;
@@ -170,8 +179,6 @@ public class HpBar : MonoBehaviour
         if (cam != null)
             root.rotation = cam.transform.rotation;
 
-        UpdateDamageReveal();
-        UpdatePlayerFullDismiss();
         UpdateDamageShake(root);
     }
 
@@ -212,7 +219,7 @@ public class HpBar : MonoBehaviour
             return;
 
         // Player oxygen lives on the screen HUD, not above the character.
-        bool aboveCharacter = _source != null && _source.HasOxygen && GetComponent<PlayerVitals>() == null;
+        bool aboveCharacter = _source != null && _source.HasOxygen && !IsPlayer;
         bars.SetOxygenVisible(aboveCharacter);
     }
 
@@ -271,7 +278,7 @@ public class HpBar : MonoBehaviour
             return;
         }
 
-        if (_source is Creature creature && GetComponent<AreaKing>() != null)
+        if (_source is Creature creature && TryGetComponent<AreaKing>(out _))
         {
             bars.SetLevel(creature.Level, hostileHealthColor);
             return;
@@ -281,7 +288,7 @@ public class HpBar : MonoBehaviour
     }
 
     bool KeepsLevelVisible =>
-        (IsPlayer || GetComponent<AreaKing>() != null)
+        (IsPlayer || TryGetComponent<AreaKing>(out _))
         && (_source == null || !hideWhenDead || _source.IsAlive);
 
     void EnsureLevelStaysVisible()
@@ -513,12 +520,13 @@ public class HpBar : MonoBehaviour
 
     void EnsureBarRenderersEnabled()
     {
-        Renderer[] renderers = bars.GetComponentsInChildren<Renderer>(true);
-        for (int i = 0; i < renderers.Length; i++)
+        bars.GetComponentsInChildren(true, _barRenderers);
+        for (int i = 0; i < _barRenderers.Count; i++)
         {
-            if (renderers[i] != null)
-                renderers[i].enabled = true;
+            if (_barRenderers[i] != null)
+                _barRenderers[i].enabled = true;
         }
+        _barRenderers.Clear();
     }
 
     static float ApproxInverse(float value)

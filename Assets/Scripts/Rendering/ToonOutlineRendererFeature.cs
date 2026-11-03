@@ -94,10 +94,12 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
 
         class PassData
         {
-            public Renderer[] mobs;
-            public Renderer[] kings;
-            public Renderer[] players;
-            public Renderer[] objectives;
+            // RenderGraph pools PassData. Each recorded pass owns its snapshot so
+            // another camera cannot overwrite it before the graph executes.
+            public readonly List<Renderer> mobs = new List<Renderer>(64);
+            public readonly List<Renderer> kings = new List<Renderer>(8);
+            public readonly List<Renderer> players = new List<Renderer>(16);
+            public readonly List<Renderer> objectives = new List<Renderer>(2);
             public Material mobMaterial;
             public Material kingMaterial;
             public Material playerMaterial;
@@ -127,10 +129,10 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
 
             using (IRasterRenderGraphBuilder builder = renderGraph.AddRasterRenderPass("Creature Outline", out PassData passData, profilingSampler))
             {
-                passData.mobs = _mobs.ToArray();
-                passData.kings = _kings.ToArray();
-                passData.players = _players.ToArray();
-                passData.objectives = _objectives.ToArray();
+                CopySnapshot(_mobs, passData.mobs);
+                CopySnapshot(_kings, passData.kings);
+                CopySnapshot(_players, passData.players);
+                CopySnapshot(_objectives, passData.objectives);
                 passData.mobMaterial = _mobMaterial;
                 passData.kingMaterial = _kingMaterial;
                 passData.playerMaterial = _playerMaterial;
@@ -145,8 +147,19 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
                     DrawBodies(context.cmd, data.kings, data.kingMaterial);
                     DrawBodies(context.cmd, data.players, data.playerMaterial);
                     DrawBodies(context.cmd, data.objectives, data.objectiveMaterial);
+                    // Retain capacity, not scene objects, while the pass is pooled.
+                    data.mobs.Clear();
+                    data.kings.Clear();
+                    data.players.Clear();
+                    data.objectives.Clear();
                 });
             }
+        }
+
+        static void CopySnapshot(List<Renderer> source, List<Renderer> destination)
+        {
+            destination.Clear();
+            destination.AddRange(source);
         }
 
         void ApplySettings(Material source)
@@ -220,12 +233,12 @@ public class ToonOutlineRendererFeature : ScriptableRendererFeature
             material.SetFloat(UsePlayerId, usePlayer);
         }
 
-        static void DrawBodies(RasterCommandBuffer cmd, Renderer[] renderers, Material material)
+        static void DrawBodies(RasterCommandBuffer cmd, List<Renderer> renderers, Material material)
         {
             if (renderers == null || material == null)
                 return;
 
-            for (int i = 0; i < renderers.Length; i++)
+            for (int i = 0; i < renderers.Count; i++)
             {
                 Renderer renderer = renderers[i];
                 if (renderer == null)

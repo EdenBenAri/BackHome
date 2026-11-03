@@ -338,6 +338,7 @@ public class CreatureSpawner : MonoBehaviour
         if (spawnOnStart)
             SpawnAll();
         KingObjectiveMarker.CreateFor(this);
+        KingArrowNavigation.CreateFor(this);
     }
 
     void Update()

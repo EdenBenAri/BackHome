@@ -25,12 +25,14 @@ public class PlanetParticleGravity : MonoBehaviour
     readonly List<Binding> _bindings = new List<Binding>(16);
     readonly HashSet<ParticleSystem> _seen = new HashSet<ParticleSystem>();
     ParticleSystem.Particle[] _buffer = new ParticleSystem.Particle[128];
+    int _discoveryTicks;
 
     void OnDisable()
     {
         RestoreWorldGravity();
         _bindings.Clear();
         _seen.Clear();
+        _discoveryTicks = 0;
     }
 
     void LateUpdate()
@@ -43,11 +45,19 @@ public class PlanetParticleGravity : MonoBehaviour
 
     void Discover()
     {
-        ParticleSystem[] systems = FindObjectsByType<ParticleSystem>(FindObjectsInactive.Exclude);
+        // The generic overload copies the native Object[] into a second typed
+        // array. Keep same-frame discovery but avoid that redundant allocation.
+        Object[] systems = FindObjectsByType(typeof(ParticleSystem), FindObjectsInactive.Exclude);
+        // Include systems without gravity: they are in _seen but not _bindings.
+        if (++_discoveryTicks >= 64)
+        {
+            _seen.RemoveWhere(static system => system == null);
+            _discoveryTicks = 0;
+        }
 
         for (int i = 0; i < systems.Length; i++)
         {
-            ParticleSystem ps = systems[i];
+            ParticleSystem ps = (ParticleSystem)systems[i];
             if (!_seen.Add(ps))
                 continue;
 
@@ -87,6 +97,7 @@ public class PlanetParticleGravity : MonoBehaviour
             ParticleSystem ps = binding.system;
             if (ps == null)
             {
+                _seen.Remove(ps);
                 _bindings.RemoveAt(i);
                 continue;
             }
