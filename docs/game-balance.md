@@ -67,7 +67,7 @@ A one-clear budget using the scene's actual spawn counts, every mob and king kil
 
 ## Verification and tuning
 
-Run `node tools/balance-audit.mjs` from the project root. It reads the actual stats, weapon prefabs, level constants and scene rather than a separate hand-maintained table. It checks 33 area/enemy combinations, 11 ordered kings, all 30 levels, encounter HP/XP ordering, underlevel/overlevel behavior, oxygen and the one-clear XP budget. Detailed output is generated at `Logs/BalanceAudit.json`.
+Run `node tools/validation/balance-audit.mjs` from the project root. It reads the actual stats, weapon prefabs, level constants and scene rather than a separate hand-maintained table. It checks 33 area/enemy combinations, 11 ordered kings, all 30 levels, encounter HP/XP ordering, underlevel/overlevel behavior, oxygen and the one-clear XP budget. Detailed output is generated at `Logs/BalanceAudit.json`.
 
 The damage simulation assumes one stationary target, all three weapons in range, 60 Hz cooldowns and 0.15-second Itchy projectile flight. At two player levels below the king, estimates are 8.65 / 9.50 / 11.50 seconds for the three king types. These are estimates, not measured playthrough times.
 

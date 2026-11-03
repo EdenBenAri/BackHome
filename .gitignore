@@ -11,6 +11,8 @@
 /[Oo]bj/
 /[Bb]uild/
 /[Bb]uilds/
+# Burst-generated Web build artifacts occasionally written at the project root.
+/Data/Plugins/lib_burst_generated.*
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 *.log

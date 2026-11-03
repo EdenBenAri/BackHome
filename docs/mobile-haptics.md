@@ -26,6 +26,6 @@ Research checked 2026-11-02. Platform feedback is preferred over `Handheld.Vibra
 
 ## Verification
 
-Run `node tools/test-mobile-haptics.cjs` for browser capability, activation, background, cancellation, and rejection checks. In Unity, run **BackHome > Feedback > Validate Mobile Haptics**, or create `Temp/BackHomeHapticsValidation.trigger` outside Play Mode; results go to `Logs/MobileHapticsValidation.txt`. The checks cover rate limiting, completion priority, zero managed allocation in the limiter, deposit batch bookkeeping, and plugin platform isolation.
+Run `node tools/validation/test-mobile-haptics.cjs` for browser capability, activation, background, cancellation, and rejection checks. In Unity, run **BackHome > Feedback > Validate Mobile Haptics**, or create `Temp/BackHomeHapticsValidation.trigger` outside Play Mode; results go to `Logs/MobileHapticsValidation.txt`. The checks cover rate limiting, completion priority, zero managed allocation in the limiter, deposit batch bookkeeping, and plugin platform isolation.
 
 Before shipping, feel-test on physical Android and iPhone app builds: sustained multiweapon combat, canceled charge, a one-item/full cargo deposit, a scene change during flight, pause/background/resume, and disabled device haptics. Verify the itch embed on Android separately; browser policy can differ from a top-level page. Measure target-device CPU/GC and tune pulse cadence if necessary. Desktop tests cannot validate motor strength, native build/linking, battery impact, or device frame time.
