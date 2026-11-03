@@ -112,7 +112,7 @@ public static class KingLeashValidation
                 prefab.name + " did not inherit the 30-unit king radius.");
             count++;
         }
-        Require(count >= 3, "Expected at least the Slime, Grimling and Snarlfang king prefabs.");
+        Require(count >= 3, "Expected at least the Slime, Grimling and Chompy king prefabs.");
         File.AppendAllText(Report, $"Checked {count} king prefabs.\n");
     }
 

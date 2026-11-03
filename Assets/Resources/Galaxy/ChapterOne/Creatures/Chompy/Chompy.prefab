@@ -245,7 +245,7 @@ GameObject:
   - component: {fileID: 7451745259357345160}
   - component: {fileID: 4800004454855721200}
   m_Layer: 0
-  m_Name: Snarlfang
+  m_Name: Chompy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

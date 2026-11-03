@@ -42,11 +42,11 @@ Level-one budgets are written as HP / damage per hit / attacks per second / XP:
 
 - Slime: **90 / 5 / 0.8 / 8**.
 - Grimling: **110 / 8 / 0.9 / 10**.
-- Snarlfang: **100 / 6 / 1.2 / 11**.
+- Chompy: **100 / 6 / 1.2 / 11**.
 - Rime: **100 / 7 / 0.8 / 9**.
 - Slime King: **650 / 14 / 0.7 / 45**.
 - Grimling King: **700 / 16 / 0.65 / 55**.
-- Snarlfang King: **850 / 18 / 0.6 / 65**.
+- Chompy King: **850 / 18 / 0.6 / 65**.
 
 Enemy HP multiplies by `1.10^(threatLevel-1)`; damage by `1.08^(threatLevel-1)`. Matching these to player damage and HP growth preserves equal-level encounter duration and danger. A player five levels stronger deals about 61% more damage while having about 47% more health. Contact attacks still happen immediately on entry and then at their interval; this pass does not add attack telegraphs.
 
@@ -74,7 +74,7 @@ The damage simulation assumes one stationary target, all three weapons in range,
 With Galaxy open and outside Play, choose **BackHome > Balance > Validate In Play**. This uses an isolated Play session, preserves persisted stage progression, checks actual XP level-up and percentage labels, all 11 kings and 136 spawned mobs across unlocks, respawn levels, asset isolation, oxygen scaling and continuous-fire poison. It then uses the real weapon components against isolated stationary kings. Measured in the Unity Editor:
 
 - Slime King level 3 versus player level 1: **8.78 seconds**.
-- Snarlfang King level 7 versus player level 5: **11.58 seconds**.
+- Chompy King level 7 versus player level 5: **11.58 seconds**.
 - Grimling King level 27 versus player level 25: **9.69 seconds**.
 
 All runtime checks passed, and the isolated startup reported no errors. Results are written to `Logs/BalancePlayValidation.txt` and `Logs/PlanetStartupValidation.txt`. The test temporarily removes cinematics and other targets from its combat measurement; it does not alter their production behavior or save the scene.

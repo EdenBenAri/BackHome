@@ -305,7 +305,7 @@ GameObject:
   - component: {fileID: 4408820517378196784}
   - component: {fileID: 3002549500083235573}
   m_Layer: 0
-  m_Name: King_Snarlfang
+  m_Name: King_Chompy
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

@@ -17,7 +17,7 @@ public static class BalancePlayValidation
     static bool started;
     static int probe;
     static float began;
-    static readonly string[] Types = { "Slime", "Snarlfang", "Grimling" };
+    static readonly string[] Types = { "Slime", "Chompy", "Grimling" };
     static readonly int[] PlayerLevels = { 1, 5, 25 };
     static readonly int[] KingLevels = { 3, 7, 27 };
 

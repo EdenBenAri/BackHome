@@ -7,7 +7,7 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: King_Snarlfang
+  m_Name: Chompy
   m_Shader: {fileID: 4800000, guid: e4f8a21c7b6d9053c8e1f4a63720d5b9, type: 3}
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
@@ -24,11 +24,11 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _BaseMap:
-        m_Texture: {fileID: 2800000, guid: 4a0701f6916e7384f8f37d484f44596f, type: 3}
+        m_Texture: {fileID: 2800000, guid: 5091bf2c19badd34daefb95bb93e00ee, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _BumpMap:
-        m_Texture: {fileID: 2800000, guid: 04b3da4a617ab794885b442f46185360, type: 3}
+        m_Texture: {fileID: 2800000, guid: 3106d69640d993a4288b033a026646a8, type: 3}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _EmissionMap:

@@ -2431,7 +2431,7 @@ GameObject:
   - component: {fileID: 4649993492226513177}
   - component: {fileID: 796688699314050313}
   m_Layer: 0
-  m_Name: SnarlfangDeathVFX
+  m_Name: ChompyDeathVFX
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

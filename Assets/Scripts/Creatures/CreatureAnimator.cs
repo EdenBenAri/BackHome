@@ -258,7 +258,7 @@ public class CreatureAnimator : MonoBehaviour
         if (_animator == null || !HasParameter(AttackAnimSpeedHash))
             return;
 
-        // Snarlfang's light clip stays at authored speed so each swing is readable.
+        // Chompy's light clip stays at authored speed so each swing is readable.
         // Hit rate still comes from CreatureStats. Grimling keeps the scaled Attack clip.
         if (_animator.HasState(0, LightAttackHash))
         {

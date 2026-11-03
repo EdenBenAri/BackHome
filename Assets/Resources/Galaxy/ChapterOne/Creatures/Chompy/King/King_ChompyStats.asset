@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: b9e2d3f4a5c667819203b4c5d6e7f809, type: 3}
-  m_Name: King_SnarlfangStats
+  m_Name: King_ChompyStats
   m_EditorClassIdentifier: Assembly-CSharp::CreatureStats
-  displayName: King Snarlfang
+  displayName: King Chompy
   attackDamage: 18
   attackSpeed: 0.6
   attackRange: 3.5
