@@ -25,6 +25,7 @@ public class InventoryUI : MonoBehaviour
 
     PlayerInventory _inventory;
     PlayerVitals _vitals;
+    EquipmentHeroPreview _heroPreview;
     bool _open;
     bool _boundInventory;
     bool _boundVitals;
@@ -144,6 +145,17 @@ public class InventoryUI : MonoBehaviour
                 heroNameText = name.GetComponent<TMP_Text>();
         }
 
+        if (_heroPreview == null && window != null)
+        {
+            Transform hero = window.Find("EquipBody/Hero");
+            if (hero != null)
+            {
+                _heroPreview = hero.GetComponent<EquipmentHeroPreview>();
+                if (_heroPreview == null)
+                    _heroPreview = hero.gameObject.AddComponent<EquipmentHeroPreview>();
+            }
+        }
+
         if (equipmentSlots == null || equipmentSlots.Length == 0)
         {
             if (window != null)
@@ -239,6 +251,8 @@ public class InventoryUI : MonoBehaviour
     void SetOpen(bool open)
     {
         _open = open;
+        if (!open)
+            _heroPreview?.SetVisible(false);
         if (contentPanel != null)
             contentPanel.SetActive(open);
         if (bottomBar != null)
@@ -250,6 +264,7 @@ public class InventoryUI : MonoBehaviour
             if (inventoryPanel != null)
                 inventoryPanel.transform.SetAsLastSibling();
             Refresh();
+            _heroPreview?.SetVisible(true);
         }
     }
 
