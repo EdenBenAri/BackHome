@@ -103,13 +103,21 @@ public class InventoryUI : MonoBehaviour
         if (bottomBar == null)
         {
             Transform bar = root.Find("BottomBar");
+            if (bar == null)
+            {
+                Canvas canvas = GetComponentInChildren<Canvas>(true);
+                if (canvas != null)
+                    bar = canvas.transform.Find("BottomBar");
+            }
             if (bar != null)
                 bottomBar = bar.gameObject;
         }
 
         if (toggleButton == null)
         {
-            Transform toggle = root.Find("BottomBar/ToggleButton");
+            Transform toggle = bottomBar != null ? bottomBar.transform.Find("ToggleButton") : null;
+            if (toggle == null)
+                toggle = root.Find("BottomBar/ToggleButton");
             if (toggle == null)
                 toggle = root.Find("ToggleButton");
             if (toggle != null)
@@ -256,9 +264,7 @@ public class InventoryUI : MonoBehaviour
         if (contentPanel != null)
             contentPanel.SetActive(open);
         if (bottomBar != null)
-            bottomBar.SetActive(!open);
-        else if (toggleButton != null)
-            toggleButton.gameObject.SetActive(!open);
+            bottomBar.SetActive(true);
         if (open)
         {
             if (inventoryPanel != null)
@@ -266,6 +272,9 @@ public class InventoryUI : MonoBehaviour
             Refresh();
             _heroPreview?.SetVisible(true);
         }
+
+        if (bottomBar != null)
+            bottomBar.transform.SetAsLastSibling();
     }
 
     void Refresh()
