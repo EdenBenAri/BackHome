@@ -16,10 +16,22 @@ public class PlayerInventory : MonoBehaviour
     }
 
     static PlayerInventory _instance;
+    static bool _applicationQuitting;
 
     readonly List<Slot> _slots = new();
 
     public static PlayerInventory Instance => _instance;
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ResetStatics()
+    {
+        _instance = null;
+        _applicationQuitting = false;
+        Application.quitting -= MarkApplicationQuitting;
+        Application.quitting += MarkApplicationQuitting;
+    }
+
+    static void MarkApplicationQuitting() => _applicationQuitting = true;
 
     public IReadOnlyList<Slot> Slots => _slots;
 
@@ -44,6 +56,11 @@ public class PlayerInventory : MonoBehaviour
     {
         if (_instance != null)
             return _instance;
+
+        // Exiting Play still reports isPlaying while OnDestroy runs. A GameObject
+        // born there stays behind after the scene closes.
+        if (_applicationQuitting || !Application.isPlaying)
+            return null;
 
         var go = new GameObject("PlayerInventory");
         return go.AddComponent<PlayerInventory>();

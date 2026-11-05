@@ -81,7 +81,11 @@ public class CargoCampDeposit : MonoBehaviour
         if (item == null || amount <= 0)
             return;
 
-        PlayerInventory.EnsureExists().Add(item, amount);
+        PlayerInventory inventory = PlayerInventory.EnsureExists();
+        if (inventory == null)
+            return;
+
+        inventory.Add(item, amount);
         if (EnhancementMaterialHudCounter.Active != null && EnhancementMaterialHudCounter.Owns(item))
             EnhancementMaterialHudCounter.Active.PlayReceive();
         else if (CoinHudCounter.Active != null)
