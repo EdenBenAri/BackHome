@@ -3,7 +3,7 @@ using UnityEngine.UI;
 
 /// <summary>
 /// When the player steps into camp, empties <see cref="PlayerCargo"/> and flies each
-/// icon from the middle of the screen into the coin counter. The bank updates as each icon lands.
+/// icon from the middle of the screen into its HUD counter. The bank updates as each icon lands.
 /// </summary>
 [DefaultExecutionOrder(1200)]
 public class CargoCampDeposit : MonoBehaviour
@@ -82,13 +82,15 @@ public class CargoCampDeposit : MonoBehaviour
             return;
 
         PlayerInventory.EnsureExists().Add(item, amount);
-        if (CoinHudCounter.Active != null)
+        if (EnhancementMaterialHudCounter.Active != null && EnhancementMaterialHudCounter.Owns(item))
+            EnhancementMaterialHudCounter.Active.PlayReceive();
+        else if (CoinHudCounter.Active != null)
             CoinHudCounter.Active.PlayReceive();
     }
 }
 
 /// <summary>
-/// One flying icon. Banks its share of the stack when it reaches the coin counter,
+/// One flying icon. Banks its share of the stack when it reaches its HUD counter,
 /// and also if the scene unloads mid-flight.
 /// </summary>
 public class CargoDepositFlyer : MonoBehaviour
@@ -116,7 +118,7 @@ public class CargoDepositFlyer : MonoBehaviour
         if (item == null || amount <= 0)
             return true;
 
-        if (item.Icon == null || !TryResolveHud(out RectTransform canvas, out Camera eventCamera, out RectTransform target))
+        if (item.Icon == null || !TryResolveHud(item, out RectTransform canvas, out Camera eventCamera, out RectTransform target))
             return false;
 
         // Cargo sits in the middle of the view. Lift the icons from there, not from a world point.
@@ -153,22 +155,24 @@ public class CargoDepositFlyer : MonoBehaviour
         return true;
     }
 
-    static bool TryResolveHud(out RectTransform canvas, out Camera eventCamera, out RectTransform target)
+    static bool TryResolveHud(ItemDefinition item, out RectTransform canvas, out Camera eventCamera, out RectTransform target)
     {
         canvas = null;
         eventCamera = null;
         target = null;
 
-        CoinHudCounter counter = CoinHudCounter.Active;
-        if (counter == null || counter.Target == null)
+        if (EnhancementMaterialHudCounter.Active != null && EnhancementMaterialHudCounter.Owns(item))
+            target = EnhancementMaterialHudCounter.Active.Target;
+        if (target == null && CoinHudCounter.Active != null)
+            target = CoinHudCounter.Active.Target;
+        if (target == null)
             return false;
 
-        Canvas hud = counter.Target.GetComponentInParent<Canvas>();
+        Canvas hud = target.GetComponentInParent<Canvas>();
         if (hud == null)
             return false;
 
         canvas = hud.transform as RectTransform;
-        target = counter.Target;
         eventCamera = hud.renderMode == RenderMode.ScreenSpaceOverlay ? null : hud.worldCamera;
         if (eventCamera == null && hud.renderMode != RenderMode.ScreenSpaceOverlay)
             eventCamera = Camera.main;

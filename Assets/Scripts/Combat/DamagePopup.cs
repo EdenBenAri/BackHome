@@ -1,14 +1,10 @@
 using TMPro;
 using UnityEngine;
 
-/// <summary>Floating damage/heal text, with one SDF renderer and reusable instances.</summary>
-[RequireComponent(typeof(TextMesh))]
+/// <summary>Floating damage/heal text rendered with TextMesh Pro.</summary>
 public class DamagePopup : MonoBehaviour
 {
-    // Retain the authored TextMesh for prefab previews and the original size/offset.
-    [SerializeField] TextMesh textMesh;
-    [SerializeField] TMP_FontAsset popupFont;
-    [SerializeField] Material popupMaterial;
+    [SerializeField] TextMeshPro label;
     [SerializeField] float lifetime = 0.85f;
     [SerializeField] float floatSpeed = 1.6f;
     [SerializeField] float fadeDelay = 0.25f;
@@ -20,7 +16,6 @@ public class DamagePopup : MonoBehaviour
     [SerializeField] Vector3 spawnOffset = new Vector3(0f, 0.35f, 0f);
 
     Camera _camera;
-    TextMeshPro _label;
     DamagePopupPool.Bucket _pool;
     Vector3 _moveDir;
     float _age;
@@ -47,30 +42,24 @@ public class DamagePopup : MonoBehaviour
 
     void Awake()
     {
-        if (textMesh == null) textMesh = GetComponent<TextMesh>();
-        var legacyRenderer = textMesh.GetComponent<MeshRenderer>();
-        legacyRenderer.enabled = false;
-        var child = new GameObject("Damage text", typeof(RectTransform));
-        child.transform.SetParent(transform, false);
-        child.transform.localPosition = new Vector3(0, 0, textMesh.offsetZ);
-        _label = child.AddComponent<TextMeshPro>();
-        _label.font = popupFont != null ? popupFont : TMP_Settings.defaultFontAsset;
-        if (popupMaterial != null) _label.fontSharedMaterial = popupMaterial;
-        _label.fontSize = textMesh.fontSize * textMesh.characterSize;
-        _label.alignment = TextAlignmentOptions.Center;
-        _label.textWrappingMode = TextWrappingModes.NoWrap;
-        _label.overflowMode = TextOverflowModes.Overflow;
-        _label.richText = false;
-        _label.enableAutoSizing = false;
-        _label.extraPadding = true;
-        _label.renderer.sortingOrder = legacyRenderer.sortingOrder;
-        _label.renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-        _label.renderer.receiveShadows = false;
-        textMesh.text = string.Empty;
+        if (label == null) label = GetComponentInChildren<TextMeshPro>(true);
+        if (label == null) return;
+        if (label.font == null) label.font = TMP_Settings.defaultFontAsset;
+        label.alignment = TextAlignmentOptions.Center;
+        label.textWrappingMode = TextWrappingModes.NoWrap;
+        label.overflowMode = TextOverflowModes.Overflow;
+        label.richText = false;
+        label.enableAutoSizing = false;
+        label.extraPadding = true;
+        Renderer textRenderer = label.renderer;
+        if (textRenderer == null) return;
+        textRenderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        textRenderer.receiveShadows = false;
     }
 
     public void Setup(float amount, Vector3 up, bool isHeal = false)
     {
+        if (label == null) return;
         _moveDir = up.sqrMagnitude > 0.0001f ? up.normalized : Vector3.up;
         Vector3 right = Vector3.Cross(_moveDir, Vector3.forward);
         if (right.sqrMagnitude < 0.001f) right = Vector3.Cross(_moveDir, Vector3.right);
@@ -80,9 +69,9 @@ public class DamagePopup : MonoBehaviour
             + _moveDir * spawnOffset.y + forward * spawnOffset.z;
         transform.localScale = Vector3.one * startScale;
         _baseColor = isHeal ? healColor : damageColor;
-        _label.color = _baseColor;
-        _label.SetText("{0}", Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(amount))));
-        _label.ForceMeshUpdate();
+        label.color = _baseColor;
+        label.SetText("{0}", Mathf.Max(1, Mathf.RoundToInt(Mathf.Abs(amount))));
+        label.ForceMeshUpdate();
         _alpha = ((Color32)_baseColor).a;
         _age = 0;
         _setup = true;
@@ -107,13 +96,13 @@ public class DamagePopup : MonoBehaviour
         {
             _alpha = alpha;
             // Fade colors without regenerating glyph positions/UVs each frame.
-            TMP_TextInfo info = _label.textInfo;
+            TMP_TextInfo info = label.textInfo;
             for (int m = 0; m < info.materialCount; m++)
             {
                 Color32[] colors = info.meshInfo[m].colors32;
                 for (int i = 0; i < info.meshInfo[m].vertexCount; i++) colors[i].a = alpha;
             }
-            _label.UpdateVertexData(TMP_VertexDataUpdateFlags.Colors32);
+            label.UpdateVertexData(TMP_VertexDataUpdateFlags.Colors32);
         }
         if (_age >= lifetime)
         {

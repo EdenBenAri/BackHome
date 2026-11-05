@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: d4e5f60718293a4b5c6d7e8f01234567, type: 3}
-  m_Name: BlueGem
+  m_Name: EnhancementMaterial
   m_EditorClassIdentifier: Assembly-CSharp::ItemDefinition
-  displayName: Blue Gem
+  displayName: Enhancement Material
   icon: {fileID: 21300000, guid: 8ae8b8883c057439a8d70c9e953dcb22, type: 3}
   category: 0
   maxStack: 999

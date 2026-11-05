@@ -48,7 +48,7 @@ static class CreatureAssetUtil
         ItemDefinition coin = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
             "Assets/Resources/Items/Coin/Coin.asset");
         ItemDefinition gem = AssetDatabase.LoadAssetAtPath<ItemDefinition>(
-            "Assets/Resources/Items/BlueGem/BlueGem.asset");
+            "Assets/Resources/Items/EnhancementMaterial/EnhancementMaterial.asset");
 
         SerializedProperty loot = stats.FindProperty("loot");
         loot.arraySize = 2;

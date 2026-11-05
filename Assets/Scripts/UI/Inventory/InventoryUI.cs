@@ -8,6 +8,7 @@ using UnityEngine.UI;
 public class InventoryUI : MonoBehaviour
 {
     const int InventoryGridCapacity = 10;
+    const string WeaponSlotResource = "HUD/Equipment/Weapons/WeaponSlot";
 
     [SerializeField] GameObject inventoryPanelPrefab;
     [SerializeField] GameObject inventoryPanel;
@@ -187,12 +188,18 @@ public class InventoryUI : MonoBehaviour
                 inventoryGrid = grid;
         }
 
+        if (inventorySlotPrefab == null)
+            inventorySlotPrefab = Resources.Load<InventoryGridSlotView>(WeaponSlotResource);
+
         if (inventorySlotPrefab == null && inventoryGrid != null)
         {
-            Transform template = inventoryGrid.Find("SlotTemplate");
-            if (template != null)
-                inventorySlotPrefab = template.GetComponent<InventoryGridSlotView>();
+            Transform placed = inventoryGrid.Find("WeaponSlot");
+            if (placed != null)
+                inventorySlotPrefab = placed.GetComponent<InventoryGridSlotView>();
         }
+
+        if (SlotPrefabLivesInGrid())
+            inventorySlotPrefab.gameObject.SetActive(false);
 
         if (toggleButton != null)
         {
@@ -404,14 +411,14 @@ public class InventoryUI : MonoBehaviour
         {
             InventoryGridSlotView extra = Instantiate(inventorySlotPrefab, inventoryGrid);
             extra.gameObject.SetActive(true);
-            extra.name = "Slot";
+            extra.name = "WeaponSlot";
         }
 
         int slotIndex = 0;
         for (int i = 0; i < inventoryGrid.childCount; i++)
         {
             InventoryGridSlotView view = inventoryGrid.GetChild(i).GetComponent<InventoryGridSlotView>();
-            if (view == null || view == inventorySlotPrefab)
+            if (view == null || IsSlotTemplate(view))
                 continue;
 
             bool active = slotIndex < shown;
@@ -440,8 +447,7 @@ public class InventoryUI : MonoBehaviour
         var slots = _inventory.Slots;
         for (int i = 0; i < slots.Count; i++)
         {
-            ItemDefinition item = slots[i].item;
-            if (item != null && item.Category == ItemCategory.Currency)
+            if (!ShowsInEquipmentBag(slots[i].item))
                 continue;
             count++;
         }
@@ -459,8 +465,7 @@ public class InventoryUI : MonoBehaviour
         var slots = _inventory.Slots;
         for (int i = 0; i < slots.Count; i++)
         {
-            ItemDefinition item = slots[i].item;
-            if (item != null && item.Category == ItemCategory.Currency)
+            if (!ShowsInEquipmentBag(slots[i].item))
                 continue;
 
             if (seen == visibleIndex)
@@ -475,13 +480,34 @@ public class InventoryUI : MonoBehaviour
         return false;
     }
 
+    bool SlotPrefabLivesInGrid()
+    {
+        return inventorySlotPrefab != null
+            && inventoryGrid != null
+            && inventorySlotPrefab.transform.IsChildOf(inventoryGrid);
+    }
+
+    bool IsSlotTemplate(InventoryGridSlotView view)
+    {
+        return SlotPrefabLivesInGrid() && view == inventorySlotPrefab;
+    }
+
+    static bool ShowsInEquipmentBag(ItemDefinition item)
+    {
+        if (item == null)
+            return false;
+        if (item.Category == ItemCategory.Currency)
+            return false;
+        return !EnhancementMaterialHudCounter.Owns(item);
+    }
+
     int CountSpawnedSlots()
     {
         int n = 0;
         for (int i = 0; i < inventoryGrid.childCount; i++)
         {
             InventoryGridSlotView view = inventoryGrid.GetChild(i).GetComponent<InventoryGridSlotView>();
-            if (view != null && view != inventorySlotPrefab)
+            if (view != null && !IsSlotTemplate(view))
                 n++;
         }
 

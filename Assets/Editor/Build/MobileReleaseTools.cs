@@ -57,32 +57,23 @@ public static class MobileReleaseTools
             AssetDatabase.CreateAsset(new Material(surfaceShader) { name = "PlanetSurfaceUnlit" }, surfacePath);
         }
         var font = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
-            "Assets/TextMesh Pro/Resources/Fonts & Materials/LiberationSans SDF.asset");
-        Shader shader = AssetDatabase.LoadAssetAtPath<Shader>("Assets/TextMesh Pro/Shaders/TMP_SDF-Mobile.shader");
-        if (font == null || shader == null) throw new InvalidOperationException("Mobile damage font/shader missing.");
-        const string materialPath = "Assets/Resources/HUD/DamageNumberSDF.mat";
-        Material material = AssetDatabase.LoadAssetAtPath<Material>(materialPath);
-        if (material == null)
-        {
-            material = new Material(font.material) { name = "DamageNumberSDF", shader = shader };
-            material.SetFloat("_OutlineWidth", 0.25f);
-            material.SetFloat("_FaceDilate", 0.12f);
-            material.SetColor("_OutlineColor", new Color(0, 0, 0, 0.92f));
-            material.EnableKeyword("OUTLINE_ON");
-            AssetDatabase.CreateAsset(material, materialPath);
-        }
-        material.DisableKeyword("UNDERLAY_ON");
-        material.DisableKeyword("UNDERLAY_INNER");
-        material.SetColor("_FaceColor", Color.white);
-        EditorUtility.SetDirty(material);
+            "Assets/AssetStore/Layer Lab/GUI Pro-CasualGame/ResourcesData/Fonts/LilitaOne-Regular SDF.asset");
+        if (font == null || font.material == null) throw new InvalidOperationException("Layer Lab damage font missing.");
         var prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/Resources/HUD/DamageNumber.prefab");
         var popup = prefab != null ? prefab.GetComponent<DamagePopup>() : null;
-        if (popup == null) throw new InvalidOperationException("DamageNumber prefab missing.");
-        var data = new SerializedObject(popup);
-        data.FindProperty("popupFont").objectReferenceValue = font;
-        data.FindProperty("popupMaterial").objectReferenceValue = material;
-        data.ApplyModifiedPropertiesWithoutUndo();
-        EditorUtility.SetDirty(popup);
+        var label = prefab != null ? prefab.GetComponentInChildren<TextMeshPro>(true) : null;
+        if (popup == null || label == null) throw new InvalidOperationException("DamageNumber prefab missing TextMeshPro.");
+        var labelData = new SerializedObject(label);
+        labelData.FindProperty("m_fontAsset").objectReferenceValue = font;
+        labelData.FindProperty("m_sharedMaterial").objectReferenceValue = font.material;
+        labelData.ApplyModifiedPropertiesWithoutUndo();
+        var textRenderer = label.GetComponent<MeshRenderer>();
+        if (textRenderer != null)
+        {
+            textRenderer.sharedMaterial = font.material;
+            EditorUtility.SetDirty(textRenderer);
+        }
+        EditorUtility.SetDirty(label);
         PrefabUtility.SavePrefabAsset(prefab);
         AssetDatabase.SaveAssets();
     }
