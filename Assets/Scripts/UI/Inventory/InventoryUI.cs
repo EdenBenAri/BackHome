@@ -3,7 +3,7 @@ using UnityEngine;
 using UnityEngine.UI;
 
 /// <summary>
-/// Casual equipment + resource HUD. Toggle stays visible; ContentPanel is the full loadout window.
+/// Casual equipment + resource HUD. The NavigationBar Equipment button opens EquipmentPanel.
 /// </summary>
 public class InventoryUI : MonoBehaviour
 {
@@ -26,6 +26,7 @@ public class InventoryUI : MonoBehaviour
     PlayerInventory _inventory;
     PlayerVitals _vitals;
     EquipmentHeroPreview _heroPreview;
+    Transform _navigationBar;
     bool _open;
     bool _boundInventory;
     bool _boundVitals;
@@ -80,20 +81,26 @@ public class InventoryUI : MonoBehaviour
             inventoryPanel.name = "InventoryPanel";
         }
 
-        inventoryPanel.SetActive(true);
-        inventoryPanel.transform.SetAsLastSibling();
         WireReferences(inventoryPanel.transform);
     }
 
     Transform FindExistingPanel()
     {
-        Transform direct = transform.Find("InventoryPanel");
+        Transform direct = transform.Find("EquipmentPanel");
+        if (direct == null)
+            direct = transform.Find("InventoryPanel");
         if (direct != null)
             return direct;
 
-        Canvas canvas = GetComponentInChildren<Canvas>(true);
-        if (canvas != null)
-            return canvas.transform.Find("InventoryPanel");
+        Canvas[] canvases = GetComponentsInChildren<Canvas>(true);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Transform panel = canvases[i].transform.Find("EquipmentPanel");
+            if (panel == null)
+                panel = canvases[i].transform.Find("InventoryPanel");
+            if (panel != null)
+                return panel;
+        }
 
         return null;
     }
@@ -123,6 +130,9 @@ public class InventoryUI : MonoBehaviour
             if (toggle != null)
                 toggleButton = toggle.GetComponent<Button>();
         }
+
+        if (toggleButton == null)
+            toggleButton = FindEquipmentButton();
 
         if (contentPanel == null)
         {
@@ -197,6 +207,24 @@ public class InventoryUI : MonoBehaviour
         }
     }
 
+    Button FindEquipmentButton()
+    {
+        Canvas[] canvases = GetComponentsInChildren<Canvas>(true);
+        for (int i = 0; i < canvases.Length; i++)
+        {
+            Transform equipment = canvases[i].transform.Find("NavigationBar/Equipment");
+            if (equipment == null)
+                continue;
+
+            _navigationBar = equipment.parent;
+            Button button = equipment.GetComponent<Button>();
+            if (button != null)
+                return button;
+        }
+
+        return null;
+    }
+
     void BindInventory()
     {
         if (_inventory == null || _boundInventory)
@@ -261,10 +289,14 @@ public class InventoryUI : MonoBehaviour
         _open = open;
         if (!open)
             _heroPreview?.SetVisible(false);
+
+        if (inventoryPanel != null)
+            inventoryPanel.SetActive(open);
         if (contentPanel != null)
             contentPanel.SetActive(open);
         if (bottomBar != null)
             bottomBar.SetActive(true);
+
         if (open)
         {
             if (inventoryPanel != null)
@@ -275,6 +307,8 @@ public class InventoryUI : MonoBehaviour
 
         if (bottomBar != null)
             bottomBar.transform.SetAsLastSibling();
+        if (_navigationBar != null)
+            _navigationBar.gameObject.SetActive(!open);
     }
 
     void Refresh()
